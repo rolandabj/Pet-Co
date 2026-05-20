@@ -4,11 +4,17 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { AppUser, UserRole } from '@/lib/types';
 import { localAuth } from '@/lib/localAuth';
 import { getFirebaseAuth } from '@/lib/firebase';
-import { signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import {
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from 'firebase/auth';
 
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
+  firebaseUser: FirebaseUser | null;
   login: (email: string, password: string) => Promise<{ user?: AppUser; error?: string }>;
   register: (email: string, password: string, name: string, role: UserRole) => Promise<{ user?: AppUser; error?: string }>;
   googleLogin: () => Promise<{ user?: AppUser; error?: string }>;
@@ -19,14 +25,59 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function firebaseToAppUser(fbUser: FirebaseUser): AppUser {
+  return {
+    id: fbUser.uid,
+    email: fbUser.email || '',
+    name: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+    role: 'owner',
+    photoURL: fbUser.photoURL,
+    createdAt: fbUser.metadata.creationTime || new Date().toISOString(),
+    authMethod: 'google',
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Listen for Firebase auth state changes (persists across page reloads)
   useEffect(() => {
-    const current = localAuth.getCurrentUser();
-    setUser(current);
-    setLoading(false);
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      const { auth } = getFirebaseAuth();
+      unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+        if (fbUser) {
+          setFirebaseUser(fbUser);
+          const appUser = localAuth.setSessionFromFirebase({
+            uid: fbUser.uid,
+            email: fbUser.email || '',
+            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+            photoURL: fbUser.photoURL,
+          });
+          setUser(appUser);
+        } else {
+          // Check local session as fallback
+          const local = localAuth.getCurrentUser();
+          if (local) {
+            setUser(local);
+          } else {
+            setUser(null);
+            setFirebaseUser(null);
+          }
+        }
+        setLoading(false);
+      });
+    } catch {
+      // Firebase not configured — fall back to local auth
+      const local = localAuth.getCurrentUser();
+      if (local) setUser(local);
+      setLoading(false);
+    }
+
+    return () => unsubscribe?.();
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -42,22 +93,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const googleLogin = useCallback(async () => {
-    // Try Firebase first, fall back to local
     try {
       const { auth, googleProvider } = getFirebaseAuth();
       const result = await signInWithPopup(auth, googleProvider);
       const credential = result.user;
-      const email = credential.email || 'user@gmail.com';
-      const name = credential.displayName || email.split('@')[0];
-      const photoURL = credential.photoURL;
-      
-      localAuth.saveGoogleAccount(email, name);
-      const authResult = localAuth.googleLogin(email, name, photoURL);
-      if (authResult.user) setUser(authResult.user);
-      return authResult;
-    } catch {
-      // Fallback: show modal handled by component
-      return { error: 'firebase_modal' };
+      const appUser = localAuth.setSessionFromFirebase({
+        uid: credential.uid,
+        email: credential.email || '',
+        name: credential.displayName || credential.email?.split('@')[0] || 'User',
+        photoURL: credential.photoURL,
+      });
+      setFirebaseUser(result.user);
+      setUser(appUser);
+      return { user: appUser };
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      // User closed the popup — not really an error
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        return { error: 'cancelled' };
+      }
+      // Firebase not configured — show a helpful message
+      if (error.code === 'auth/configuration-not-found' || !error.code) {
+        return {
+          error:
+            'Firebase is not configured. To enable Google sign-in, create a .env.local file with your Firebase project credentials. See .env.local.example for details.',
+        };
+      }
+      return { error: error.message || 'Google sign-in failed. Please try again.' };
     }
   }, []);
 
@@ -68,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore */ }
     localAuth.logout();
     setUser(null);
+    setFirebaseUser(null);
   }, []);
 
   const updateProfile = useCallback((updates: Partial<AppUser>) => {
@@ -87,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, googleLogin, logout, updateProfile, requireAuth }}>
+    <AuthContext.Provider value={{ user, loading, firebaseUser, login, register, googleLogin, logout, updateProfile, requireAuth }}>
       {children}
     </AuthContext.Provider>
   );

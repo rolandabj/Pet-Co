@@ -1,8 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import GoogleAuthModal from '@/components/GoogleAuthModal';
 import { useAuth } from '@/context/AuthContext';
 
 const services = [
@@ -28,12 +26,9 @@ const testimonials = [
 
 export default function Home() {
   const { user } = useAuth();
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
 
   return (
     <>
-      <GoogleAuthModal isOpen={showGoogleModal} onClose={() => setShowGoogleModal(false)} onSuccess={() => {}} />
-
       {/* Hero */}
       <section className="pt-[140px] pb-20 bg-gradient-to-br from-[#FFF8F0] via-[#FFF0E0] to-[#FFF0D0] relative overflow-hidden">
         <div className="absolute top-[-50%] right-[-20%] w-[600px] h-[600px] rounded-full bg-gradient-radial from-orange-500/8 to-transparent pointer-events-none" />

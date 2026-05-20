@@ -30,12 +30,6 @@ export interface ServiceProvider {
   email?: string;
 }
 
-export interface GoogleAccount {
-  email: string;
-  name: string;
-  addedAt: string;
-}
-
 export interface Booking {
   id: string;
   serviceType: string;

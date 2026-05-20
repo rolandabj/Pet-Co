@@ -1,17 +1,27 @@
-import { AppUser, UserRole, GoogleAccount } from './types';
+import { AppUser, UserRole } from './types';
 
 const USERS_KEY = 'paws_users';
 const SESSION_KEY = 'paws_session';
-const GOOGLE_ACCOUNTS_KEY = 'paws_google_accounts';
 
+/**
+ * Local email/password auth fallback used when Firebase is not configured.
+ * Real Google auth goes through Firebase Auth directly (firebase.ts).
+ * In production with Firebase configured, email/password should also use
+ * Firebase Auth — this module exists as a dev-friendly fallback.
+ */
 class LocalAuth {
   private users: (AppUser & { password?: string })[] = [];
   private session: AppUser | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
-      this.users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-      this.session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+      try {
+        this.users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+        this.session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+      } catch {
+        this.users = [];
+        this.session = null;
+      }
     }
   }
 
@@ -66,30 +76,30 @@ class LocalAuth {
     return { user: safeUser as AppUser };
   }
 
-  googleLogin(email: string, name: string, photoURL?: string | null): { user?: AppUser; error?: string } {
-    let user = this.users.find(u => u.email === email);
-    if (!user) {
-      const newUser: AppUser = {
-        id: 'google_' + Date.now(),
-        email,
-        name,
-        role: 'owner',
-        photoURL: photoURL || null,
-        createdAt: new Date().toISOString(),
-        authMethod: 'google',
-      };
-      this.users.push(newUser);
-      this.save();
-      this.saveSession(newUser);
-      return { user: newUser };
+  /** Store a user returned from real Firebase Google auth into local session. */
+  setSessionFromFirebase(firebaseUser: { email: string; name: string; photoURL?: string | null; uid?: string }): AppUser {
+    const now = new Date().toISOString();
+    const id = firebaseUser.uid || 'google_' + Date.now();
+    const appUser: AppUser = {
+      id,
+      email: firebaseUser.email,
+      name: firebaseUser.name,
+      role: 'owner',
+      photoURL: firebaseUser.photoURL || null,
+      createdAt: now,
+      authMethod: 'google',
+    };
+
+    // Persist to the local user store so the admin panel sees them
+    const idx = this.users.findIndex(u => u.email === firebaseUser.email);
+    if (idx >= 0) {
+      this.users[idx] = { ...this.users[idx], ...appUser };
+    } else {
+      this.users.push(appUser);
     }
-    user.name = name;
-    user.photoURL = photoURL || user.photoURL;
-    user.authMethod = 'google';
     this.save();
-    const { password: _, ...safeUser } = user;
-    this.saveSession(safeUser as AppUser);
-    return { user: safeUser as AppUser };
+    this.saveSession(appUser);
+    return appUser;
   }
 
   logout() {
@@ -114,19 +124,6 @@ class LocalAuth {
   deleteUser(userId: string) {
     this.users = this.users.filter(u => u.id !== userId);
     this.save();
-  }
-
-  // Google account management
-  getSavedGoogleAccounts(): GoogleAccount[] {
-    return JSON.parse(localStorage.getItem(GOOGLE_ACCOUNTS_KEY) || '[]');
-  }
-
-  saveGoogleAccount(email: string, name: string) {
-    const accounts = this.getSavedGoogleAccounts();
-    if (!accounts.find(a => a.email === email)) {
-      accounts.push({ email, name, addedAt: new Date().toISOString() });
-      localStorage.setItem(GOOGLE_ACCOUNTS_KEY, JSON.stringify(accounts));
-    }
   }
 }
 
