@@ -12,7 +12,7 @@ function getConfig() {
   if (missing.length > 0) {
     console.error(
       `Firebase: Missing required env vars: ${missing.join(', ')}.\n` +
-      'Create a .env.local file in the project root. See .env.local.example for reference.'
+      'Open .env.local in the project root and fill in the values. See .env.local.example for reference.'
     );
   }
 
@@ -38,7 +38,14 @@ export function initFirebase() {
   }
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
-  googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+  // Use the registered OAuth client ID if provided in env
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  googleProvider.setCustomParameters({
+    ...(clientId ? { client_id: clientId } : {}),
+    prompt: 'select_account',
+  });
+
   return { auth, googleProvider };
 }
 

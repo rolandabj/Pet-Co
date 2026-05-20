@@ -6,6 +6,8 @@ import { localAuth } from '@/lib/localAuth';
 import { getFirebaseAuth } from '@/lib/firebase';
 import {
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User as FirebaseUser,
@@ -95,6 +97,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const googleLogin = useCallback(async () => {
     try {
       const { auth, googleProvider } = getFirebaseAuth();
+
+      // Handle redirect result first (if we came back from a redirect)
+      try {
+        const redirectResult = await getRedirectResult(auth);
+        if (redirectResult?.user) {
+          const credential = redirectResult.user;
+          const appUser = localAuth.setSessionFromFirebase({
+            uid: credential.uid,
+            email: credential.email || '',
+            name: credential.displayName || credential.email?.split('@')[0] || 'User',
+            photoURL: credential.photoURL,
+          });
+          setFirebaseUser(credential);
+          setUser(appUser);
+          return { user: appUser };
+        }
+      } catch {
+        // Ignore redirect result errors
+      }
+
+      // Try popup first
       const result = await signInWithPopup(auth, googleProvider);
       const credential = result.user;
       const appUser = localAuth.setSessionFromFirebase({
@@ -112,13 +135,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
         return { error: 'cancelled' };
       }
-      // Firebase not configured — show a helpful message
-      if (error.code === 'auth/configuration-not-found' || !error.code) {
-        return {
-          error:
-            'Firebase is not configured. To enable Google sign-in, create a .env.local file with your Firebase project credentials. See .env.local.example for details.',
-        };
+      // Popup blocked — try redirect instead
+      if (error.code === 'auth/popup-blocked') {
+        try {
+          const { auth, googleProvider } = getFirebaseAuth();
+          await signInWithRedirect(auth, googleProvider);
+          return { error: 'redirecting' };
+        } catch {
+          return { error: 'Sign-in redirected. Please try again after the page reloads.' };
+        }
       }
+      console.error('Google sign-in error:', error);
       return { error: error.message || 'Google sign-in failed. Please try again.' };
     }
   }, []);
