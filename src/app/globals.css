@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+@import "tailwindcss";
+
+@theme inline {
+  --font-heading: 'DM Serif Display', Georgia, serif;
+  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --color-primary: #E86A33;
+  --color-primary-dark: #D4552A;
+  --color-primary-light: #F5A07A;
+  --color-secondary: #2C3E50;
+  --color-accent: #3AB795;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+@utility animate-fade-in-up {
+  animation: fade-in-up 0.6s ease forwards;
+}
+
+@utility animate-modal-in {
+  animation: modal-in 0.3s ease;
+}
+
+@utility animate-slide-in-right {
+  animation: slide-in-right 0.3s ease;
+}
+
+@utility animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@utility delay-1 { animation-delay: 0.1s; }
+@utility delay-2 { animation-delay: 0.2s; }
+@utility delay-3 { animation-delay: 0.3s; }
+@utility delay-4 { animation-delay: 0.4s; }
+
+body {
+  font-family: var(--font-body);
+  background: #FFF8F0;
+  color: #2C3E50;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 400;
+}
