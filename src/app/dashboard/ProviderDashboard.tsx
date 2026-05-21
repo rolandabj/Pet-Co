@@ -910,6 +910,13 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                       <p className="text-sm font-medium text-accent">
                         {s.price} {s.currency || 'USD'}
                       </p>
+                      {s.description ? (
+                        <p className="text-sm text-gray-500 mt-1 max-w-xl font-normal leading-normal">
+                          {s.description}
+                        </p>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic mt-1 block">No description provided for this service.</span>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button
