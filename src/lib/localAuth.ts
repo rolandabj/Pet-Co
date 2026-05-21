@@ -93,14 +93,17 @@ class LocalAuth {
   }
 
   /** Store a user returned from real Firebase Google auth into local session. */
-  setSessionFromFirebase(firebaseUser: { email: string; name: string; photoURL?: string | null; uid?: string }): AppUser {
+  setSessionFromFirebase(
+    firebaseUser: { email: string; name: string; photoURL?: string | null; uid?: string },
+    role?: UserRole,
+  ): AppUser {
     const now = new Date().toISOString();
     const id = firebaseUser.uid || 'google_' + Date.now();
     const appUser: AppUser = {
       id,
       email: firebaseUser.email,
       name: firebaseUser.name,
-      role: 'owner',
+      role: role || 'owner',
       photoURL: firebaseUser.photoURL || null,
       createdAt: now,
       authMethod: 'google',

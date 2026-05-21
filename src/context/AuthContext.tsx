@@ -31,7 +31,7 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   login: (email: string, password: string) => Promise<{ user?: AppUser; error?: string }>;
   register: (email: string, password: string, name: string, role: UserRole) => Promise<{ user?: AppUser; error?: string }>;
-  googleLogin: () => Promise<{ user?: AppUser; error?: string }>;
+  googleLogin: (role?: UserRole) => Promise<{ user?: AppUser; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<AppUser>) => Promise<{ user?: AppUser; error?: string }>;
   requireAuth: () => boolean;
@@ -76,7 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         if (userSnap.exists()) {
           const data = userSnap.data();
-          setUser({ ...appUser, phone: data.phone, location: data.location });
+          setUser({
+            ...appUser,
+            role: data.role || appUser.role,
+            phone: data.phone,
+            location: data.location,
+          });
         }
       } catch {
         /* Firestore may not be available — proceed with local data */
@@ -125,13 +130,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(async (email: string, password: string, name: string, role: UserRole) => {
     const result = await localAuth.register(email, password, name, role);
-    if (result.user) setUser(result.user);
+    if (result.user) {
+      setUser(result.user);
+      // Persist role to Firestore users collection
+      try {
+        await updateUserDocRest(result.user.id, { role, name });
+      } catch {
+        /* Firestore may not be available — local data is sufficient */
+      }
+    }
     return result;
   }, []);
 
-  const googleLogin = useCallback(async () => {
+  const googleLogin = useCallback(async (role?: UserRole) => {
     try {
       const { auth, googleProvider } = getFirebaseAuth();
+
+      // Helper to build AppUser from Firebase credential with the correct role
+      const buildAppUser = (credential: FirebaseUser) => {
+        const appUser = localAuth.setSessionFromFirebase({
+          uid: credential.uid,
+          email: credential.email || '',
+          name: credential.displayName || credential.email?.split('@')[0] || 'User',
+          photoURL: credential.photoURL,
+        }, role);
+        return appUser;
+      };
+
+      // Persist/update role in Firestore users collection
+      const persistRole = async (appUser: AppUser) => {
+        try {
+          await updateUserDocRest(appUser.id, { role: appUser.role, name: appUser.name });
+        } catch {
+          /* Firestore may not be available */
+        }
+      };
 
       // Handle redirect result first (if we came back from a redirect)
       try {
@@ -142,14 +175,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         if (redirectResult?.user) {
           const credential = redirectResult.user;
-          const appUser = localAuth.setSessionFromFirebase({
-            uid: credential.uid,
-            email: credential.email || '',
-            name: credential.displayName || credential.email?.split('@')[0] || 'User',
-            photoURL: credential.photoURL,
-          });
+          const appUser = buildAppUser(credential);
           setFirebaseUser(credential);
           setUser(appUser);
+          persistRole(appUser);
           return { user: appUser };
         }
       } catch {
@@ -164,14 +193,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         'signInWithPopup'
       );
       const credential = popupResult.user;
-      const appUser = localAuth.setSessionFromFirebase({
-        uid: credential.uid,
-        email: credential.email || '',
-        name: credential.displayName || credential.email?.split('@')[0] || 'User',
-        photoURL: credential.photoURL,
-      });
+      const appUser = buildAppUser(credential);
       setFirebaseUser(popupResult.user);
       setUser(appUser);
+      persistRole(appUser);
       return { user: appUser };
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };

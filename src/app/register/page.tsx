@@ -50,7 +50,7 @@ function RegisterForm() {
   const handleGoogleLogin = async () => {
     setError('');
     setGoogleLoading(true);
-    const result = await googleLogin();
+    const result = await googleLogin(role);
     setGoogleLoading(false);
     if (result.error) {
       if (result.error === 'cancelled') return;
