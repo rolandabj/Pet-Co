@@ -42,11 +42,13 @@ export interface ServiceProvider {
     website?: string;
   };
   products?: ProductItem[];
+  availability?: Record<string, DaySchedule>;
 }
 
 export interface ServiceItem {
   name: string;
   price: string;
+  duration?: number; // minutes, e.g. 30, 60, 90
 }
 
 export interface ProductItem {
@@ -57,6 +59,16 @@ export interface ProductItem {
   description?: string;
   inStock: boolean;
 }
+
+/** Per-day operational hours */
+export interface DaySchedule {
+  isOpen: boolean;
+  start: string; // "09:00"
+  end: string;   // "17:00"
+}
+
+/** Weekly availability block stored on the provider document */
+export type ProviderAvailability = Record<string, DaySchedule>;
 
 export interface Booking {
   id: string;

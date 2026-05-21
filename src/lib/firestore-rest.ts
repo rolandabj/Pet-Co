@@ -370,6 +370,7 @@ export interface BookingDoc {
   customerName?: string;
   date: string;
   time: string;
+  timeSlot?: string;   // "09:00" format for collision filtering
   instructions?: string;
   petId?: string;
   petName?: string;
@@ -428,6 +429,7 @@ export async function addBookingRest(data: Omit<BookingDoc, 'id' | 'createdAt'>)
   if (data.instructions) fields.instructions = { stringValue: data.instructions };
   if (data.petId) fields.petId = { stringValue: data.petId };
   if (data.petName) fields.petName = { stringValue: data.petName };
+  if (data.timeSlot) fields.timeSlot = { stringValue: data.timeSlot };
 
   const res = await fetch(docUrl('bookings') + `?key=${API_KEY}`, {
     method: 'POST',
@@ -715,6 +717,13 @@ export async function updateProviderDocRest(providerId: string, data: Record<str
 /** Fetch bookings where the provider ID matches. */
 export async function getBookingsByProviderRest(providerId: string): Promise<BookingDoc[]> {
   return fetchWhere('bookings', 'providerId', providerId, mapBookingDoc);
+}
+
+/** Fetch bookings for a specific provider + date (for double-booking collision detection).
+ *  Filters on both fields client-side after fetching all documents for the collection. */
+export async function getBookingsForProviderDateRest(providerId: string, date: string): Promise<BookingDoc[]> {
+  const all = await fetchCollection('bookings', () => true, mapBookingDoc);
+  return all.filter((b) => b.providerId === providerId && b.date === date);
 }
 
 // ─── Provider document creation ─────────────────────────────────

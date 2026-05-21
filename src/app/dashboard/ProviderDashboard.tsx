@@ -113,6 +113,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const [svcCategory, setSvcCategory] = useState('');
   const [svcDesc, setSvcDesc] = useState('');
   const [svcPrice, setSvcPrice] = useState('');
+  const [svcDuration, setSvcDuration] = useState<number>(60);
   const [editingSvcIdx, setEditingSvcIdx] = useState<number | null>(null);
 
   // ── Product form state ─────────────────────────────────────────
@@ -135,6 +136,13 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const [bizFacebook, setBizFacebook] = useState('');
   const [bizWebsite, setBizWebsite] = useState('');
 
+  // ── Availability / Operational Hours state ──────────────────────
+  const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const defaultDaySchedule = { isOpen: true, start: '09:00', end: '17:00' };
+  const [availability, setAvailability] = useState<Record<string, { isOpen: boolean; start: string; end: string }>>(
+    Object.fromEntries(weekdays.map(d => [d, { ...defaultDaySchedule }])),
+  );
+
   // ── Fetch provider ─────────────────────────────────────────────
   const fetchProvider = useCallback(async () => {
     setProviderLoading(true);
@@ -149,6 +157,9 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
         setBizInsta(p.socialMedia?.instagram ?? '');
         setBizFacebook(p.socialMedia?.facebook ?? '');
         setBizWebsite(p.socialMedia?.website ?? '');
+        if (p.availability) {
+          setAvailability(prev => ({ ...prev, ...p.availability }));
+        }
       }
     } catch (err) {
       console.error('Failed to fetch provider:', err);
@@ -267,6 +278,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     const service: ServiceItem = {
       name: svcName.trim(),
       price: svcPrice.trim(),
+      duration: svcDuration,
     };
     let updated: ServiceItem[];
     if (editingSvcIdx !== null) {
@@ -296,6 +308,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     setSvcCategory('');
     setSvcDesc('');
     setSvcPrice(s.price);
+    setSvcDuration(s.duration ?? 60);
     setEditingSvcIdx(idx);
     setShowServiceForm(true);
   };
@@ -317,6 +330,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     setSvcCategory('');
     setSvcDesc('');
     setSvcPrice('');
+    setSvcDuration(60);
     setEditingSvcIdx(null);
     setShowServiceForm(false);
   };
@@ -457,6 +471,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
         facebook: bizFacebook.trim(),
         website: bizWebsite.trim(),
       },
+      availability,
     };
     try {
       await updateProvider(updates);
@@ -929,6 +944,23 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                         required
                         className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-secondary mb-1.5">
+                        Booking Duration / Frequency
+                      </label>
+                      <select
+                        value={svcDuration}
+                        onChange={(e) => setSvcDuration(Number(e.target.value))}
+                        className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+                      >
+                        <option value={15}>15 mins</option>
+                        <option value={30}>30 mins</option>
+                        <option value={45}>45 mins</option>
+                        <option value={60}>1 hour</option>
+                        <option value={90}>1.5 hours</option>
+                        <option value={120}>2 hours</option>
+                      </select>
                     </div>
                     <div className="flex gap-3 pt-2">
                       <button
@@ -1419,6 +1451,64 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                   placeholder="City, State"
                   className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
                 />
+              </div>
+
+              {/* ── Operational Hours ─────────────────────────── */}
+              <h4 className="font-semibold text-secondary text-sm mb-3 mt-8 border-t border-[#F0E4D8] pt-6">
+                🕐 Operational Hours
+              </h4>
+              <div className="space-y-3 mb-6">
+                {weekdays.map((day) => {
+                  const sched = availability[day] ?? defaultDaySchedule;
+                  return (
+                    <div key={day} className="flex items-center gap-3">
+                      <label className="w-28 text-sm font-medium text-secondary capitalize flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={sched.isOpen}
+                          onChange={(e) =>
+                            setAvailability((prev) => ({
+                              ...prev,
+                              [day]: { ...prev[day], isOpen: e.target.checked },
+                            }))
+                          }
+                          className="rounded border-[#D4C8B8] text-primary focus:ring-primary/30"
+                        />
+                        {day}
+                      </label>
+                      {sched.isOpen && (
+                        <>
+                          <input
+                            type="time"
+                            value={sched.start}
+                            onChange={(e) =>
+                              setAvailability((prev) => ({
+                                ...prev,
+                                [day]: { ...prev[day], start: e.target.value },
+                              }))
+                            }
+                            className="px-3 py-2 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+                          />
+                          <span className="text-gray-400 text-sm">to</span>
+                          <input
+                            type="time"
+                            value={sched.end}
+                            onChange={(e) =>
+                              setAvailability((prev) => ({
+                                ...prev,
+                                [day]: { ...prev[day], end: e.target.value },
+                              }))
+                            }
+                            className="px-3 py-2 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+                          />
+                        </>
+                      )}
+                      {!sched.isOpen && (
+                        <span className="text-sm text-gray-400 italic">Closed</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               <h4 className="font-semibold text-secondary text-sm mb-3">

@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { serviceTypes } from '@/lib/providers';
-import { getAllProvidersRest, getProviderByIdRest, getUserPetsRest, addBookingRest, addPaymentRest } from '@/lib/firestore-rest';
-import { ServiceProvider, ServiceItem } from '@/lib/types';
+import { getAllProvidersRest, getProviderByIdRest, getUserPetsRest, addBookingRest, addPaymentRest, getBookingsForProviderDateRest } from '@/lib/firestore-rest';
+import { ServiceProvider, ServiceItem, DaySchedule } from '@/lib/types';
 import Link from 'next/link';
 
 function BookingForm() {
@@ -38,6 +38,7 @@ function BookingForm() {
   const [petsLoading, setPetsLoading] = useState(true);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [instructions, setInstructions] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -111,6 +112,21 @@ function BookingForm() {
     }
   }, [providerData, serviceType]);
 
+  // ── Fetch already-booked time slots for double-booking prevention ──
+  useEffect(() => {
+    if (!provider || !date) return;
+    setBookedSlots([]); // reset while fetching
+    getBookingsForProviderDateRest(provider, date)
+      .then((existing) => {
+        const booked = existing
+          .filter((b) => b.status !== 'cancelled' && b.status !== 'declined')
+          .map((b) => b.timeSlot || b.time)
+          .filter(Boolean);
+        setBookedSlots(booked);
+      })
+      .catch((err) => console.error('Failed to fetch booked slots:', err));
+  }, [provider, date]);
+
   // Handler: when the user picks a service, update the service type and pricing states
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const serviceName = e.target.value;
@@ -139,6 +155,41 @@ function BookingForm() {
   const selectedService = availableServiceTypes.find(s => s.value === serviceType);
   const selectedProvider = providersList.find(p => String(p.id) === provider);
 
+  // ── Generate dynamic time slots ───────────────────────────────────
+  const timeSlots = useMemo(() => {
+    if (!providerData || !date || !serviceType) return [];
+    // Resolve the day of week
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const day = dayNames[new Date(date + 'T00:00:00').getDay()];
+    const avail = (providerData as any).availability?.[day] as DaySchedule | undefined;
+    if (!avail || !avail.isOpen) return []; // closed day
+
+    // Look up this service's duration
+    const svc = providerData.services?.find(
+      s => s.name.toLowerCase() === serviceType.toLowerCase(),
+    );
+    const increment = svc?.duration ?? 60; // default 1 hour
+
+    // Parse start/end times into minutes from midnight
+    const [sh, sm] = avail.start.split(':').map(Number);
+    const [eh, em] = avail.end.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+
+    // Generate slots stepping by `increment` minutes
+    const slots: { label: string; value: string }[] = [];
+    for (let m = startMin; m + increment <= endMin; m += increment) {
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      const value = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+      const labelH = h % 12 || 12;
+      const ampm = h < 12 ? 'AM' : 'PM';
+      const label = `${labelH}:${String(min).padStart(2, '0')} ${ampm}`;
+      slots.push({ label, value });
+    }
+    return slots;
+  }, [providerData, date, serviceType]);
+
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceType || !provider || !date) {
@@ -150,7 +201,25 @@ function BookingForm() {
 
     setSaving(true);
     try {
-      // 1. Create the booking document
+      // ── Race-condition guard: double-check slot is still free ──
+      const existing = await getBookingsForProviderDateRest(provider, date);
+      const slot = time || '';
+      const conflict = existing.find(
+        (b) =>
+          (b.timeSlot || b.time) === slot &&
+          b.status !== 'cancelled' &&
+          b.status !== 'declined',
+      );
+      if (conflict) {
+        showToast(
+          'Sorry, this exact slot was just booked! Please select another time.',
+          'error',
+        );
+        setSaving(false);
+        return;
+      }
+
+      // 1. Create the booking document with timeSlot
       const bookingId = await addBookingRest({
         userId: uid,
         serviceType,
@@ -160,6 +229,7 @@ function BookingForm() {
         customerName: user?.name || user?.email || 'Unknown Customer',
         date,
         time: time || '',
+        timeSlot: slot,
         instructions,
         petId: selectedPet || '',
         petName: pets.find(p => p.id === selectedPet)?.name || '',
@@ -238,16 +308,39 @@ function BookingForm() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Time</label>
-                  <select value={time} onChange={(e) => setTime(e.target.value)} className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm">
-                    <option value="">Select time...</option>
-                    <option value="09:00">9:00 AM</option>
-                    <option value="10:00">10:00 AM</option>
-                    <option value="11:00">11:00 AM</option>
-                    <option value="13:00">1:00 PM</option>
-                    <option value="14:00">2:00 PM</option>
-                    <option value="15:00">3:00 PM</option>
-                    <option value="16:00">4:00 PM</option>
-                  </select>
+                  {!provider || !date || !serviceType ? (
+                    <div className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-gray-50 text-sm text-gray-400">
+                      Select a date and service first.
+                    </div>
+                  ) : timeSlots.length === 0 ? (
+                    <div className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-amber-50 text-sm text-amber-700">
+                      🕐 Provider is not operating on this day.
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {timeSlots.map((slot) => {
+                        const isBooked = bookedSlots.includes(slot.value);
+                        const isSelected = time === slot.value;
+                        return (
+                          <button
+                            key={slot.value}
+                            type="button"
+                            disabled={isBooked}
+                            onClick={() => setTime(isBooked ? time : slot.value)}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                              isBooked
+                                ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed line-through'
+                                : isSelected
+                                  ? 'bg-[#E86A33] text-white border-[#E86A33] shadow-md'
+                                  : 'bg-white text-[#2C3E50] border-[#F0E4D8] hover:border-[#E86A33] hover:bg-[#FFF8F0]'
+                            }`}
+                          >
+                            {slot.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="mb-5">
