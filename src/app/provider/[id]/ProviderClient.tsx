@@ -114,6 +114,7 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
         userName: user?.name || user?.email?.split('@')[0] || 'Anonymous',
         rating: newRating,
         comment: newComment.trim(),
+        userRole: user?.role,
       });
       showToast('✅ Review submitted!', 'success');
       setNewRating(0);
@@ -346,19 +347,21 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
             ⭐ Reviews{' '}
             <span className="text-sm font-normal text-gray-400">({reviews.length})</span>
           </h3>
-          <button
-            onClick={() => {
-              if (!user) {
-                showToast('⚠️ You must be logged in to leave a review', 'error');
-                router.push('/login');
-                return;
-              }
-              setShowForm(!showForm);
-            }}
-            className="text-sm font-semibold text-[#E86A33] hover:text-[#D4552A] transition-all"
-          >
-            + Write a Review
-          </button>
+          {user?.role === 'owner' && (
+            <button
+              onClick={() => {
+                if (!user) {
+                  showToast('⚠️ You must be logged in to leave a review', 'error');
+                  router.push('/login');
+                  return;
+                }
+                setShowForm(!showForm);
+              }}
+              className="text-sm font-semibold text-[#E86A33] hover:text-[#D4552A] transition-all"
+            >
+              + Write a Review
+            </button>
+          )}
         </div>
 
         {/* Review form */}

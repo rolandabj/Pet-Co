@@ -204,7 +204,13 @@ export async function getReviewsByProviderRest(providerId: string): Promise<Revi
   });
 }
 
-export async function addReviewRest(data: Omit<ReviewDoc, 'id' | 'createdAt'>): Promise<string> {
+export async function addReviewRest(
+  data: Omit<ReviewDoc, 'id' | 'createdAt'> & { userRole?: string },
+): Promise<string> {
+  // Reject reviews from service providers at the API level too.
+  if (data.userRole === 'provider') {
+    throw new Error('Service providers cannot write reviews');
+  }
   const res = await fetch(docUrl('reviews') + `?key=${API_KEY}`, {
     method: 'POST',
     body: JSON.stringify({
