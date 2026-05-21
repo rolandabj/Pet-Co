@@ -18,9 +18,10 @@ interface Props {
   providers: ServiceProvider[];
   activeFilter: string;
   loadError: string;
+  dbEmpty: boolean;
 }
 
-export default function ServicesClient({ providers, activeFilter, loadError }: Props) {
+export default function ServicesClient({ providers, activeFilter, loadError, dbEmpty }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filtered = searchQuery
@@ -81,10 +82,20 @@ export default function ServicesClient({ providers, activeFilter, loadError }: P
             <p className="text-gray-400 mb-6">{loadError}</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-4xl mb-4 opacity-50">🔍</div>
-            <h3 className="text-xl font-heading text-[#2C3E50] mb-2">No providers found</h3>
-            <p className="text-gray-400">Try adjusting your search or filter.</p>
+          <div className="text-center py-20 max-w-[500px] mx-auto">
+            {dbEmpty ? (
+              <>
+                <div className="text-5xl mb-4 opacity-40">🏪</div>
+                <h3 className="text-xl font-heading text-[#2C3E50] mb-2">No service providers available in your area yet</h3>
+                <p className="text-gray-400">Check back soon — new providers are joining every day.</p>
+              </>
+            ) : (
+              <>
+                <div className="text-4xl mb-4 opacity-50">🔍</div>
+                <h3 className="text-xl font-heading text-[#2C3E50] mb-2">No providers found</h3>
+                <p className="text-gray-400">Try adjusting your search or filter.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-6">

@@ -42,7 +42,7 @@ export default async function ServicesPage({ searchParams }: Props) {
   if (projectId && apiKey) {
     try {
       const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/providers?key=${apiKey}`;
-      const res = await fetch(url, { next: { revalidate: 60 } });
+      const res = await fetch(url, { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
         providers = (json.documents || []).map(docToProvider);
@@ -66,6 +66,7 @@ export default async function ServicesPage({ searchParams }: Props) {
       providers={filtered}
       activeFilter={activeFilter ?? 'all'}
       loadError={loadError}
+      dbEmpty={providers.length === 0 && !loadError}
     />
   );
 }
