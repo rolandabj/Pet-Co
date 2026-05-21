@@ -983,7 +983,24 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                   <tbody>
                     {provider.products.map((p, idx) => (
                       <tr key={p.id} className="border-b border-[#F0E4D8] last:border-0 hover:bg-[#FFF8F0]/50 transition-colors">
-                        <td className="px-5 py-4 font-medium text-secondary">{p.name}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-4">
+                            <div className="relative w-12 h-12 flex-shrink-0 bg-[#F5A07A]/10 rounded-xl overflow-hidden border border-[#F0E4D8]">
+                              {p.image ? (
+                                <img
+                                  src={p.image}
+                                  alt={p.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-xl bg-gray-100">
+                                  📦
+                                </div>
+                              )}
+                            </div>
+                            <span className="font-medium text-secondary">{p.name}</span>
+                          </div>
+                        </td>
                         <td className="px-5 py-4 text-gray-500 hidden sm:table-cell max-w-[200px] truncate">
                           {p.description || '—'}
                         </td>
