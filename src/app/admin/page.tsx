@@ -18,6 +18,8 @@ import {
   updateBookingRest,
   updatePaymentRest,
   updateReviewRest,
+  updateProviderByIdRest,
+  getReviewsByProviderRest,
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc } from '@/lib/firestore-rest';
 import type { ReviewDoc } from '@/lib/firestore-rest';
@@ -272,6 +274,8 @@ export default function AdminPage() {
   };
 
   const handleSaveReview = async (reviewId: string) => {
+    // Snapshot the old rating before updating state
+    const oldReview = allReviews.find(r => r.id === reviewId);
     try {
       await updateReviewRest(reviewId, {
         comment: editReviewComment.trim(),
@@ -286,6 +290,28 @@ export default function AdminPage() {
       );
       showToast('✅ Review updated.', 'success');
       handleCancelEditReview();
+
+      // Recalculate provider aggregates if the rating changed
+      if (oldReview && oldReview.providerId) {
+        const remaining = await getReviewsByProviderRest(oldReview.providerId);
+        const totalRemaining = remaining.length;
+        let sumStars = 0;
+        for (const r of remaining) sumStars += r.rating;
+        const computedAvgRating = totalRemaining > 0 ? sumStars / totalRemaining : 0;
+
+        await updateProviderByIdRest(oldReview.providerId, {
+          reviews: totalRemaining,
+          rating: parseFloat(computedAvgRating.toFixed(1)),
+        });
+
+        setProviders(prev =>
+          prev.map(p =>
+            p.id === oldReview.providerId
+              ? { ...p, reviews: totalRemaining, rating: parseFloat(computedAvgRating.toFixed(1)) }
+              : p,
+          ),
+        );
+      }
     } catch (err) {
       console.error('Failed to update review:', err);
       showToast('❌ Failed to update review.', 'error');
@@ -294,9 +320,40 @@ export default function AdminPage() {
 
   const handleDeleteReview = async (reviewId: string) => {
     try {
+      // Extract the providerId from the review before deleting it
+      const review = allReviews.find(r => r.id === reviewId);
+      const targetProviderId = review?.providerId;
+
       await deleteReviewRest(reviewId);
       setAllReviews(prev => prev.filter(r => r.id !== reviewId));
       showToast('✅ Review deleted.', 'success');
+
+      // Recalculate provider review aggregates so public cards update instantly
+      if (targetProviderId) {
+        const remaining = await getReviewsByProviderRest(targetProviderId);
+        const totalRemaining = remaining.length;
+        let sumStars = 0;
+        for (const r of remaining) sumStars += r.rating;
+        const computedAvgRating = totalRemaining > 0 ? sumStars / totalRemaining : 0;
+
+        await updateProviderByIdRest(targetProviderId, {
+          reviews: totalRemaining,
+          rating: parseFloat(computedAvgRating.toFixed(1)),
+        });
+
+        // Keep local providers state in sync
+        setProviders(prev =>
+          prev.map(p =>
+            p.id === targetProviderId
+              ? { ...p, reviews: totalRemaining, rating: parseFloat(computedAvgRating.toFixed(1)) }
+              : p,
+          ),
+        );
+
+        console.log(
+          `[Admin] Review sync complete for provider ${targetProviderId}. Remaining: ${totalRemaining}, Avg rating: ${computedAvgRating.toFixed(1)}`,
+        );
+      }
     } catch (err) {
       console.error('Failed to delete review:', err);
       showToast('❌ Failed to delete review.', 'error');
