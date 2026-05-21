@@ -147,15 +147,8 @@ function BookingForm() {
     }
   };
 
-  if (authLoading || !user) {
-    return <div className="pt-[120px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
-  }
-
-  const finalTotal = serviceFee + platformFee;
-  const selectedService = availableServiceTypes.find(s => s.value === serviceType);
-  const selectedProvider = providersList.find(p => String(p.id) === provider);
-
   // ── Generate dynamic time slots ───────────────────────────────────
+  // NOTE: must be declared before any early return to keep hook count stable.
   const timeSlots = useMemo(() => {
     if (!providerData || !date || !serviceType) return [];
     // Resolve the day of week
@@ -189,6 +182,15 @@ function BookingForm() {
     }
     return slots;
   }, [providerData, date, serviceType]);
+
+  // ── Early return: auth guard (must be below all hooks) ──────────
+  if (authLoading || !user) {
+    return <div className="pt-[120px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
+  }
+
+  const finalTotal = serviceFee + platformFee;
+  const selectedService = availableServiceTypes.find(s => s.value === serviceType);
+  const selectedProvider = providersList.find(p => String(p.id) === provider);
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
