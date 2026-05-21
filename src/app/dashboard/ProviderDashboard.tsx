@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/components/Toast';
 import {
   getProviderByEmailRest,
@@ -310,6 +310,29 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     setShowServiceForm(false);
   };
 
+  // ── Product image upload ────────────────────────────────────────
+  const uploadProductImage = async (
+    file: File,
+    docId: string,
+    productId: string,
+  ): Promise<string> => {
+    setProdImageUploading(true);
+    try {
+      const storageRef = ref(
+        getStorageDb(),
+        `providers/${docId}/products/${productId}_image.png`,
+      );
+      const snapshot = await uploadBytes(storageRef, file);
+      return await getDownloadURL(snapshot.ref);
+    } catch (error) {
+      console.error('Firebase Storage Upload Error:', error);
+      showToast('❌ Image upload failed — check your connection and try again.', 'error');
+      throw error;
+    } finally {
+      setProdImageUploading(false);
+    }
+  };
+
   // ── Product CRUD ───────────────────────────────────────────────
   const saveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,29 +341,30 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       return;
     }
     if (!provider) return;
+
+    if (prodImageFile && prodImageFile.size > 2 * 1024 * 1024) {
+      showToast('⚠️ Image must be smaller than 2 MB.', 'error');
+      return;
+    }
+
     const current = provider.products ?? [];
-    const productId = editingProdIdx !== null ? (current[editingProdIdx]?.id ?? String(Date.now())) : String(Date.now());
+    const productId = editingProdIdx !== null
+      ? (current[editingProdIdx]?.id ?? String(Date.now()))
+      : String(Date.now());
 
-    let imageUrl = editingProdIdx !== null ? (current[editingProdIdx]?.image ?? undefined) : undefined;
+    let imageUrl = editingProdIdx !== null
+      ? (current[editingProdIdx]?.image ?? undefined)
+      : undefined;
 
-    // Upload image if a new file was selected
+    // Upload image first (if one was selected)
     if (prodImageFile) {
-      if (prodImageFile.size > 2 * 1024 * 1024) {
-        showToast('⚠️ Image must be smaller than 2 MB.', 'error');
-        return;
-      }
-      setProdImageUploading(true);
       try {
         const docId = providerDocId ?? provider.id;
-        const storageRef = ref(getStorageDb(), `providers/${docId}/products/${productId}_image.png`);
-        const snapshot = await uploadBytesResumable(storageRef, prodImageFile);
-        imageUrl = await getDownloadURL(snapshot.ref);
+        imageUrl = await uploadProductImage(prodImageFile, docId, productId);
       } catch {
-        showToast('❌ Image upload failed.', 'error');
-        setProdImageUploading(false);
+        // uploadProductImage shows its own toast and resets loading state
         return;
       }
-      setProdImageUploading(false);
     }
 
     const product: ProductItem = {
