@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 const services = [
-  { emoji: '🛍️', title: 'Pet Shops', desc: 'Premium food, toys, accessories, and supplies delivered to your door.', count: '120+ shops available' },
-  { emoji: '🐕', title: 'Dog Walkers', desc: 'Trusted walkers who\'ll give your pup the exercise and attention they deserve.', count: '200+ walkers near you' },
-  { emoji: '🏥', title: 'Veterinarians', desc: 'Experienced vets for checkups, vaccinations, and emergency care.', count: '80+ vet clinics' },
-  { emoji: '🏨', title: 'Dog Hotels', desc: 'Luxury accommodations and daycare for when you\'re away from home.', count: '50+ pet hotels' },
-  { emoji: '🛋️', title: 'Pet Sitters', desc: 'In-home sitters who\'ll treat your pets like family while you\'re gone.', count: '160+ sitters' },
-  { emoji: '✂️', title: 'Grooming', desc: 'Professional grooming, bathing, nail trimming, and styling services.', count: '90+ groomers' },
+  { emoji: '🛍️', title: 'Pet Shops', slug: 'shops', desc: 'Premium food, toys, accessories, and supplies delivered to your door.', count: '120+ shops available' },
+  { emoji: '🐕', title: 'Dog Walkers', slug: 'walkers', desc: 'Trusted walkers who\'ll give your pup the exercise and attention they deserve.', count: '200+ walkers near you' },
+  { emoji: '🏥', title: 'Veterinarians', slug: 'vets', desc: 'Experienced vets for checkups, vaccinations, and emergency care.', count: '80+ vet clinics' },
+  { emoji: '🏨', title: 'Dog Hotels', slug: 'hotels', desc: 'Luxury accommodations and daycare for when you\'re away from home.', count: '50+ pet hotels' },
+  { emoji: '🛋️', title: 'Pet Sitters', slug: 'sitters', desc: 'In-home sitters who\'ll treat your pets like family while you\'re gone.', count: '160+ sitters' },
+  { emoji: '✂️', title: 'Grooming', slug: 'grooming', desc: 'Professional grooming, bathing, nail trimming, and styling services.', count: '90+ groomers' },
 ];
 
 const steps = [
@@ -96,7 +96,10 @@ export default function Home() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {services.map((s, i) => (
-              <div key={i} className="bg-white rounded-2xl p-9 text-center border border-[#F0E4D8] hover:shadow-lg hover:-translate-y-1.5 hover:border-transparent transition-all cursor-pointer relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#E86A33] before:scale-x-0 before:origin-left before:transition-transform before:duration-300 hover:before:scale-x-100 animate-fade-in-up"
+              <Link
+                key={i}
+                href={`/services?type=${s.slug}`}
+                className="block bg-white rounded-2xl p-9 text-center border border-[#F0E4D8] hover:shadow-lg hover:-translate-y-1.5 hover:border-transparent transition-all relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#E86A33] before:scale-x-0 before:origin-left before:transition-transform before:duration-300 hover:before:scale-x-100 animate-fade-in-up no-underline"
                 style={{ animationDelay: `${(i + 1) * 0.1}s` }}>
                 <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl mx-auto mb-5 ${
                   ['bg-orange-500/12', 'bg-emerald-500/12', 'bg-[#2C3E50]/10', 'bg-yellow-500/12', 'bg-purple-500/12', 'bg-red-500/10'][i]
@@ -106,7 +109,7 @@ export default function Home() {
                 <h3 className="text-lg font-heading text-[#2C3E50] mb-2">{s.title}</h3>
                 <p className="text-sm text-gray-500 mb-4">{s.desc}</p>
                 <span className="text-xs text-gray-400 font-medium">{s.count}</span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
