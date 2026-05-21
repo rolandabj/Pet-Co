@@ -6,7 +6,7 @@ import { useToast } from '@/components/Toast';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { serviceTypes } from '@/lib/providers';
 import { getAllProvidersRest, getProviderByIdRest, getUserPetsRest, addBookingRest, addPaymentRest, getBookingsForProviderDateRest } from '@/lib/firestore-rest';
-import { ServiceProvider, ServiceItem, DaySchedule } from '@/lib/types';
+import { ServiceProvider, ServiceItem } from '@/lib/types';
 import Link from 'next/link';
 
 function BookingForm() {
@@ -151,11 +151,24 @@ function BookingForm() {
   // NOTE: must be declared before any early return to keep hook count stable.
   const timeSlots = useMemo(() => {
     if (!providerData || !date || !serviceType) return [];
-    // Resolve the day of week
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const day = dayNames[new Date(date + 'T00:00:00').getDay()];
-    const avail = (providerData as any).availability?.[day] as DaySchedule | undefined;
-    if (!avail || !avail.isOpen) return []; // closed day
+
+    // Parse date string locally to avoid UTC timezone shift
+    const getLocalWeekday = (dateString: string): string => {
+      const [year, month, day] = dateString.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day);
+      const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      return weekdays[localDate.getDay()];
+    };
+
+    const targetDay = getLocalWeekday(date);
+    const daySettings = (providerData as any).availability?.[targetDay];
+
+    // Graceful fallback: default to open 09:00–18:00 if availability is unset
+    const isOpen = daySettings ? daySettings.isOpen : true;
+    const start = daySettings?.start || '09:00';
+    const end = daySettings?.end || '18:00';
+
+    if (!isOpen) return []; // explicitly marked closed
 
     // Look up this service's duration
     const svc = providerData.services?.find(
@@ -164,8 +177,8 @@ function BookingForm() {
     const increment = svc?.duration ?? 60; // default 1 hour
 
     // Parse start/end times into minutes from midnight
-    const [sh, sm] = avail.start.split(':').map(Number);
-    const [eh, em] = avail.end.split(':').map(Number);
+    const [sh, sm] = start.split(':').map(Number);
+    const [eh, em] = end.split(':').map(Number);
     const startMin = sh * 60 + sm;
     const endMin = eh * 60 + em;
 
