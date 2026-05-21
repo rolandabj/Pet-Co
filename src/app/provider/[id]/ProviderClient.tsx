@@ -183,7 +183,7 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
 
             {/* Identity & meta */}
             <div className="flex-1 min-w-0 text-center sm:text-left">
-              <h1 className="text-2xl font-heading text-[#2C3E50]">{provider.name}</h1>
+              <h1 className="text-2xl font-heading text-[#2C3E50]">{provider.businessName || provider.name}</h1>
 
               {/* Rating */}
               <div className="text-yellow-500 text-sm mb-1.5">
@@ -196,7 +196,7 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mb-3 justify-center sm:justify-start">
                 <span>💼 {provider.category}</span>
                 <span>📍 {provider.location || 'New York, NY'}</span>
-                <span>📅 Member since {provider.since || '2022'}</span>
+                <span>📅 Member since {new Date(provider.since || Date.now()).getFullYear()}</span>
               </div>
 
               <p className="text-sm text-gray-600 mb-4 max-w-[600px] mx-auto sm:mx-0">

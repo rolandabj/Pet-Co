@@ -683,6 +683,7 @@ export async function createProviderRest(data: {
     location: { stringValue: data.location },
     rating: { integerValue: '0' },
     reviews: { integerValue: '0' },
+    since: { stringValue: String(new Date().getFullYear()) },
     services: { arrayValue: { values: [] } },
     products: { arrayValue: { values: [] } },
   };
