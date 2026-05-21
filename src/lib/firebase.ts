@@ -1,6 +1,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 function getConfig() {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '';
@@ -31,6 +32,7 @@ function getConfig() {
 let app: FirebaseApp | undefined;
 let auth: Auth | undefined;
 let db: Firestore | undefined;
+let storage: FirebaseStorage | undefined;
 let googleProvider: GoogleAuthProvider | undefined;
 
 export function initFirebase() {
@@ -41,6 +43,7 @@ export function initFirebase() {
   }
   auth = getAuth(app);
   db = getFirestore(app);
+  storage = getStorage(app);
   googleProvider = new GoogleAuthProvider();
 
   // Use the registered OAuth client ID if provided in env
@@ -68,5 +71,12 @@ export function getFirestoreDb() {
     initFirebase();
   }
   return db!;
+}
+
+export function getStorageDb() {
+  if (!storage) {
+    initFirebase();
+  }
+  return storage!;
 }
 

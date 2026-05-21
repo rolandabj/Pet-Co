@@ -316,37 +316,57 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
           </div>
         </div>
 
-        {/* ── Products / Retail grid ── */}
+        {/* ── Products / Retail horizontal scroll showcase ── */}
         {provider.products && provider.products.length > 0 && (
           <div className="bg-white rounded-2xl p-7 border border-[#F0E4D8] mb-8">
             <h3 className="text-base font-heading text-[#2C3E50] mb-4 flex items-center gap-2">
               🛒 Shop Products &amp; Retail
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 -mx-1 px-1 scrollbar-none">
               {provider.products.map((product: ProductItem) => (
                 <div
                   key={product.id}
-                  className="flex flex-col border border-[#F0E4D8] rounded-xl p-4 bg-[#FFF8F0]"
+                  className="snap-start shrink-0 w-64 flex flex-col border border-[#F0E4D8] rounded-2xl bg-[#FFF8F0] overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="text-sm font-bold text-[#2C3E50]">{product.name}</h4>
-                    <span className="text-sm font-bold text-[#E86A33] whitespace-nowrap ml-2">
+                  {/* Image area */}
+                  <div className="relative h-40 bg-gradient-to-br from-orange-50 to-amber-100 overflow-hidden">
+                    {product.image ? (
+                      <>
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-5xl opacity-30">🛍️</span>
+                      </div>
+                    )}
+                    {/* Price badge */}
+                    <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-[#E86A33] text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
                       ${product.price.toFixed(2)}
                     </span>
-                  </div>
-                  {product.description && (
-                    <p className="text-xs text-gray-500 mb-3 leading-relaxed">{product.description}</p>
-                  )}
-                  <div className="mt-auto">
+                    {/* Stock badge */}
                     <span
-                      className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                      className={`absolute bottom-3 left-3 text-[10px] px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm ${
                         product.inStock
-                          ? 'bg-emerald-500/10 text-emerald-600'
-                          : 'bg-gray-500/10 text-gray-500'
+                          ? 'bg-emerald-500/80 text-white'
+                          : 'bg-gray-500/70 text-white'
                       }`}
                     >
                       {product.inStock ? '✓ In Stock' : 'Out of Stock'}
                     </span>
+                  </div>
+                  {/* Content area */}
+                  <div className="p-4 flex flex-col flex-1">
+                    <h4 className="text-sm font-bold text-[#2C3E50] mb-1 truncate">{product.name}</h4>
+                    {product.description && (
+                      <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+                        {product.description}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

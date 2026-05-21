@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/components/Toast';
 import {
   getProviderByEmailRest,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc, ReviewDoc } from '@/lib/firestore-rest';
 import type { ServiceProvider, ServiceItem, ProductItem } from '@/lib/types';
+import { getStorageDb } from '@/lib/firebase';
 
 type ProviderTab =
   | 'overview'
@@ -117,6 +119,9 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const [prodPrice, setProdPrice] = useState('');
   const [prodDesc, setProdDesc] = useState('');
   const [prodInStock, setProdInStock] = useState(true);
+  const [prodImageFile, setProdImageFile] = useState<File | null>(null);
+  const [prodImagePreview, setProdImagePreview] = useState<string | null>(null);
+  const [prodImageUploading, setProdImageUploading] = useState(false);
   const [editingProdIdx, setEditingProdIdx] = useState<number | null>(null);
 
   // ── Business profile form state ────────────────────────────────
@@ -314,12 +319,37 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     }
     if (!provider) return;
     const current = provider.products ?? [];
+    const productId = editingProdIdx !== null ? (current[editingProdIdx]?.id ?? String(Date.now())) : String(Date.now());
+
+    let imageUrl = editingProdIdx !== null ? (current[editingProdIdx]?.image ?? undefined) : undefined;
+
+    // Upload image if a new file was selected
+    if (prodImageFile) {
+      if (prodImageFile.size > 2 * 1024 * 1024) {
+        showToast('⚠️ Image must be smaller than 2 MB.', 'error');
+        return;
+      }
+      setProdImageUploading(true);
+      try {
+        const docId = providerDocId ?? provider.id;
+        const storageRef = ref(getStorageDb(), `providers/${docId}/products/${productId}_image.png`);
+        const snapshot = await uploadBytesResumable(storageRef, prodImageFile);
+        imageUrl = await getDownloadURL(snapshot.ref);
+      } catch {
+        showToast('❌ Image upload failed.', 'error');
+        setProdImageUploading(false);
+        return;
+      }
+      setProdImageUploading(false);
+    }
+
     const product: ProductItem = {
-      id: editingProdIdx !== null ? (current[editingProdIdx]?.id ?? String(Date.now())) : String(Date.now()),
+      id: productId,
       name: prodName.trim(),
       price: Number(prodPrice),
       description: prodDesc.trim() || undefined,
       inStock: prodInStock,
+      image: imageUrl,
     };
     let updated: ProductItem[];
     if (editingProdIdx !== null) {
@@ -347,6 +377,8 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     setProdPrice(String(p.price));
     setProdDesc(p.description ?? '');
     setProdInStock(p.inStock);
+    setProdImagePreview(p.image ?? null);
+    setProdImageFile(null);
     setEditingProdIdx(idx);
     setShowProductForm(true);
   };
@@ -368,6 +400,9 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     setProdPrice('');
     setProdDesc('');
     setProdInStock(true);
+    setProdImageFile(null);
+    setProdImagePreview(null);
+    setProdImageUploading(false);
     setEditingProdIdx(null);
     setShowProductForm(false);
   };
@@ -1013,6 +1048,50 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                         className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm resize-none"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-secondary mb-1.5">
+                        Product Image
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer px-4 py-3 border-2 border-dashed border-[#F0E4D8] rounded-xl bg-[#FFF8F0] hover:border-primary transition-all">
+                        <span className="text-lg">📷</span>
+                        <span className="text-sm text-gray-500">
+                          {prodImageFile ? prodImageFile.name : 'Upload image (PNG, JPG — max 2 MB)'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            setProdImageFile(file);
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => setProdImagePreview(reader.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                      {prodImagePreview && (
+                        <div className="mt-3 relative">
+                          <img
+                            src={prodImagePreview}
+                            alt="Product preview"
+                            className="w-full h-40 object-cover rounded-xl border border-[#F0E4D8]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProdImageFile(null);
+                              setProdImagePreview(null);
+                            }}
+                            className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-xs font-bold text-gray-500 hover:bg-white hover:text-red-500 shadow transition-all"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <label className="flex items-center gap-3 cursor-pointer">
                       <button
                         type="button"
@@ -1034,9 +1113,14 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                     <div className="flex gap-3 pt-2">
                       <button
                         type="submit"
-                        className="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-full text-sm transition-all"
+                        disabled={prodImageUploading}
+                        className="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-full text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {editingProdIdx !== null ? 'Update' : 'Add Product'}
+                        {prodImageUploading
+                          ? '⏳ Uploading image…'
+                          : editingProdIdx !== null
+                            ? 'Update'
+                            : 'Add Product'}
                       </button>
                       <button
                         type="button"
