@@ -661,7 +661,7 @@ export async function createProviderRest(data: {
   contactEmail: string;
   type: string;
   category: string;
-  price: string;
+  price?: string;
   emoji: string;
   desc: string;
   location: string;
@@ -673,7 +673,7 @@ export async function createProviderRest(data: {
     contactEmail: { stringValue: data.contactEmail },
     type: { stringValue: data.type },
     category: { stringValue: data.category },
-    price: { stringValue: data.price },
+    price: { stringValue: data.price ?? 'Contact for Pricing' },
     emoji: { stringValue: data.emoji },
     desc: { stringValue: data.desc },
     location: { stringValue: data.location },

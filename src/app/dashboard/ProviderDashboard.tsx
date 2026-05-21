@@ -88,7 +88,6 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   // ── Onboarding form state ──────────────────────────────────────
   const [onboardingBizName, setOnboardingBizName] = useState('');
   const [onboardingLocation, setOnboardingLocation] = useState('');
-  const [onboardingPrice, setOnboardingPrice] = useState('');
   const [onboardingCategory, setOnboardingCategory] = useState('walkers');
   const [onboardingSaving, setOnboardingSaving] = useState(false);
 
@@ -466,7 +465,6 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                 contactEmail: userEmail,
                 type: onboardingCategory,
                 category: categoryLabels[onboardingCategory] || 'Dog Walker',
-                price: onboardingPrice.trim() || '$0',
                 emoji: categoryEmojis[onboardingCategory] || '🏪',
                 desc: 'New pet service provider',
                 location: onboardingLocation.trim(),
@@ -484,7 +482,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                 desc: 'New pet service provider',
                 tags: [],
                 emoji: categoryEmojis[onboardingCategory] || '🏪',
-                price: onboardingPrice.trim() || '$0',
+                price: 'Contact for Pricing',
                 location: onboardingLocation.trim() || undefined,
                 email: userEmail,
                 businessName: onboardingBizName.trim(),
@@ -516,35 +514,21 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
             />
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-[#2C3E50] mb-1.5">
-                Service Category
-              </label>
-              <select
-                value={onboardingCategory}
-                onChange={(e) => setOnboardingCategory(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
-              >
-                {categoryOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-[#2C3E50] mb-1.5">
-                Base Price
-              </label>
-              <input
-                type="text"
-                value={onboardingPrice}
-                onChange={(e) => setOnboardingPrice(e.target.value)}
-                placeholder="e.g. $25/hr"
-                className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-semibold text-[#2C3E50] mb-1.5">
+              Service Category
+            </label>
+            <select
+              value={onboardingCategory}
+              onChange={(e) => setOnboardingCategory(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+            >
+              {categoryOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
