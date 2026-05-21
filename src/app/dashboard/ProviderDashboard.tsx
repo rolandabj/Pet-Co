@@ -1265,6 +1265,17 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                             {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
                           </span>
                         </div>
+
+                        {/* Client & Pet badges */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm my-1.5 font-medium text-[#2C3E50]">
+                          <span className="flex items-center gap-1.5 bg-[#F0E4D8]/40 px-2.5 py-1 rounded-lg">
+                            👤 <span className="text-gray-500 font-normal">Owner:</span> {b.customerName || 'Valued Client'}
+                          </span>
+                          <span className="flex items-center gap-1.5 bg-[#F5A07A]/10 px-2.5 py-1 rounded-lg text-[#E86A33]">
+                            🐾 <span className="text-gray-500 font-normal">Pet:</span> {b.petName || 'Pet'}
+                          </span>
+                        </div>
+
                         <p className="text-sm text-gray-500">
                           {b.date} &middot; {b.time}
                           {b.price ? ` · $${b.price.toFixed(2)}` : ''}
