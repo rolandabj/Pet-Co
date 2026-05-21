@@ -3,7 +3,7 @@
  * Used by the server component to fetch data, since the Firebase SDK
  * is unreachable from this environment.
  */
-import { ServiceProvider, ServiceItem } from './types';
+import { ServiceProvider, ServiceItem, ProductItem } from './types';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!;
 const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY!;
@@ -24,6 +24,21 @@ function mapDoc(doc: any): ServiceProvider {
       return { name: m.name?.stringValue ?? '', price: m.price?.stringValue ?? '' };
     });
   };
+  const products = (): ProductItem[] | undefined => {
+    const raw = f.products?.arrayValue?.values;
+    if (!raw) return undefined;
+    return raw.map((v: any) => {
+      const m = v.mapValue?.fields || {};
+      return {
+        id: m.id?.stringValue ?? '',
+        name: m.name?.stringValue ?? '',
+        price: Number(m.price?.integerValue ?? m.price?.doubleValue ?? 0),
+        image: m.image?.stringValue || undefined,
+        description: m.description?.stringValue || undefined,
+        inStock: m.inStock?.booleanValue ?? true,
+      };
+    });
+  };
   const docName = doc.name?.split('/').pop() ?? '';
   return {
     id: docName || String(n('id')),
@@ -42,6 +57,7 @@ function mapDoc(doc: any): ServiceProvider {
     phone: s('phone') || undefined,
     email: s('email') || undefined,
     services: svc(),
+    products: products(),
   };
 }
 

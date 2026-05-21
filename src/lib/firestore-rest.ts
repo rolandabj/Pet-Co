@@ -4,7 +4,7 @@
  * environments.  All calls go directly to the Firestore REST API
  * via plain `fetch`, so they respect standard HTTP timeouts.
  */
-import type { ServiceProvider, ServiceItem } from './types';
+import type { ServiceProvider, ServiceItem, ProductItem } from './types';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!;
 const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY!;
@@ -139,6 +139,21 @@ function mapServiceProvider(doc: any): ServiceProvider {
       return { name: m.name?.stringValue ?? '', price: m.price?.stringValue ?? '' };
     });
   };
+  const products = (): ProductItem[] | undefined => {
+    const raw = f.products?.arrayValue?.values;
+    if (!raw) return undefined;
+    return raw.map((v: any) => {
+      const m = v.mapValue?.fields || {};
+      return {
+        id: m.id?.stringValue ?? '',
+        name: m.name?.stringValue ?? '',
+        price: Number(m.price?.integerValue ?? m.price?.doubleValue ?? 0),
+        image: m.image?.stringValue || undefined,
+        description: m.description?.stringValue || undefined,
+        inStock: m.inStock?.booleanValue ?? true,
+      };
+    });
+  };
   // Extract the actual Firestore document name from the full path:
   // e.g. "projects/.../databases/(default)/documents/providers/abc123" → "abc123"
   const docName = doc.name?.split('/').pop() ?? '';
@@ -160,6 +175,7 @@ function mapServiceProvider(doc: any): ServiceProvider {
     phone: s('phone') || undefined,
     email: s('email') || undefined,
     services: svc(),
+    products: products(),
   };
 }
 

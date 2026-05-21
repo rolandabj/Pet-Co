@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ServiceProvider, ServiceItem } from '@/lib/types';
+import { ServiceProvider, ServiceItem, ProductItem } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import {
@@ -315,6 +315,44 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
             )}
           </div>
         </div>
+
+        {/* ── Products / Retail grid ── */}
+        {provider.products && provider.products.length > 0 && (
+          <div className="bg-white rounded-2xl p-7 border border-[#F0E4D8] mb-8">
+            <h3 className="text-base font-heading text-[#2C3E50] mb-4 flex items-center gap-2">
+              🛒 Shop Products &amp; Retail
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {provider.products.map((product: ProductItem) => (
+                <div
+                  key={product.id}
+                  className="flex flex-col border border-[#F0E4D8] rounded-xl p-4 bg-[#FFF8F0]"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="text-sm font-bold text-[#2C3E50]">{product.name}</h4>
+                    <span className="text-sm font-bold text-[#E86A33] whitespace-nowrap ml-2">
+                      ${product.price.toFixed(2)}
+                    </span>
+                  </div>
+                  {product.description && (
+                    <p className="text-xs text-gray-500 mb-3 leading-relaxed">{product.description}</p>
+                  )}
+                  <div className="mt-auto">
+                    <span
+                      className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                        product.inStock
+                          ? 'bg-emerald-500/10 text-emerald-600'
+                          : 'bg-gray-500/10 text-gray-500'
+                      }`}
+                    >
+                      {product.inStock ? '✓ In Stock' : 'Out of Stock'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Trust badges row ── */}
         {provider.since && (
