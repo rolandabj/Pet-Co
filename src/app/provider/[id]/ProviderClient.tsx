@@ -38,7 +38,26 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
 
   // ---------- review state ----------
   const [reviews, setReviews] = useState<ReviewDoc[]>(initialReviews);
-  const [reviewsLoading] = useState(false); // data already loaded server-side
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Fetch live reviews from Firestore on mount and after each submission
+  const fetchLiveReviews = useCallback(async () => {
+    if (!providerId) return;
+    setReviewsLoading(true);
+    try {
+      const docs = await getReviewsByProviderRest(providerId);
+      setReviews(docs);
+    } catch (err) {
+      console.error('Failed to fetch reviews:', err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [providerId]);
+
+  useEffect(() => {
+    fetchLiveReviews();
+  }, [fetchLiveReviews]);
+
   const [showForm, setShowForm] = useState(false);
   const [newRating, setNewRating] = useState(0);
   const [newComment, setNewComment] = useState('');
@@ -149,19 +168,8 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
       setNewRating(0);
       setNewComment('');
       setShowForm(false);
-      // Optimistically add to local list so it renders instantly
-      setReviews(prev => [
-        {
-          id: 'optimistic-' + Date.now(),
-          providerId,
-          userId: uid,
-          userName: user?.name || user?.email?.split('@')[0] || 'Anonymous',
-          rating: newRating,
-          comment: newComment.trim(),
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
+      // Re-fetch live reviews so the list shows the new entry immediately
+      fetchLiveReviews();
     } catch {
       showToast('❌ Failed to submit review. Try again.', 'error');
     } finally {
