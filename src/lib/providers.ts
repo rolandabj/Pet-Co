@@ -6,6 +6,7 @@ function mapDoc(id: string, data: Record<string, unknown>): ServiceProvider {
   return {
     id,
     name: data.name as string,
+    businessName: data.businessName as string | undefined,
     type: data.type as string,
     category: data.category as string,
     rating: data.rating as number,

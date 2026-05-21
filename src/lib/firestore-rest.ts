@@ -146,6 +146,7 @@ function mapServiceProvider(doc: any): ServiceProvider {
     _firestoreId: docName,
     id: docName || String(n('id')),
     name: s('name'),
+    businessName: s('businessName') || undefined,
     type: s('type'),
     category: s('category'),
     rating: n('rating'),

@@ -26,7 +26,7 @@ export default function ServicesClient({ providers, activeFilter, loadError, dbE
 
   const filtered = searchQuery
     ? providers.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.businessName || p.name).toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
         p.desc.toLowerCase().includes(searchQuery.toLowerCase())
@@ -109,7 +109,7 @@ export default function ServicesClient({ providers, activeFilter, loadError, dbE
                   {p.emoji}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-heading text-[#2C3E50]">{p.name}</h3>
+                  <h3 className="text-base font-heading text-[#2C3E50]">{p.businessName || p.name}</h3>
                   <div className="text-yellow-500 text-sm mb-2">
                     {'★'.repeat(Math.floor(p.rating))}{p.rating % 1 >= 0.5 ? '½' : ''} {p.rating} ({p.reviews} reviews)
                   </div>

@@ -14,6 +14,7 @@ function docToProvider(doc: any): ServiceProvider {
   return {
     id: doc.name.split('/').pop() ?? '',
     name: s('name'),
+    businessName: s('businessName') || undefined,
     type: s('type'),
     category: s('category'),
     rating: n('rating'),
