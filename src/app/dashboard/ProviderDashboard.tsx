@@ -321,6 +321,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       price: svcPrice.trim(),
       duration: svcDuration,
       currency: svcCurrency,
+      description: svcDesc.trim() || undefined,
     };
     let updated: ServiceItem[];
     if (editingSvcIdx !== null) {
@@ -348,7 +349,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     if (!s) return;
     setSvcName(s.name);
     setSvcCategory('');
-    setSvcDesc('');
+    setSvcDesc(s.description || '');
     setSvcPrice(s.price);
     setSvcDuration(s.duration ?? 60);
     setSvcCurrency(s.currency || 'USD');

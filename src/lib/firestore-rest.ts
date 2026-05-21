@@ -141,6 +141,7 @@ function mapServiceProvider(doc: any): ServiceProvider {
         price: m.price?.stringValue ?? '',
         duration: Number(m.duration?.integerValue ?? m.duration?.doubleValue ?? 60),
         currency: m.currency?.stringValue ?? 'USD',
+        description: m.description?.stringValue ?? undefined,
       };
     });
   };
