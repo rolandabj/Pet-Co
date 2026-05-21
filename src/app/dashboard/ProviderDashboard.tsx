@@ -1286,45 +1286,17 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                       </div>
 
                       <div className="flex gap-2 flex-wrap">
-                        {b.status === 'pending' && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleBookingStatus(b.id, 'confirmed')}
-                              className="bg-accent hover:bg-accent/80 text-white text-xs font-semibold px-4 py-2 rounded-full transition-all"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => handleBookingStatus(b.id, 'declined')}
-                              className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-4 py-2 rounded-full transition-all"
-                            >
-                              Decline
-                            </button>
-                          </div>
-                        )}
-                        {b.status === 'confirmed' && (
-                          <button
-                            onClick={() => handleBookingStatus(b.id, 'completed')}
-                            className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-4 py-2 rounded-full transition-all"
-                          >
-                            Mark Completed
-                          </button>
-                        )}
-                        {b.status === 'completed' && (
-                          <span className="text-xs text-gray-400 italic">
-                            Completed
-                          </span>
-                        )}
-                        {b.status === 'cancelled' && (
-                          <span className="text-xs text-rose-400 italic">
-                            Cancelled by customer
-                          </span>
-                        )}
-                        {b.status === 'declined' && (
-                          <span className="text-xs text-rose-400 italic">
-                            Declined
-                          </span>
-                        )}
+                        <select
+                          value={b.status}
+                          onChange={(e) => handleBookingStatus(b.id, e.target.value)}
+                          className="bg-white border border-[#F0E4D8] rounded-xl px-3 py-1.5 text-sm font-medium text-[#2C3E50] focus:outline-none focus:border-[#E86A33] focus:ring-4 focus:ring-orange-500/10 transition-all cursor-pointer"
+                        >
+                          <option value="pending">⏳ Pending</option>
+                          <option value="confirmed">✅ Confirmed</option>
+                          <option value="cancelled">❌ Cancelled</option>
+                          <option value="declined">🚫 Declined</option>
+                          <option value="completed">🎉 Completed</option>
+                        </select>
                       </div>
                     </div>
                   </div>
