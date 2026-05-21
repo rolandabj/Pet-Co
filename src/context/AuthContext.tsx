@@ -154,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               emoji: '🏪',
               desc: 'New pet service provider',
               location: '',
+              documentId: result.user.id,
             });
           } catch {
             // Non-critical — ProviderDashboard onboarding form is the fallback
@@ -199,6 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 emoji: '🏪',
                 desc: 'New pet service provider',
                 location: '',
+                documentId: appUser.id,
               });
             } catch {
               // Non-critical — ProviderDashboard onboarding form is the fallback

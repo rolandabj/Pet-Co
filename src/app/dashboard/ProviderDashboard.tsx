@@ -5,8 +5,8 @@ import { useToast } from '@/components/Toast';
 import {
   getProviderByEmailRest,
   updateProviderDocRest,
-  updateProviderByIdRest,
   createProviderRest,
+  updateProviderByIdRest,
   getBookingsByProviderRest,
   getUserPaymentsRest,
   getReviewsByProviderRest,
@@ -458,22 +458,44 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
             }
             setOnboardingSaving(true);
             try {
-              const docId = await createProviderRest({
-                email: userEmail,
-                name: userEmail.split('@')[0],
-                businessName: onboardingBizName.trim(),
-                contactEmail: userEmail,
-                type: onboardingCategory,
-                category: categoryLabels[onboardingCategory] || 'Dog Walker',
-                emoji: categoryEmojis[onboardingCategory] || '🏪',
-                desc: 'New pet service provider',
-                location: onboardingLocation.trim(),
-              });
-              setProviderDocId(docId);
+              // Upsert the provider document at providers/{userId}.
+              // During registration, AuthContext creates a placeholder at this
+              // path — this call updates it with real business details.
+              // If the placeholder was missed (e.g. Firestore outage), fall
+              // back to creating the document with the same fixed ID.
+              try {
+                await updateProviderByIdRest(userId, {
+                  email: userEmail,
+                  name: userEmail.split('@')[0],
+                  businessName: onboardingBizName.trim(),
+                  contactEmail: userEmail,
+                  type: onboardingCategory,
+                  category: categoryLabels[onboardingCategory] || 'Dog Walker',
+                  emoji: categoryEmojis[onboardingCategory] || '🏪',
+                  desc: 'New pet service provider',
+                  location: onboardingLocation.trim(),
+                  price: 'Contact for Pricing',
+                });
+              } catch {
+                await createProviderRest({
+                  email: userEmail,
+                  name: userEmail.split('@')[0],
+                  businessName: onboardingBizName.trim(),
+                  contactEmail: userEmail,
+                  type: onboardingCategory,
+                  category: categoryLabels[onboardingCategory] || 'Dog Walker',
+                  emoji: categoryEmojis[onboardingCategory] || '🏪',
+                  desc: 'New pet service provider',
+                  location: onboardingLocation.trim(),
+                  price: 'Contact for Pricing',
+                  documentId: userId,
+                });
+              }
+              setProviderDocId(userId);
 
               // Build a local provider object so the dashboard renders immediately
               const localProvider: ServiceProvider = {
-                id: docId || 'local',
+                id: userId,
                 name: userEmail.split('@')[0],
                 type: onboardingCategory,
                 category: categoryLabels[onboardingCategory] || 'Dog Walker',

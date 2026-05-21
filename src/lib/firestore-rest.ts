@@ -386,7 +386,7 @@ export async function updateBookingRest(bookingId: string, updates: Partial<Book
 
 export async function deleteBookingRest(bookingId: string): Promise<void> {
   const res = await fetch(docUrl('bookings', bookingId) + `?key=${API_KEY}`, { method: 'DELETE' });
-  if (!res.ok && res.status !== 404) throw new Error(`Failed to delete booking: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to delete booking: ${res.status}`);
 }
 
 // ─── Payment helpers ──────────────────────────────────────────
@@ -469,7 +469,7 @@ export async function updatePaymentRest(paymentId: string, status: string): Prom
 
 export async function deletePaymentRest(paymentId: string): Promise<void> {
   const res = await fetch(docUrl('payments', paymentId) + `?key=${API_KEY}`, { method: 'DELETE' });
-  if (!res.ok && res.status !== 404) throw new Error(`Failed to delete payment: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to delete payment: ${res.status}`);
 }
 
 // ─── Pet helpers ──────────────────────────────────────────────
@@ -522,7 +522,7 @@ export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
 
 export async function deletePetRest(petId: string): Promise<void> {
   const res = await fetch(docUrl('pets', petId) + `?key=${API_KEY}`, { method: 'DELETE' });
-  if (!res.ok && res.status !== 404) throw new Error(`Failed to delete pet: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to delete pet: ${res.status}`);
 }
 
 // ─── Message helpers ──────────────────────────────────────────
@@ -569,19 +569,19 @@ export async function updateUserDocRest(userId: string, data: Record<string, str
       headers: { 'Content-Type': 'application/json' },
     },
   );
-  if (!res.ok && res.status !== 404) throw new Error(`Failed to update user: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
 }
 
 export async function deleteUserDocRest(userId: string): Promise<void> {
   const res = await fetch(docUrl('users', userId) + `?key=${API_KEY}`, { method: 'DELETE' });
-  if (!res.ok && res.status !== 404) throw new Error(`Failed to delete user: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to delete user: ${res.status}`);
 }
 
 /** Delete a provider document.
  *  @param providerId — Either the numeric ID or the actual Firestore document name (string). */
 export async function deleteProviderDocRest(providerId: number | string): Promise<void> {
   const res = await fetch(docUrl('providers', String(providerId)) + `?key=${API_KEY}`, { method: 'DELETE' });
-  if (!res.ok && res.status !== 404) throw new Error(`Failed to delete provider: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to delete provider: ${res.status}`);
 }
 
 // ─── Provider update / lookup helpers ──────────────────────────
@@ -642,7 +642,7 @@ export async function updateProviderDocRest(providerId: string, data: Record<str
     body: JSON.stringify({ fields }),
     headers: { 'Content-Type': 'application/json' },
   });
-  if (!res.ok && res.status !== 404)
+  if (!res.ok)
     throw new Error(`Failed to update provider: ${res.status}`);
 }
 
@@ -666,6 +666,9 @@ export async function createProviderRest(data: {
   emoji: string;
   desc: string;
   location: string;
+  /** When provided, the document is created at providers/{documentId}
+   *  instead of a random path — equivalent to setDoc in the Firebase SDK. */
+  documentId?: string;
 }): Promise<string> {
   const fields: Record<string, unknown> = {
     email: { stringValue: data.email },
@@ -684,7 +687,11 @@ export async function createProviderRest(data: {
     products: { arrayValue: { values: [] } },
   };
 
-  const res = await fetch(docUrl('providers') + `?key=${API_KEY}`, {
+  const base = docUrl('providers');
+  const url = data.documentId
+    ? `${base}?documentId=${data.documentId}&key=${API_KEY}`
+    : `${base}?key=${API_KEY}`;
+  const res = await fetch(url, {
     method: 'POST',
     body: JSON.stringify({ fields }),
     headers: { 'Content-Type': 'application/json' },
@@ -715,6 +722,6 @@ export async function updateProviderByIdRest(
     body: JSON.stringify({ fields }),
     headers: { 'Content-Type': 'application/json' },
   });
-  if (!res.ok && res.status !== 404)
+  if (!res.ok)
     throw new Error(`Failed to update provider: ${res.status}`);
 }
