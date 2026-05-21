@@ -49,6 +49,7 @@ export interface ServiceItem {
   name: string;
   price: string;
   duration?: number; // minutes, e.g. 30, 60, 90
+  currency?: string; // ISO code e.g. "USD", "SAR", "AED"
 }
 
 export interface ProductItem {

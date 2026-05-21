@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { onSnapshot, collection, query, where } from 'firebase/firestore';
 import { getFirestoreDb } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -118,6 +118,30 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const [svcDesc, setSvcDesc] = useState('');
   const [svcPrice, setSvcPrice] = useState('');
   const [svcDuration, setSvcDuration] = useState<number>(60);
+  const [svcCurrency, setSvcCurrency] = useState('USD');
+  const [svcCurrencySearch, setSvcCurrencySearch] = useState('USD');
+  const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
+
+  const currencies = [
+    { code: 'USD', name: 'US Dollar ($)' },
+    { code: 'SAR', name: 'Saudi Riyal (SR)' },
+    { code: 'AED', name: 'UAE Dirham (د.إ)' },
+    { code: 'LBP', name: 'Lebanese Pound (ل.ل)' },
+    { code: 'EUR', name: 'Euro (€)' },
+    { code: 'GBP', name: 'British Pound (£)' },
+  ];
+  const currencyRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close currency dropdown
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (currencyRef.current && !currencyRef.current.contains(e.target as Node)) {
+        setShowCurrencyDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
   const [editingSvcIdx, setEditingSvcIdx] = useState<number | null>(null);
 
   // ── Product form state ─────────────────────────────────────────
@@ -296,6 +320,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       name: svcName.trim(),
       price: svcPrice.trim(),
       duration: svcDuration,
+      currency: svcCurrency,
     };
     let updated: ServiceItem[];
     if (editingSvcIdx !== null) {
@@ -326,6 +351,8 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     setSvcDesc('');
     setSvcPrice(s.price);
     setSvcDuration(s.duration ?? 60);
+    setSvcCurrency(s.currency || 'USD');
+    setSvcCurrencySearch(s.currency || 'USD');
     setEditingSvcIdx(idx);
     setShowServiceForm(true);
   };
@@ -347,6 +374,9 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     setSvcCategory('');
     setSvcDesc('');
     setSvcPrice('');
+    setSvcCurrency('USD');
+    setSvcCurrencySearch('USD');
+    setShowCurrencyDropdown(false);
     setSvcDuration(60);
     setEditingSvcIdx(null);
     setShowServiceForm(false);
@@ -877,7 +907,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                     <div>
                       <h4 className="font-semibold text-secondary">{s.name}</h4>
                       <p className="text-sm font-medium text-accent">
-                        {s.price}
+                        {s.price} {s.currency || 'USD'}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -953,14 +983,65 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                       <label className="block text-sm font-semibold text-secondary mb-1.5">
                         Price *
                       </label>
-                      <input
-                        type="text"
-                        value={svcPrice}
-                        onChange={(e) => setSvcPrice(e.target.value)}
-                        placeholder="e.g. $25/hr"
-                        required
-                        className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
-                      />
+                      <div className="flex gap-4 items-end">
+                        <div className="w-1/3 relative" ref={currencyRef}>
+                          <input
+                            type="text"
+                            value={svcCurrencySearch}
+                            onChange={(e) => {
+                              setSvcCurrencySearch(e.target.value);
+                              setShowCurrencyDropdown(true);
+                            }}
+                            onFocus={() => setShowCurrencyDropdown(true)}
+                            placeholder="Currency"
+                            required
+                            className="w-full px-3 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm cursor-pointer"
+                          />
+                          {showCurrencyDropdown && (
+                            <div className="absolute z-50 max-h-48 overflow-y-auto w-full bg-white border border-[#F0E4D8] rounded-xl shadow-lg mt-1">
+                              {currencies
+                                .filter(
+                                  (c) =>
+                                    c.name.toLowerCase().includes(svcCurrencySearch.toLowerCase()) ||
+                                    c.code.toLowerCase().includes(svcCurrencySearch.toLowerCase()),
+                                )
+                                .map((c) => (
+                                  <button
+                                    key={c.code}
+                                    type="button"
+                                    onClick={() => {
+                                      setSvcCurrency(c.code);
+                                      setSvcCurrencySearch(c.code);
+                                      setShowCurrencyDropdown(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 text-sm hover:bg-[#FFF8F0] transition-all ${
+                                      svcCurrency === c.code ? 'bg-[#FFF0E0] font-semibold text-primary' : 'text-[#2C3E50]'
+                                    }`}
+                                  >
+                                    {c.code} — {c.name}
+                                  </button>
+                                ))}
+                              {currencies.filter(
+                                (c) =>
+                                  c.name.toLowerCase().includes(svcCurrencySearch.toLowerCase()) ||
+                                  c.code.toLowerCase().includes(svcCurrencySearch.toLowerCase()),
+                              ).length === 0 && (
+                                <div className="px-3 py-2 text-sm text-gray-400">No matches</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="w-2/3">
+                          <input
+                            type="text"
+                            value={svcPrice}
+                            onChange={(e) => setSvcPrice(e.target.value)}
+                            placeholder="e.g. 25.00"
+                            required
+                            className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-secondary mb-1.5">
@@ -1298,7 +1379,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
 
                         <p className="text-sm text-gray-500">
                           {b.date} &middot; {b.time}
-                          {b.price ? ` · $${b.price.toFixed(2)}` : ''}
+                          {b.price ? ` · ${b.price.toFixed(2)} ${b.currency || 'USD'}` : ''}
                         </p>
                         <p className="text-xs text-gray-400">
                           Booking #{b.id.slice(0, 8)}

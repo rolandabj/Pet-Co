@@ -341,7 +341,7 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
                     className="flex items-center justify-between py-2.5 px-4 rounded-xl bg-[#FFF8F0] border border-[#F0E4D8]"
                   >
                     <span className="text-sm text-[#2C3E50] font-medium">{svc.name}</span>
-                    <span className="text-sm font-bold text-[#E86A33]">{svc.price}</span>
+                    <span className="text-sm font-bold text-[#E86A33]">{svc.price} {svc.currency || 'USD'}</span>
                   </div>
                 ))}
               </div>

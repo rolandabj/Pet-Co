@@ -140,6 +140,7 @@ function mapServiceProvider(doc: any): ServiceProvider {
         name: m.name?.stringValue ?? '',
         price: m.price?.stringValue ?? '',
         duration: Number(m.duration?.integerValue ?? m.duration?.doubleValue ?? 60),
+        currency: m.currency?.stringValue ?? 'USD',
       };
     });
   };
@@ -373,6 +374,7 @@ export interface BookingDoc {
   providerBusinessName?: string;
   customerName?: string;
   customerPhone?: string;
+  currency?: string;
   date: string;
   time: string;
   timeSlot?: string;   // "09:00" format for collision filtering
@@ -394,6 +396,7 @@ function mapBookingDoc(doc: { id: string; data: Record<string, any> }): BookingD
     providerBusinessName: doc.data.providerBusinessName ?? undefined,
     customerName: doc.data.customerName ?? undefined,
     customerPhone: doc.data.customerPhone ?? undefined,
+    currency: doc.data.currency ?? undefined,
     date: doc.data.date ?? '',
     time: doc.data.time ?? '',
     timeSlot: doc.data.timeSlot ?? undefined,
@@ -438,6 +441,7 @@ export async function addBookingRest(data: Omit<BookingDoc, 'id' | 'createdAt'>)
   if (data.petName) fields.petName = { stringValue: data.petName };
   if (data.timeSlot) fields.timeSlot = { stringValue: data.timeSlot };
   if (data.customerPhone) fields.customerPhone = { stringValue: data.customerPhone };
+  if (data.currency) fields.currency = { stringValue: data.currency };
 
   const res = await fetch(docUrl('bookings') + `?key=${API_KEY}`, {
     method: 'POST',

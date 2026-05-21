@@ -210,6 +210,11 @@ function BookingForm() {
   const finalTotal = serviceFee + platformFee;
   const selectedService = availableServiceTypes.find(s => s.value === serviceType);
   const selectedProvider = providersList.find(p => String(p.id) === provider);
+  const selectedCurrency = (() => {
+    if (!serviceType || !providerData?.services) return 'USD';
+    const svc = providerData.services.find(s => s.name.toLowerCase() === serviceType.toLowerCase());
+    return svc?.currency || 'USD';
+  })();
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,6 +261,7 @@ function BookingForm() {
         petId: selectedPet || '',
         petName: pets.find(p => p.id === selectedPet)?.name || '',
         price: serviceFee,
+        currency: selectedCurrency,
         status: 'pending',
       });
 
@@ -404,9 +410,9 @@ function BookingForm() {
                   <div className="flex justify-between py-3 text-sm"><span>Service</span><span className="font-semibold text-[#2C3E50]">{selectedService?.label}</span></div>
                   <div className="flex justify-between py-3 text-sm"><span>Date</span><span className="text-gray-500">{date ? new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Not selected'}</span></div>
                   <div className="flex justify-between py-3 text-sm"><span>Time</span><span className="text-gray-500">{time ? time : 'Not selected'}</span></div>
-                  <div className="flex justify-between py-3 text-sm"><span>Service Fee</span><span>${serviceFee.toFixed(2)}</span></div>
-                  <div className="flex justify-between py-3 text-sm"><span>Platform Fee</span><span>${platformFee.toFixed(2)}</span></div>
-                  <div className="flex justify-between py-3 mt-3 pt-4 border-t-2 border-[#F0E4D8] font-semibold text-base"><span>Total</span><span className="text-[#E86A33]">${finalTotal.toFixed(2)}</span></div>
+                  <div className="flex justify-between py-3 text-sm"><span>Service Fee</span><span>{serviceFee.toFixed(2)} {selectedCurrency}</span></div>
+                  <div className="flex justify-between py-3 text-sm"><span>Platform Fee</span><span>{platformFee.toFixed(2)} {selectedCurrency}</span></div>
+                  <div className="flex justify-between py-3 mt-3 pt-4 border-t-2 border-[#F0E4D8] font-semibold text-base"><span>Total</span><span className="text-[#E86A33]">{finalTotal.toFixed(2)} {selectedCurrency}</span></div>
                 </>
               )}
             </div>
