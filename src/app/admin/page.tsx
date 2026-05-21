@@ -77,6 +77,68 @@ export default function AdminPage() {
     if (!loading && isAdmin) fetchLiveData();
   }, [loading, isAdmin, fetchLiveData]);
 
+  // ── Derived analytics ──────────────────────────────────────────
+  // All computed from live Firestore data — no hardcoded values.
+
+  /** Revenue MTD — sum of all payments with status === 'paid'. */
+  const revenueMtd = payments
+    .filter((p) => p.status === 'paid')
+    .reduce((sum, p) => sum + (p.amount ?? 0), 0);
+
+  /** Monthly booking counts — index 0 = January. */
+  const monthlyBookings = (() => {
+    const counts = new Array(12).fill(0);
+    for (const b of bookings) {
+      // Try createdAt first, fall back to the date field
+      const raw = b.createdAt || b.date;
+      if (!raw) continue;
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        counts[d.getMonth()] += 1; // getMonth() is 0-based
+      }
+    }
+    return counts;
+  })();
+
+  /** Service distribution — tallied from booking serviceType. */
+  const serviceDistribution = (() => {
+    const displayMap: Record<string, { label: string; color: string }> = {
+      walking: { label: 'Dog Walking', color: '#E86A33' },
+      vet: { label: 'Vet Visits', color: '#2C3E50' },
+      vets: { label: 'Vet Visits', color: '#2C3E50' },
+      sitting: { label: 'Pet Sitting', color: '#3AB795' },
+      sitters: { label: 'Pet Sitting', color: '#3AB795' },
+      grooming: { label: 'Grooming', color: '#F39C12' },
+      hotel: { label: 'Dog Hotels', color: '#9B59B6' },
+      hotels: { label: 'Dog Hotels', color: '#9B59B6' },
+      shops: { label: 'Pet Shops', color: '#E67E22' },
+    };
+    const tally: Record<string, number> = {};
+    for (const b of bookings) {
+      const key = b.serviceType;
+      tally[key] = (tally[key] ?? 0) + 1;
+    }
+    const total = bookings.length || 1; // avoid division by zero
+    const labels = Object.keys(tally);
+    // Sort by count descending, take top 5
+    const sorted = labels.sort((a, b) => (tally[b] ?? 0) - (tally[a] ?? 0)).slice(0, 5);
+    // If nothing found, show all-zero entries for the main categories
+    if (sorted.length === 0) {
+      return [
+        { label: 'Dog Walking', pct: 0, color: '#E86A33' },
+        { label: 'Pet Sitting', pct: 0, color: '#3AB795' },
+        { label: 'Vet Visits', pct: 0, color: '#2C3E50' },
+        { label: 'Grooming', pct: 0, color: '#F39C12' },
+        { label: 'Dog Hotels', pct: 0, color: '#9B59B6' },
+      ];
+    }
+    return sorted.map((key) => ({
+      label: displayMap[key]?.label ?? key,
+      pct: Math.round(((tally[key] ?? 0) / total) * 100),
+      color: displayMap[key]?.color ?? '#E86A33',
+    }));
+  })();
+
   // Early returns while auth resolves or during redirect
   if (loading || !user || !isAdmin) {
     return <div className="pt-[100px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
@@ -113,7 +175,7 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (userId: string, userName: string) => {
     try {
-      await deleteUserDocRest(userId).catch(() => { /* doc may not exist */ });
+      await deleteUserDocRest(userId);
       localAuth.deleteUser(userId);
       showToast(`✅ User "${userName}" successfully removed from database.`, 'success');
     } catch (err) {
@@ -209,7 +271,7 @@ export default function AdminPage() {
               { icon: '👥', bg: 'bg-orange-500/12', value: String(allUsers.length), label: 'Total Users' },
               { icon: '🏪', bg: 'bg-emerald-500/12', value: String(providers.length), label: 'Active Providers' },
               { icon: '📅', bg: 'bg-yellow-500/12', value: String(bookings.length), label: 'Total Bookings' },
-              { icon: '💰', bg: 'bg-blue-500/12', value: '$12.4K', label: 'Revenue (MTD)' },
+              { icon: '💰', bg: 'bg-blue-500/12', value: `$${revenueMtd.toFixed(2)}`, label: 'Revenue (MTD)' },
             ].map((s, i) => (
               <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 hover:shadow-md transition-all">
                 <div className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center text-lg mb-4`}>{s.icon}</div>
@@ -484,30 +546,35 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Analytics tab */}
+          {/* Analytics tab — all values computed from live Firestore data */}
         {activeTab === 'analytics' && (
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="bg-white border border-[#F0E4D8] rounded-2xl p-8">
               <h4 className="text-sm font-heading text-[#2C3E50] mb-5">📈 Monthly Bookings</h4>
               <div className="flex items-end gap-3 h-[160px] pt-5">
-                {[45, 58, 72, 65, 89, 102, 95, 120, 138, 145, 156, 168].map((v, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full bg-[#E86A33] rounded-t-md transition-all" style={{ height: `${v * 0.8}px`, opacity: 0.4 + (i / 12) * 0.6 }} />
-                    <span className="text-[10px] text-gray-400">{['J','F','M','A','M','J','J','A','S','O','N','D'][i]}</span>
-                  </div>
-                ))}
+                {(() => {
+                  const max = Math.max(...monthlyBookings, 1);
+                  const months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+                  return months.map((label, i) => {
+                    const count = monthlyBookings[i];
+                    const heightPx = Math.max((count / max) * 140, count > 0 ? 12 : 4);
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <div
+                          className="w-full bg-[#E86A33] rounded-t-md transition-all"
+                          style={{ height: `${heightPx}px`, opacity: count > 0 ? (0.4 + (i / 12) * 0.6) : 0.15 }}
+                        />
+                        <span className="text-[10px] text-gray-400">{label}</span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
             <div className="bg-white border border-[#F0E4D8] rounded-2xl p-8">
               <h4 className="text-sm font-heading text-[#2C3E50] mb-5">🎯 Service Distribution</h4>
               <div className="flex flex-col gap-4">
-                {[
-                  { label: 'Dog Walking', pct: 35, color: '#E86A33' },
-                  { label: 'Pet Sitting', pct: 22, color: '#3AB795' },
-                  { label: 'Vet Visits', pct: 18, color: '#2C3E50' },
-                  { label: 'Grooming', pct: 15, color: '#F39C12' },
-                  { label: 'Dog Hotels', pct: 10, color: '#9B59B6' },
-                ].map(s => (
+                {serviceDistribution.map((s) => (
                   <div key={s.label}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-700">{s.label}</span>
