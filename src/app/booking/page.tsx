@@ -242,6 +242,7 @@ function BookingForm() {
         providerName: selectedProvider?.name || 'Unknown Provider',
         providerBusinessName: selectedProvider?.businessName || selectedProvider?.name || '',
         customerName: user?.name || user?.email || 'Unknown Customer',
+        customerPhone: (user as any)?.phone || '',
         date,
         time: time || '',
         timeSlot: slot,

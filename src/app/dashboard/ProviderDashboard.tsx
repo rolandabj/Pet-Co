@@ -1274,6 +1274,9 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                           <span className="flex items-center gap-1.5 bg-[#F5A07A]/10 px-2.5 py-1 rounded-lg text-[#E86A33]">
                             🐾 <span className="text-gray-500 font-normal">Pet:</span> {b.petName || 'Pet'}
                           </span>
+                          <span className="flex items-center gap-1.5 bg-blue-50/50 px-2.5 py-1 rounded-lg text-blue-700 border border-blue-100">
+                            📞 <span className="text-gray-500 font-normal">Phone:</span> {b.customerPhone || 'No Phone Provided'}
+                          </span>
                         </div>
 
                         <p className="text-sm text-gray-500">

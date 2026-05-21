@@ -372,6 +372,7 @@ export interface BookingDoc {
   providerName: string;
   providerBusinessName?: string;
   customerName?: string;
+  customerPhone?: string;
   date: string;
   time: string;
   timeSlot?: string;   // "09:00" format for collision filtering
@@ -392,8 +393,10 @@ function mapBookingDoc(doc: { id: string; data: Record<string, any> }): BookingD
     providerName: doc.data.providerName ?? '',
     providerBusinessName: doc.data.providerBusinessName ?? undefined,
     customerName: doc.data.customerName ?? undefined,
+    customerPhone: doc.data.customerPhone ?? undefined,
     date: doc.data.date ?? '',
     time: doc.data.time ?? '',
+    timeSlot: doc.data.timeSlot ?? undefined,
     instructions: doc.data.instructions ?? undefined,
     petId: doc.data.petId ?? undefined,
     petName: doc.data.petName ?? undefined,
@@ -434,6 +437,7 @@ export async function addBookingRest(data: Omit<BookingDoc, 'id' | 'createdAt'>)
   if (data.petId) fields.petId = { stringValue: data.petId };
   if (data.petName) fields.petName = { stringValue: data.petName };
   if (data.timeSlot) fields.timeSlot = { stringValue: data.timeSlot };
+  if (data.customerPhone) fields.customerPhone = { stringValue: data.customerPhone };
 
   const res = await fetch(docUrl('bookings') + `?key=${API_KEY}`, {
     method: 'POST',
