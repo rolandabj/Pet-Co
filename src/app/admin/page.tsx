@@ -9,17 +9,21 @@ import {
   getAllBookingsRest,
   getAllPaymentsRest,
   getAllProvidersRest,
+  getAllReviewsRest,
   deleteBookingRest,
   deletePaymentRest,
   deleteProviderDocRest,
   deleteUserDocRest,
+  deleteReviewRest,
   updateBookingRest,
   updatePaymentRest,
+  updateReviewRest,
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc } from '@/lib/firestore-rest';
+import type { ReviewDoc } from '@/lib/firestore-rest';
 import { ServiceProvider } from '@/lib/types';
 
-type AdminTab = 'users' | 'services' | 'bookings' | 'analytics' | 'payments';
+type AdminTab = 'users' | 'services' | 'bookings' | 'analytics' | 'payments' | 'reviews';
 
 interface EditStatusState {
   id: string;
@@ -39,32 +43,41 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<BookingDoc[]>([]);
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
   const [payments, setPayments] = useState<PaymentDoc[]>([]);
+  const [allReviews, setAllReviews] = useState<ReviewDoc[]>([]);
   const [editStatus, setEditStatus] = useState<EditStatusState | null>(null);
+  const [editReviewId, setEditReviewId] = useState<string | null>(null);
+  const [editReviewComment, setEditReviewComment] = useState('');
+  const [editReviewRating, setEditReviewRating] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
-  // Combined auth + admin gate — redirect unauthenticated or non-admin users
+  // Exclusive admin gate — only rolandabj@gmail.com may access
   useEffect(() => {
     if (loading) return;
-    if (!user) { router.push('/login'); return; }
-    if (!isAdmin) {
-      showToast('Access denied. Admin only.', 'error');
-      router.push('/dashboard');
+    if (!user || user.email !== ADMIN_EMAIL) {
+      if (!user) {
+        router.push('/login');
+      } else {
+        showToast('🔒 Access denied. Admin only.', 'error');
+        router.push('/');
+      }
     }
-  }, [user, loading, router, showToast, isAdmin]);
+  }, [user, loading, router, showToast]);
 
   const fetchLiveData = useCallback(async () => {
     setDataLoading(true);
     try {
-      const [bList, pList, paymentList] = await Promise.all([
+      const [bList, pList, paymentList, rList] = await Promise.all([
         getAllBookingsRest(),
         getAllProvidersRest(),
         getAllPaymentsRest(),
+        getAllReviewsRest(),
       ]);
       setBookings(bList);
       setProviders(pList);
       setPayments(paymentList);
+      setAllReviews(rList);
     } catch (err) {
       console.error('Failed to fetch admin data:', err);
     } finally {
@@ -155,6 +168,7 @@ export default function AdminPage() {
     { key: 'services', icon: '🏪', label: 'Services' },
     { key: 'bookings', icon: '📅', label: 'Bookings' },
     { key: 'payments', icon: '💳', label: 'Payments' },
+    { key: 'reviews', icon: '⭐', label: 'Reviews' },
     { key: 'analytics', icon: '📊', label: 'Analytics' },
   ];
 
@@ -240,6 +254,51 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Failed to delete payment:', err);
       showToast('❌ Failed to delete payment.', 'error');
+    }
+  };
+
+  // ── Review CRUD ────────────────────────────────────────────────
+  const handleStartEditReview = (r: ReviewDoc) => {
+    setEditReviewId(r.id);
+    setEditReviewComment(r.comment);
+    setEditReviewRating(r.rating);
+  };
+
+  const handleCancelEditReview = () => {
+    setEditReviewId(null);
+    setEditReviewComment('');
+    setEditReviewRating(0);
+  };
+
+  const handleSaveReview = async (reviewId: string) => {
+    try {
+      await updateReviewRest(reviewId, {
+        comment: editReviewComment.trim(),
+        rating: editReviewRating,
+      });
+      setAllReviews(prev =>
+        prev.map(r =>
+          r.id === reviewId
+            ? { ...r, comment: editReviewComment.trim(), rating: editReviewRating }
+            : r,
+        ),
+      );
+      showToast('✅ Review updated.', 'success');
+      handleCancelEditReview();
+    } catch (err) {
+      console.error('Failed to update review:', err);
+      showToast('❌ Failed to update review.', 'error');
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      await deleteReviewRest(reviewId);
+      setAllReviews(prev => prev.filter(r => r.id !== reviewId));
+      showToast('✅ Review deleted.', 'success');
+    } catch (err) {
+      console.error('Failed to delete review:', err);
+      showToast('❌ Failed to delete review.', 'error');
     }
   };
 
@@ -542,6 +601,117 @@ export default function AdminPage() {
                     ))}
                   </tbody>
                 </table>
+              )}
+            </div>
+          )}
+
+          {/* Reviews management tab */}
+          {activeTab === 'reviews' && (
+            <div className="bg-white border border-[#F0E4D8] rounded-2xl overflow-hidden">
+              <div className="p-5 border-b border-[#F0E4D8] flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-[#2C3E50]">⭐ Platform Reviews ({allReviews.length})</h4>
+              </div>
+              {dataLoading ? (
+                <div className="animate-pulse p-6 space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-12 bg-gray-100 rounded-xl" />
+                  ))}
+                </div>
+              ) : allReviews.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm">No reviews found.</div>
+              ) : (
+                <div className="divide-y divide-[#F0E4D8]">
+                  {allReviews.map(r => (
+                    <div key={r.id} className="px-5 py-4 hover:bg-[#FFF8F0]/50 transition-colors">
+                      {editReviewId === r.id ? (
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-semibold text-[#2C3E50] w-20">Rating:</span>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <button
+                                  key={star}
+                                  type="button"
+                                  onClick={() => setEditReviewRating(star)}
+                                  className={`text-lg ${star <= editReviewRating ? 'text-yellow-500' : 'text-gray-300'} transition-all`}
+                                >
+                                  ★
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <span className="text-xs font-semibold text-[#2C3E50] w-20 pt-2">Comment:</span>
+                            <textarea
+                              value={editReviewComment}
+                              onChange={e => setEditReviewComment(e.target.value)}
+                              rows={2}
+                              className="flex-1 px-3 py-2 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none text-sm resize-none"
+                            />
+                          </div>
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => handleSaveReview(r.id)}
+                              className="text-xs bg-emerald-500 text-white px-4 py-1.5 rounded-full hover:bg-emerald-600 transition-all"
+                            >
+                              💾 Save
+                            </button>
+                            <button
+                              onClick={handleCancelEditReview}
+                              className="text-xs text-gray-400 px-4 py-1.5 hover:text-gray-600 transition-all"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-semibold text-[#2C3E50] truncate">{r.userName}</span>
+                              <span className="text-xs text-gray-400">·</span>
+                              <span className="text-yellow-500 text-sm">
+                                {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                              </span>
+                              <span className="text-xs text-gray-400">·</span>
+                              <span className="text-[10px] text-gray-400 font-mono">ID: {r.id.slice(0, 8)}…</span>
+                            </div>
+                            <p className="text-sm text-gray-600 line-clamp-2">{r.comment}</p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="text-[10px] text-gray-400">Provider:</span>
+                              <span className="text-[10px] font-mono text-gray-500">{r.providerId.slice(0, 12)}…</span>
+                              <span className="text-[10px] text-gray-400">·</span>
+                              <span className="text-[10px] text-gray-400">User:</span>
+                              <span className="text-[10px] font-mono text-gray-500">{r.userId.slice(0, 12)}…</span>
+                              {r.createdAt && (
+                                <>
+                                  <span className="text-[10px] text-gray-400">·</span>
+                                  <span className="text-[10px] text-gray-400">
+                                    {new Date(r.createdAt).toLocaleDateString()}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => handleStartEditReview(r)}
+                              className="text-xs text-blue-500 hover:text-blue-700 transition-all"
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteReview(r.id)}
+                              className="text-xs text-red-500 hover:text-red-700 transition-all"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}

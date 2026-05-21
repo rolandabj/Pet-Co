@@ -250,6 +250,43 @@ export async function getUserReviewsRest(userId: string): Promise<ReviewDoc[]> {
   return fetchWhere('reviews', 'userId', userId, mapReviewDoc);
 }
 
+/** Fetch all reviews across the platform (admin use). */
+export async function getAllReviewsRest(): Promise<ReviewDoc[]> {
+  return fetchCollection('reviews', undefined, mapReviewDoc);
+}
+
+/** Update a review document (admin use). */
+export async function updateReviewRest(
+  reviewId: string,
+  data: { comment?: string; rating?: number },
+): Promise<void> {
+  const fields: Record<string, unknown> = {};
+  const masks: string[] = [];
+  if (data.comment !== undefined) {
+    fields.comment = { stringValue: data.comment };
+    masks.push('comment');
+  }
+  if (data.rating !== undefined) {
+    fields.rating = { integerValue: data.rating };
+    masks.push('rating');
+  }
+  if (masks.length === 0) return;
+  const url = docUrl('reviews', reviewId)
+    + `?key=${API_KEY}&updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    body: JSON.stringify({ fields }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Failed to update review: ${res.status}`);
+}
+
+/** Delete a review document (admin use). */
+export async function deleteReviewRest(reviewId: string): Promise<void> {
+  const res = await fetch(docUrl('reviews', reviewId) + `?key=${API_KEY}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Failed to delete review: ${res.status}`);
+}
+
 // ─── Favorite helpers ─────────────────────────────────────────
 
 export interface FavoriteDoc {
