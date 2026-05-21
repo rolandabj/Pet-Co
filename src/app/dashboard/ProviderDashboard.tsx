@@ -189,7 +189,6 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       setProvider(p);
       if (p) {
         setProviderDocId(p._firestoreId ?? null);
-        console.log('[ProviderDashboard] Fetched provider, doc ID:', p._firestoreId);
         setBizName(p.businessName ?? p.name ?? '');
         setBizEmail(p.contactEmail ?? p.email ?? '');
         setBizPhone(p.contactPhone ?? p.phone ?? '');
@@ -207,7 +206,6 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
             if (cached) {
               const parsed = JSON.parse(cached);
               setAvailability(prev => ({ ...prev, ...parsed }));
-              console.log('[ProviderDashboard] Restored availability from localStorage backup');
             }
           } catch { /* ignore parse errors */ }
         }
@@ -532,7 +530,6 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     e.preventDefault();
     // 1. Resolve target provider ID safely
     const targetDocId = provider?._firestoreId || providerDocId || provider?.id;
-    console.log('[ProviderDashboard] saveProfile — targetDocId:', targetDocId, '| providerDocId state:', providerDocId, '| provider._firestoreId:', provider?._firestoreId, '| provider.id:', provider?.id);
     if (!targetDocId) {
       console.error('[ProviderDashboard] CRITICAL: No valid provider ID found for database write.');
       showToast('Could not save: Missing account profile context ID.', 'error');
@@ -564,11 +561,9 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     };
 
     try {
-      console.log('[ProviderDashboard] Writing to providers/' + targetDocId, freshAvailabilityMap);
       const db = getFirestoreDb();
       const providerDocRef = doc(db, 'providers', targetDocId);
       await updateDoc(providerDocRef, { availability: freshAvailabilityMap });
-      console.log('[ProviderDashboard] Firestore update successful!');
       setProvider({ ...provider!, ...updates } as ServiceProvider);
       showToast('✅ Business profile updated!', 'success');
     } catch (error) {
@@ -596,7 +591,6 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
         sunday: { isOpen: availability.sunday?.isOpen ?? true, start: availability.sunday?.start || '09:00', end: availability.sunday?.end || '17:00' },
       };
 
-      console.log('[ProviderDashboard] CRITICAL DIRECT-WRITE INITIATED FOR ID:', activeId, manualSchedulePayload);
       const db = getFirestoreDb();
       const docRef = doc(db, 'providers', activeId);
       await updateDoc(docRef, { availability: manualSchedulePayload });

@@ -141,7 +141,6 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
         comment: newComment.trim(),
         userRole: user?.role,
       };
-      console.log('Review Payload:', reviewPayload);
       await addReviewRest(reviewPayload);
 
       // Sync provider rating/reviewCount aggregates

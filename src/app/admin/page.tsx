@@ -349,10 +349,6 @@ export default function AdminPage() {
               : p,
           ),
         );
-
-        console.log(
-          `[Admin] Review sync complete for provider ${targetProviderId}. Remaining: ${totalRemaining}, Avg rating: ${computedAvgRating.toFixed(1)}`,
-        );
       }
     } catch (err) {
       console.error('Failed to delete review:', err);
