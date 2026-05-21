@@ -139,7 +139,11 @@ function mapServiceProvider(doc: any): ServiceProvider {
       return { name: m.name?.stringValue ?? '', price: m.price?.stringValue ?? '' };
     });
   };
+  // Extract the actual Firestore document name from the full path:
+  // e.g. "projects/.../databases/(default)/documents/providers/abc123" → "abc123"
+  const docName = doc.name?.split('/').pop() ?? '';
   return {
+    _firestoreId: docName,
     id: n('id'),
     name: s('name'),
     type: s('type'),
@@ -572,7 +576,9 @@ export async function deleteUserDocRest(userId: string): Promise<void> {
   if (!res.ok && res.status !== 404) throw new Error(`Failed to delete user: ${res.status}`);
 }
 
-export async function deleteProviderDocRest(providerId: number): Promise<void> {
+/** Delete a provider document.
+ *  @param providerId — Either the numeric ID or the actual Firestore document name (string). */
+export async function deleteProviderDocRest(providerId: number | string): Promise<void> {
   const res = await fetch(docUrl('providers', String(providerId)) + `?key=${API_KEY}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 404) throw new Error(`Failed to delete provider: ${res.status}`);
 }

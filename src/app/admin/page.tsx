@@ -144,11 +144,14 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteProvider = async (providerId: number, providerName: string) => {
+  const handleDeleteProvider = async (provider: ServiceProvider) => {
     try {
-      await deleteProviderDocRest(providerId);
-      setProviders(prev => prev.filter(p => p.id !== providerId));
-      showToast(`✅ Provider "${providerName}" removed from database.`, 'success');
+      // Use the actual Firestore document name (string) for auto-created providers,
+      // fall back to the numeric id for seeded providers whose doc names match.
+      const docId = provider._firestoreId || String(provider.id);
+      await deleteProviderDocRest(docId);
+      setProviders(prev => prev.filter(p => p.id !== provider.id));
+      showToast(`✅ Provider "${provider.name}" removed from database.`, 'success');
     } catch (err) {
       console.error('Failed to delete provider:', err);
       showToast('❌ Failed to delete provider.', 'error');
@@ -321,7 +324,7 @@ export default function AdminPage() {
                       <td className="px-5 py-4"><span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 font-semibold">Active</span></td>
                       <td className="px-5 py-4">
                         <button
-                          onClick={() => handleDeleteProvider(p.id, p.name)}
+                          onClick={() => handleDeleteProvider(p)}
                           className="text-xs text-red-500 hover:text-red-700"
                         >
                           🗑️ Remove
