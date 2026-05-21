@@ -20,6 +20,11 @@ function BookingForm() {
   const [providersList, setProvidersList] = useState<ServiceProvider[]>([]);
   // Custom services from the preselected provider's document
   const [providerServices, setProviderServices] = useState<ServiceItem[] | null>(null);
+  // Store the full fetched provider object for service cross-referencing
+  const [providerData, setProviderData] = useState<ServiceProvider | null>(null);
+  // Explicit pricing states updated on every service selection
+  const [serviceFee, setServiceFee] = useState(0);
+  const [platformFee, setPlatformFee] = useState(0);
   const [selectedPet, setSelectedPet] = useState('');
   const [pets, setPets] = useState<{ id: string; name: string; type: string }[]>([]);
   const [petsLoading, setPetsLoading] = useState(true);
@@ -45,7 +50,7 @@ function BookingForm() {
       .finally(() => setPetsLoading(false));
   }, [user, firebaseUser]);
 
-  // Read providerId from URL, pre-fill provider and fetch their custom services
+  // Read providerId from URL, pre-fill provider, fetch their custom services, and seed pricing
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
     const providerIdParam = searchParams.get('providerId');
@@ -53,11 +58,18 @@ function BookingForm() {
       setProvider(providerIdParam);
       // Fetch the full provider document to get their custom services array
       getProviderByIdRest(providerIdParam).then(found => {
-        if (found?.services && found.services.length > 0) {
-          setProviderServices(found.services);
-          // Auto-select if only one service
-          if (found.services.length === 1) {
-            setServiceType(found.services[0].name);
+        if (found) {
+          setProviderData(found);
+          if (found.services && found.services.length > 0) {
+            setProviderServices(found.services);
+            // Auto-select if only one service
+            if (found.services.length === 1) {
+              const svc = found.services[0];
+              setServiceType(svc.name);
+              const price = Number(svc.price) || 0;
+              setServiceFee(price);
+              setPlatformFee(price * 0.1);
+            }
           }
         }
       }).catch(console.error);
@@ -67,7 +79,7 @@ function BookingForm() {
   const isProviderLocked = !!searchParams.get('providerId');
 
   // Build the service type options from the provider's custom services if available,
-  // otherwise fall back to the global serviceTypes list filtered by provider type.
+  // otherwise fall back to the global serviceTypes list.
   const availableServiceTypes = providerServices
     ? providerServices.map(s => ({
         value: s.name,
@@ -76,13 +88,32 @@ function BookingForm() {
       }))
     : serviceTypes;
 
+  // Handler: when the user picks a service, update the service type and pricing states
+  const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const serviceName = e.target.value;
+    setServiceType(serviceName);
+
+    // Cross-reference against the provider's custom services (if available)
+    const matchingService = providerData?.services?.find(s => s.name === serviceName);
+    if (matchingService) {
+      const dynamicPrice = Number(matchingService.price) || 0;
+      setServiceFee(dynamicPrice);
+      setPlatformFee(dynamicPrice * 0.1);
+    } else {
+      // Fall back to the global serviceTypes price
+      const globalMatch = serviceTypes.find(s => s.value === serviceName);
+      const fallbackPrice = globalMatch?.price || 0;
+      setServiceFee(fallbackPrice);
+      setPlatformFee(fallbackPrice * 0.1);
+    }
+  };
+
   if (authLoading || !user) {
     return <div className="pt-[120px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
   }
 
+  const finalTotal = serviceFee + platformFee;
   const selectedService = availableServiceTypes.find(s => s.value === serviceType);
-  const servicePrice = selectedService?.price || 0;
-  const total = servicePrice * 1.1;
   const selectedProvider = providersList.find(p => String(p.id) === provider);
 
   const handleBooking = async (e: React.FormEvent) => {
@@ -109,7 +140,7 @@ function BookingForm() {
         instructions,
         petId: selectedPet || '',
         petName: pets.find(p => p.id === selectedPet)?.name || '',
-        price: servicePrice,
+        price: serviceFee,
         status: 'pending',
       });
 
@@ -121,7 +152,7 @@ function BookingForm() {
         providerId: provider,
         providerName: selectedProvider?.name || 'Unknown Provider',
         category: selectedService?.label || serviceType,
-        amount: total,
+        amount: finalTotal,
         status: 'paid',
       });
 
@@ -151,7 +182,7 @@ function BookingForm() {
             <form onSubmit={handleBooking}>
               <div className="mb-5">
                 <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Service Type</label>
-                <select value={serviceType} onChange={(e) => setServiceType(e.target.value)} className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm">
+                <select value={serviceType} onChange={handleServiceChange} className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm">
                   <option value="">Select a service...</option>
                   {availableServiceTypes.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
@@ -235,9 +266,9 @@ function BookingForm() {
                   <div className="flex justify-between py-3 text-sm"><span>Service</span><span className="font-semibold text-[#2C3E50]">{selectedService?.label}</span></div>
                   <div className="flex justify-between py-3 text-sm"><span>Date</span><span className="text-gray-500">{date ? new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Not selected'}</span></div>
                   <div className="flex justify-between py-3 text-sm"><span>Time</span><span className="text-gray-500">{time ? time : 'Not selected'}</span></div>
-                  <div className="flex justify-between py-3 text-sm"><span>Service Fee</span><span>${servicePrice.toFixed(2)}</span></div>
-                  <div className="flex justify-between py-3 text-sm"><span>Platform Fee</span><span>${(servicePrice * 0.1).toFixed(2)}</span></div>
-                  <div className="flex justify-between py-3 mt-3 pt-4 border-t-2 border-[#F0E4D8] font-semibold text-base"><span>Total</span><span className="text-[#E86A33]">${total.toFixed(2)}</span></div>
+                  <div className="flex justify-between py-3 text-sm"><span>Service Fee</span><span>${serviceFee.toFixed(2)}</span></div>
+                  <div className="flex justify-between py-3 text-sm"><span>Platform Fee</span><span>${platformFee.toFixed(2)}</span></div>
+                  <div className="flex justify-between py-3 mt-3 pt-4 border-t-2 border-[#F0E4D8] font-semibold text-base"><span>Total</span><span className="text-[#E86A33]">${finalTotal.toFixed(2)}</span></div>
                 </>
               )}
             </div>
