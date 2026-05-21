@@ -643,3 +643,71 @@ export async function updateProviderDocRest(providerId: number, data: Record<str
 export async function getBookingsByProviderRest(providerId: string): Promise<BookingDoc[]> {
   return fetchWhere('bookings', 'providerId', providerId, mapBookingDoc);
 }
+
+// ─── Provider document creation ─────────────────────────────────
+
+/** Create a new provider document in the `providers` collection.
+ *  Returns the auto-generated Firestore document ID. */
+export async function createProviderRest(data: {
+  email: string;
+  name: string;
+  businessName: string;
+  contactEmail: string;
+  type: string;
+  category: string;
+  price: string;
+  emoji: string;
+  desc: string;
+  location: string;
+}): Promise<string> {
+  const fields: Record<string, unknown> = {
+    email: { stringValue: data.email },
+    name: { stringValue: data.name },
+    businessName: { stringValue: data.businessName },
+    contactEmail: { stringValue: data.contactEmail },
+    type: { stringValue: data.type },
+    category: { stringValue: data.category },
+    price: { stringValue: data.price },
+    emoji: { stringValue: data.emoji },
+    desc: { stringValue: data.desc },
+    location: { stringValue: data.location },
+    rating: { integerValue: '0' },
+    reviews: { integerValue: '0' },
+    services: { arrayValue: { values: [] } },
+    products: { arrayValue: { values: [] } },
+  };
+
+  const res = await fetch(docUrl('providers') + `?key=${API_KEY}`, {
+    method: 'POST',
+    body: JSON.stringify({ fields }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Failed to create provider: ${res.status}`);
+  const json = await res.json();
+  return json.name?.split('/').pop() ?? '';
+}
+
+/**
+ * Update a provider document by its Firestore document ID (string).
+ * Sends only the provided fields — other fields remain untouched.
+ */
+export async function updateProviderByIdRest(
+  docId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const fields: Record<string, unknown> = {};
+  const masks: string[] = [];
+  for (const [key, val] of Object.entries(data)) {
+    fields[key] = toFieldValue(val);
+    masks.push(key);
+  }
+  const url = docUrl('providers', docId)
+    + `?key=${API_KEY}&updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    body: JSON.stringify({ fields }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok && res.status !== 404)
+    throw new Error(`Failed to update provider: ${res.status}`);
+}

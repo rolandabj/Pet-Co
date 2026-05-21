@@ -5,6 +5,8 @@ import { useToast } from '@/components/Toast';
 import {
   getProviderByEmailRest,
   updateProviderDocRest,
+  updateProviderByIdRest,
+  createProviderRest,
   getBookingsByProviderRest,
   getUserPaymentsRest,
   getReviewsByProviderRest,
@@ -37,6 +39,29 @@ const tabConfig: { key: ProviderTab; icon: string; label: string }[] = [
   { key: 'profile', icon: '👤', label: 'Business Profile' },
 ];
 
+const categoryLabels: Record<string, string> = {
+  walkers: 'Dog Walker',
+  vets: 'Veterinarian',
+  hotels: 'Dog Hotel',
+  sitters: 'Pet Sitter',
+  grooming: 'Groomer',
+  shops: 'Pet Shop',
+};
+
+const categoryEmojis: Record<string, string> = {
+  walkers: '🐕',
+  vets: '🏥',
+  hotels: '🏨',
+  sitters: '🛋️',
+  grooming: '✂️',
+  shops: '🛍️',
+};
+
+const categoryOptions = Object.entries(categoryLabels).map(([value, label]) => ({
+  value,
+  label: `${categoryEmojis[value] ?? ''} ${label}`,
+}));
+
 function StarRating({ rating }: { rating: number }) {
   return (
     <span className="text-yellow-500 text-sm">
@@ -57,6 +82,15 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   // ── Provider data ──────────────────────────────────────────────
   const [provider, setProvider] = useState<ServiceProvider | null>(null);
   const [providerLoading, setProviderLoading] = useState(true);
+  /** Firestore document ID for this provider (used for updates when id is not numeric). */
+  const [providerDocId, setProviderDocId] = useState<string | null>(null);
+
+  // ── Onboarding form state ──────────────────────────────────────
+  const [onboardingBizName, setOnboardingBizName] = useState('');
+  const [onboardingLocation, setOnboardingLocation] = useState('');
+  const [onboardingPrice, setOnboardingPrice] = useState('');
+  const [onboardingCategory, setOnboardingCategory] = useState('walkers');
+  const [onboardingSaving, setOnboardingSaving] = useState(false);
 
   // ── Bookings ───────────────────────────────────────────────────
   const [bookings, setBookings] = useState<BookingDoc[]>([]);
@@ -194,6 +228,18 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     }
   };
 
+  // ── Provider document update helper ────────────────────────────
+  const updateProvider = useCallback(
+    async (data: Record<string, unknown>) => {
+      if (providerDocId) {
+        await updateProviderByIdRest(providerDocId, data);
+      } else {
+        await updateProviderDocRest(provider?.id ?? 0, data);
+      }
+    },
+    [provider, providerDocId],
+  );
+
   // ── Service CRUD ───────────────────────────────────────────────
   const saveService = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,7 +260,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       updated = [...current, service];
     }
     try {
-      await updateProviderDocRest(provider.id, { services: updated });
+      await updateProvider({ services: updated });
       setProvider({ ...provider, services: updated });
       showToast(
         editingSvcIdx !== null
@@ -243,7 +289,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     if (!provider?.services) return;
     const updated = provider.services.filter((_, i) => i !== idx);
     try {
-      await updateProviderDocRest(provider.id, { services: updated });
+      await updateProvider({ services: updated });
       setProvider({ ...provider, services: updated });
       showToast('🗑️ Service removed.', 'success');
     } catch {
@@ -283,7 +329,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       updated = [...current, product];
     }
     try {
-      await updateProviderDocRest(provider.id, { products: updated });
+      await updateProvider({ products: updated });
       setProvider({ ...provider, products: updated });
       showToast(
         editingProdIdx !== null ? '✅ Product updated!' : '✅ Product added!',
@@ -310,7 +356,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     if (!provider?.products) return;
     const updated = provider.products.filter((_, i) => i !== idx);
     try {
-      await updateProviderDocRest(provider.id, { products: updated });
+      await updateProvider({ products: updated });
       setProvider({ ...provider, products: updated });
       showToast('🗑️ Product removed.', 'success');
     } catch {
@@ -332,7 +378,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     e.preventDefault();
     if (!provider) return;
     try {
-      await updateProviderDocRest(provider.id, {
+      await updateProvider({
         businessName: bizName.trim(),
         contactEmail: bizEmail.trim(),
         contactPhone: bizPhone.trim(),
@@ -401,15 +447,136 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
 
   if (!provider) {
     return (
-      <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
-        <div className="text-5xl mb-4 opacity-50">🏪</div>
-        <h3 className="text-xl font-heading text-[#2C3E50] mb-2">
-          Provider Profile Not Found
-        </h3>
-        <p className="text-sm text-gray-400 mb-5">
-          We couldn&apos;t find a provider profile linked to your account.
-          Contact support to set one up.
-        </p>
+      <div className="max-w-lg mx-auto">
+        <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center mb-8">
+          <div className="text-5xl mb-4">👋</div>
+          <h2 className="text-2xl font-heading text-[#2C3E50] mb-2">
+            Welcome! Let&apos;s Set Up Your Business
+          </h2>
+          <p className="text-sm text-gray-400 mb-1">
+            Your provider profile is almost ready. Fill in the basics to
+            get started, and you can customise everything later.
+          </p>
+        </div>
+
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!onboardingBizName.trim()) {
+              showToast('⚠️ Business name is required.', 'error');
+              return;
+            }
+            setOnboardingSaving(true);
+            try {
+              const docId = await createProviderRest({
+                email: userEmail,
+                name: userEmail.split('@')[0],
+                businessName: onboardingBizName.trim(),
+                contactEmail: userEmail,
+                type: onboardingCategory,
+                category: categoryLabels[onboardingCategory] || 'Dog Walker',
+                price: onboardingPrice.trim() || '$0',
+                emoji: categoryEmojis[onboardingCategory] || '🏪',
+                desc: 'New pet service provider',
+                location: onboardingLocation.trim(),
+              });
+              setProviderDocId(docId);
+
+              // Build a local provider object so the dashboard renders immediately
+              const localProvider: ServiceProvider = {
+                id: 0,
+                name: userEmail.split('@')[0],
+                type: onboardingCategory,
+                category: categoryLabels[onboardingCategory] || 'Dog Walker',
+                rating: 0,
+                reviews: 0,
+                desc: 'New pet service provider',
+                tags: [],
+                emoji: categoryEmojis[onboardingCategory] || '🏪',
+                price: onboardingPrice.trim() || '$0',
+                location: onboardingLocation.trim() || undefined,
+                email: userEmail,
+                businessName: onboardingBizName.trim(),
+                contactEmail: userEmail,
+                services: [],
+                products: [],
+              };
+              setProvider(localProvider);
+              showToast('🎉 Business profile created! Welcome aboard.', 'success');
+            } catch {
+              showToast('❌ Failed to create profile. Please try again.', 'error');
+            } finally {
+              setOnboardingSaving(false);
+            }
+          }}
+          className="bg-white border border-[#F0E4D8] rounded-2xl p-8 space-y-5"
+        >
+          <div>
+            <label className="block text-sm font-semibold text-[#2C3E50] mb-1.5">
+              Business Name *
+            </label>
+            <input
+              type="text"
+              value={onboardingBizName}
+              onChange={(e) => setOnboardingBizName(e.target.value)}
+              placeholder="e.g. Pawsome Pet Care"
+              required
+              className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+            />
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-[#2C3E50] mb-1.5">
+                Service Category
+              </label>
+              <select
+                value={onboardingCategory}
+                onChange={(e) => setOnboardingCategory(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+              >
+                {categoryOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-[#2C3E50] mb-1.5">
+                Base Price
+              </label>
+              <input
+                type="text"
+                value={onboardingPrice}
+                onChange={(e) => setOnboardingPrice(e.target.value)}
+                placeholder="e.g. $25/hr"
+                className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-[#2C3E50] mb-1.5">
+              Location
+            </label>
+            <input
+              type="text"
+              value={onboardingLocation}
+              onChange={(e) => setOnboardingLocation(e.target.value)}
+              placeholder="City, State"
+              className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={onboardingSaving}
+            className="w-full bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold py-3.5 rounded-full text-sm transition-all disabled:opacity-60"
+          >
+            {onboardingSaving ? 'Creating Profile...' : 'Get Started 🚀'}
+          </button>
+        </form>
       </div>
     );
   }

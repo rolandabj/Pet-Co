@@ -132,9 +132,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await localAuth.register(email, password, name, role);
     if (result.user) {
       setUser(result.user);
-      // Persist role to Firestore users collection
       try {
+        // Persist role to Firestore users collection
         await updateUserDocRest(result.user.id, { role, name });
+        // Auto-create a minimal provider doc for new provider registrations
+        if (role === 'provider') {
+          try {
+            const { createProviderRest } = await import('@/lib/firestore-rest');
+            await createProviderRest({
+              email: result.user.email,
+              name: result.user.name,
+              businessName: `${name.split(' ')[0]}'s Pet Business`,
+              contactEmail: result.user.email,
+              type: 'walkers',
+              category: 'Dog Walker',
+              price: '$0',
+              emoji: '🏪',
+              desc: 'New pet service provider',
+              location: '',
+            });
+          } catch {
+            // Non-critical — ProviderDashboard onboarding form is the fallback
+          }
+        }
       } catch {
         /* Firestore may not be available — local data is sufficient */
       }
@@ -161,6 +181,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const persistRole = async (appUser: AppUser) => {
         try {
           await updateUserDocRest(appUser.id, { role: appUser.role, name: appUser.name });
+          // Auto-create a minimal provider doc for new provider registrations
+          if (appUser.role === 'provider') {
+            try {
+              const { createProviderRest } = await import('@/lib/firestore-rest');
+              await createProviderRest({
+                email: appUser.email,
+                name: appUser.name,
+                businessName: `${appUser.name.split(' ')[0]}'s Pet Business`,
+                contactEmail: appUser.email,
+                type: 'walkers',
+                category: 'Dog Walker',
+                price: '$0',
+                emoji: '🏪',
+                desc: 'New pet service provider',
+                location: '',
+              });
+            } catch {
+              // Non-critical — ProviderDashboard onboarding form is the fallback
+            }
+          }
         } catch {
           /* Firestore may not be available */
         }
