@@ -196,7 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           `Please add "${origin}" to the Authorized Domains list ` +
           `in your Firebase Console (Authentication → Settings) ` +
           `or use email/password login instead.`;
-        console.error(msg, error);
+        console.warn(msg);
         return { error: msg };
       }
       // Unauthorized domain — tell the user exactly what to whitelist
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           `⚠️ This domain (${domain}) is not authorized for Google sign-in. ` +
           `Please add "${origin}" to the Authorized Domains list ` +
           `in your Firebase Console (Authentication → Settings).`;
-        console.error(msg, error);
+        console.warn(msg);
         return { error: msg };
       }
       // Operation not supported in this environment
