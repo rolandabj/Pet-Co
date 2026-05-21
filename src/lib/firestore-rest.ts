@@ -201,7 +201,7 @@ export interface ReviewDoc {
 function mapReviewDoc(doc: { id: string; data: Record<string, any> }): ReviewDoc {
   return {
     id: doc.id,
-    providerId: doc.data.providerId ?? 0,
+    providerId: doc.data.providerId ?? '',
     userId: doc.data.userId ?? '',
     userName: doc.data.userName ?? '',
     rating: doc.data.rating ?? 0,
@@ -231,11 +231,12 @@ export async function addReviewRest(
     method: 'POST',
     body: JSON.stringify({
       fields: {
-        providerId: { integerValue: data.providerId },
+        providerId: { stringValue: data.providerId },
         userId: { stringValue: data.userId },
         userName: { stringValue: data.userName },
         rating: { integerValue: data.rating },
         comment: { stringValue: data.comment },
+        createdAt: { stringValue: new Date().toISOString() },
       },
     }),
     headers: { 'Content-Type': 'application/json' },

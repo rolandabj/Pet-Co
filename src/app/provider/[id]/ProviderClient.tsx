@@ -109,14 +109,16 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
     }
     setSubmitting(true);
     try {
-      await addReviewRest({
+      const reviewPayload = {
         providerId,
         userId: uid,
         userName: user?.name || user?.email?.split('@')[0] || 'Anonymous',
         rating: newRating,
         comment: newComment.trim(),
         userRole: user?.role,
-      });
+      };
+      console.log('Review Payload:', reviewPayload);
+      await addReviewRest(reviewPayload);
       showToast('✅ Review submitted!', 'success');
       setNewRating(0);
       setNewComment('');
