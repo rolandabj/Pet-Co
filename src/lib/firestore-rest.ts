@@ -162,6 +162,20 @@ function mapServiceProvider(doc: any): ServiceProvider {
   };
   // Extract the actual Firestore document name from the full path:
   // e.g. "projects/.../databases/(default)/documents/providers/abc123" → "abc123"
+  const avail = (): Record<string, { isOpen: boolean; start: string; end: string }> | undefined => {
+    const raw = f.availability?.mapValue?.fields;
+    if (!raw) return undefined;
+    const result: Record<string, { isOpen: boolean; start: string; end: string }> = {};
+    for (const [day, val] of Object.entries(raw)) {
+      const m = (val as any)?.mapValue?.fields || {};
+      result[day] = {
+        isOpen: m.isOpen?.booleanValue === true || m.isOpen?.booleanValue === 'true',
+        start: m.start?.stringValue ?? '09:00',
+        end: m.end?.stringValue ?? '17:00',
+      };
+    }
+    return result;
+  };
   const docName = doc.name?.split('/').pop() ?? '';
   return {
     _firestoreId: docName,
@@ -182,6 +196,7 @@ function mapServiceProvider(doc: any): ServiceProvider {
     email: s('email') || undefined,
     services: svc(),
     products: products(),
+    availability: avail(),
   };
 }
 
