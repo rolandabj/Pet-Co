@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ServiceProvider, ServiceItem } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
@@ -22,6 +23,7 @@ interface Props {
 export default function ProviderClient({ provider, reviews: initialReviews, providerId }: Props) {
   const { user, firebaseUser } = useAuth();
   const { showToast } = useToast();
+  const router = useRouter();
 
   // ---------- favorite state ----------
   const [isFavorited, setIsFavorited] = useState(false);
@@ -59,7 +61,8 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
   /* ── favorite toggle ── */
   const handleFavorite = async () => {
     if (!uid) {
-      showToast('Please log in to save favorites.', 'error');
+      showToast('⚠️ Please log in to favorite businesses', 'error');
+      router.push('/login');
       return;
     }
     if (!provider) return;
@@ -99,7 +102,8 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
       return;
     }
     if (!uid) {
-      showToast('Please log in to submit a review.', 'error');
+      showToast('⚠️ You must be logged in to leave a review', 'error');
+      router.push('/login');
       return;
     }
     setSubmitting(true);
@@ -107,7 +111,7 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
       await addReviewRest({
         providerId,
         userId: uid,
-        userName: user?.name || 'Anonymous',
+        userName: user?.name || user?.email?.split('@')[0] || 'Anonymous',
         rating: newRating,
         comment: newComment.trim(),
       });
@@ -115,13 +119,13 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
       setNewRating(0);
       setNewComment('');
       setShowForm(false);
-      // Optimistically add to local list
+      // Optimistically add to local list so it renders instantly
       setReviews(prev => [
         {
           id: 'optimistic-' + Date.now(),
           providerId,
           userId: uid,
-          userName: user?.name || 'Anonymous',
+          userName: user?.name || user?.email?.split('@')[0] || 'Anonymous',
           rating: newRating,
           comment: newComment.trim(),
           createdAt: new Date().toISOString(),
@@ -226,7 +230,7 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
                   disabled={favToggling}
                   className={`border-2 font-semibold px-6 py-3 rounded-full text-sm transition-all ${
                     isFavorited
-                      ? 'bg-red-50 border-red-300 text-red-500 hover:bg-red-100'
+                      ? 'bg-orange-50 border-orange-300 text-[#E86A33] hover:bg-orange-100'
                       : 'border-[#2C3E50] text-[#2C3E50] hover:bg-[#2C3E50] hover:text-white'
                   }`}
                 >
@@ -345,7 +349,8 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
           <button
             onClick={() => {
               if (!user) {
-                showToast('Please log in to write a review.', 'error');
+                showToast('⚠️ You must be logged in to leave a review', 'error');
+                router.push('/login');
                 return;
               }
               setShowForm(!showForm);
