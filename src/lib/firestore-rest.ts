@@ -136,7 +136,11 @@ function mapServiceProvider(doc: any): ServiceProvider {
     if (!raw) return undefined;
     return raw.map((v: any) => {
       const m = v.mapValue?.fields || {};
-      return { name: m.name?.stringValue ?? '', price: m.price?.stringValue ?? '' };
+      return {
+        name: m.name?.stringValue ?? '',
+        price: m.price?.stringValue ?? '',
+        duration: Number(m.duration?.integerValue ?? m.duration?.doubleValue ?? 60),
+      };
     });
   };
   const products = (): ProductItem[] | undefined => {
