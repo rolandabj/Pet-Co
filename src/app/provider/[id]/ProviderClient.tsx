@@ -218,26 +218,28 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
                 </div>
               )}
 
-              {/* Action buttons */}
-              <div className="flex gap-3 flex-wrap justify-center sm:justify-start">
-                <Link
-                  href={`/booking?provider=${provider.id}`}
-                  className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-6 py-3 rounded-full text-sm transition-all"
-                >
-                  Book Now — {provider.price}
-                </Link>
-                <button
-                  onClick={handleFavorite}
-                  disabled={favToggling}
-                  className={`border-2 font-semibold px-6 py-3 rounded-full text-sm transition-all ${
-                    isFavorited
-                      ? 'bg-orange-50 border-orange-300 text-[#E86A33] hover:bg-orange-100'
-                      : 'border-[#2C3E50] text-[#2C3E50] hover:bg-[#2C3E50] hover:text-white'
-                  }`}
-                >
-                  {isFavorited ? '❤️ Favorited' : '🤍 Favorite'}
-                </button>
-              </div>
+              {/* Action buttons — only visible to owners and guests */}
+              {user?.role !== 'provider' && (
+                <div className="flex gap-3 flex-wrap justify-center sm:justify-start">
+                  <Link
+                    href={`/booking?provider=${provider.id}`}
+                    className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-6 py-3 rounded-full text-sm transition-all"
+                  >
+                    Book Now — {provider.price}
+                  </Link>
+                  <button
+                    onClick={handleFavorite}
+                    disabled={favToggling}
+                    className={`border-2 font-semibold px-6 py-3 rounded-full text-sm transition-all ${
+                      isFavorited
+                        ? 'bg-orange-50 border-orange-300 text-[#E86A33] hover:bg-orange-100'
+                        : 'border-[#2C3E50] text-[#2C3E50] hover:bg-[#2C3E50] hover:text-white'
+                    }`}
+                  >
+                    {isFavorited ? '❤️ Favorited' : '🤍 Favorite'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
