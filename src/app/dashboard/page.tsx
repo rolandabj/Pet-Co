@@ -14,8 +14,10 @@ import {
   getUserFavoritesRest,
   removeFavoriteRest,
   getUserReviewsRest,
+  getAllProvidersRest,
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc, PetDoc, FavoriteDoc, ReviewDoc } from '@/lib/firestore-rest';
+import type { ServiceProvider } from '@/lib/types';
 import ProviderDashboard from './ProviderDashboard';
 
 type Tab = 'overview' | 'bookings' | 'favorites' | 'profile' | 'reviews' | 'payments' | 'pets';
@@ -45,6 +47,8 @@ export default function DashboardPage() {
   const [paymentsLoading, setPaymentsLoading] = useState(true);
   const [pets, setPets] = useState<PetDoc[]>([]);
   const [petsLoading, setPetsLoading] = useState(true);
+  // Providers list for cross-referencing IDs → business names
+  const [providers, setProviders] = useState<ServiceProvider[]>([]);
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState('');
   const [petBreed, setPetBreed] = useState('');
@@ -122,6 +126,21 @@ export default function DashboardPage() {
     }
   }, [user, firebaseUser]);
 
+  const fetchProviders = useCallback(async () => {
+    try {
+      const list = await getAllProvidersRest();
+      setProviders(list);
+    } catch (err) {
+      console.error('Failed to fetch providers:', err);
+    }
+  }, []);
+
+  // Derived helper: resolve providerId to a display name
+  const getProviderDisplayName = useCallback((providerId: string, fallbackName?: string): string => {
+    const prov = providers.find(p => p.id === providerId);
+    return prov ? (prov.businessName || prov.name) : (fallbackName || providerId);
+  }, [providers]);
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
@@ -140,8 +159,9 @@ export default function DashboardPage() {
       fetchReviews();
       fetchPayments();
       fetchPets();
+      fetchProviders();
     }
-  }, [user, fetchBookings, fetchFavorites, fetchReviews, fetchPayments, fetchPets]);
+  }, [user, fetchBookings, fetchFavorites, fetchReviews, fetchPayments, fetchPets, fetchProviders]);
 
   if (loading || !user) {
     return (
@@ -337,7 +357,7 @@ export default function DashboardPage() {
                   <div className="flex flex-col gap-4">
                     {upcomingBookings.map(b => (
                       <div key={b.id} className="flex justify-between items-center p-4 bg-[#FFF8F0] rounded-xl">
-                        <span className="text-sm font-semibold text-[#2C3E50]">{serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType} with {b.providerName}</span>
+                        <span className="text-sm font-semibold text-[#2C3E50]">{serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType} with {getProviderDisplayName(b.providerId, b.providerBusinessName || b.providerName)}</span>
                         <span className="text-sm text-gray-500">{b.date}{b.time ? `, ${b.time}` : ''}</span>
                         <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColors[b.status] || 'bg-gray-500/10 text-gray-500'}`}>{b.status.charAt(0).toUpperCase() + b.status.slice(1)}</span>
                       </div>
@@ -390,7 +410,7 @@ export default function DashboardPage() {
                       {bookings.map(b => (
                         <tr key={b.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
                           <td className="px-5 py-4 text-sm"><strong className="text-[#2C3E50]">{serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType}</strong></td>
-                          <td className="px-5 py-4 text-sm text-gray-500">{b.providerName}</td>
+                          <td className="px-5 py-4 text-sm text-gray-500">{getProviderDisplayName(b.providerId, b.providerBusinessName || b.providerName)}</td>
                           <td className="px-5 py-4 text-sm text-gray-500">{b.date}{b.time ? `, ${b.time}` : ''}</td>
                           <td className="px-5 py-4 text-sm">
                             <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColors[b.status] || 'bg-gray-500/10 text-gray-500'}`}>
@@ -441,7 +461,7 @@ export default function DashboardPage() {
                     <div key={fav.id} className="bg-white rounded-2xl p-6 border border-[#F0E4D8] hover:shadow-md transition-all flex gap-4 items-start">
                       <div className="w-14 h-14 rounded-full bg-[#FFF0E0] flex items-center justify-center text-lg flex-shrink-0">{fav.emoji}</div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-[#2C3E50]">{fav.providerName}</h3>
+                        <h3 className="text-sm font-semibold text-[#2C3E50]">{getProviderDisplayName(fav.providerId, fav.providerName)}</h3>
                         <div className="text-yellow-500 text-xs mb-1">{'★'.repeat(Math.floor(fav.rating))} {fav.rating}</div>
                         <p className="text-xs text-gray-500 mb-3">{fav.category}</p>
                         <div className="flex gap-2">
@@ -628,7 +648,7 @@ export default function DashboardPage() {
                       <div className="flex justify-between items-center mb-3">
                         <div>
                           <div className="text-yellow-500 text-sm">{'★'.repeat(r.rating)}</div>
-                          <span className="text-xs text-gray-400">Provider #{r.providerId}</span>
+                          <span className="text-xs text-gray-400">{getProviderDisplayName(r.providerId)}</span>
                         </div>
                       </div>
                       <p className="text-sm text-[#2C3E50]">{r.comment}</p>
@@ -677,8 +697,8 @@ export default function DashboardPage() {
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{p.category}</span>
-                          <h4 className="font-semibold text-[#2C3E50] text-sm">{p.providerName}</h4>
-                          <p className="text-xs text-gray-400">Provider: {p.providerName}</p>
+                          <h4 className="font-semibold text-[#2C3E50] text-sm">{getProviderDisplayName(p.providerId, p.providerName)}</h4>
+                          <p className="text-xs text-gray-400">Provider: {getProviderDisplayName(p.providerId, p.providerName)}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-heading text-emerald-600">${p.amount.toFixed(2)}</p>

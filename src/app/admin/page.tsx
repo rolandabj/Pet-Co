@@ -438,7 +438,7 @@ export default function AdminPage() {
                     <tr><td colSpan={6} className="text-center py-10 text-gray-400 text-sm">No providers found.</td></tr>
                   ) : providers.map(p => (
                     <tr key={p.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
-                      <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">{p.emoji} {p.name}</td>
+                      <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">{p.emoji} {p.businessName || p.name}</td>
                       <td className="px-5 py-4 text-sm text-gray-500">{p.category}</td>
                       <td className="px-5 py-4 text-sm text-yellow-500">★ {p.rating}</td>
                       <td className="px-5 py-4 text-sm text-gray-500">{p.price}</td>
@@ -572,7 +572,7 @@ export default function AdminPage() {
                       <tr key={p.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
                         <td className="px-5 py-4 text-sm text-gray-500 font-mono">{p.bookingId.slice(0, 8)}...</td>
                         <td className="px-5 py-4 text-sm text-gray-500">{p.customerName}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">{p.providerName}</td>
+                        <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">{(m => m ? (m.businessName || m.name) : p.providerName)(providers.find(pr => pr.id === p.providerId))}</td>
                         <td className="px-5 py-4 text-sm text-gray-500">{p.category}</td>
                         <td className="px-5 py-4 text-sm text-gray-500">${p.amount.toFixed(2)}</td>
                         <td className="px-5 py-4">
@@ -684,7 +684,7 @@ export default function AdminPage() {
                             <p className="text-sm text-gray-600 line-clamp-2">{r.comment}</p>
                             <div className="flex items-center gap-2 mt-1.5">
                               <span className="text-[10px] text-gray-400">Provider:</span>
-                              <span className="text-[10px] font-mono text-gray-500">{r.providerId.slice(0, 12)}…</span>
+                              <span className="text-[10px] font-mono text-gray-500">{(m => m ? (m.businessName || m.name) : `${r.providerId.slice(0, 12)}...`)(providers.find(pr => pr.id === r.providerId))}</span>
                               <span className="text-[10px] text-gray-400">·</span>
                               <span className="text-[10px] text-gray-400">User:</span>
                               <span className="text-[10px] font-mono text-gray-500">{r.userId.slice(0, 12)}…</span>
