@@ -326,7 +326,7 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
               {provider.products.map((product: ProductItem) => (
                 <div
                   key={product.id}
-                  className="snap-start shrink-0 w-64 flex flex-col border border-[#F0E4D8] rounded-2xl bg-[#FFF8F0] overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                  className="flex-none w-72 h-auto snap-center bg-white rounded-3xl border border-[#F0E4D8] overflow-hidden group hover:border-[#E86A33] transition-all duration-300"
                 >
                   {/* Image area */}
                   <div className="relative h-40 bg-gradient-to-br from-orange-50 to-amber-100 overflow-hidden">
@@ -335,7 +335,7 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
                         <img
                           src={product.image}
                           alt={product.name}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                       </>
