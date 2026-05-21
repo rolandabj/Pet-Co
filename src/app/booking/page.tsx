@@ -332,7 +332,7 @@ function BookingForm() {
                       🕐 Provider is not operating on this day.
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-2 gap-3 max-w-sm w-full">
                       {timeSlots.map((slot) => {
                         const isBooked = bookedSlots.includes(slot.value);
                         const isSelected = time === slot.value;
@@ -342,7 +342,7 @@ function BookingForm() {
                             type="button"
                             disabled={isBooked}
                             onClick={() => setTime(isBooked ? time : slot.value)}
-                            className={`px-4 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                            className={`w-full text-center py-2.5 px-4 rounded-xl text-sm font-semibold border-2 transition-all duration-200 ${
                               isBooked
                                 ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed line-through'
                                 : isSelected
