@@ -145,8 +145,8 @@ export default function DashboardPage() {
 
   if (loading || !user) {
     return (
-      <div className="pt-[100px] min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+      <div className="flex min-h-screen items-center justify-center bg-[#FDFBF7]">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#E86A33] border-t-transparent" />
       </div>
     );
   }

@@ -86,6 +86,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {
         /* Firestore may not be available — proceed with local data */
       }
+
+      // Only mark loading complete AFTER the Firestore role fetch has
+      // resolved — otherwise the dashboard page will see the default
+      // 'owner' role and briefly flash the wrong layout.
+      setLoading(false);
     };
 
     try {
@@ -108,9 +113,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             setUser(null);
             setFirebaseUser(null);
+            setLoading(false);
           }
         }
-        setLoading(false);
       });
     } catch {
       // Firebase not configured — fall back to local auth
