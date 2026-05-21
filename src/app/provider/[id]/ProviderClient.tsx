@@ -1,0 +1,444 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { ServiceProvider, ServiceItem } from '@/lib/types';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/Toast';
+import {
+  addReviewRest,
+  findFavoriteIdRest,
+  addFavoriteRest,
+  removeFavoriteRest,
+  ReviewDoc,
+} from '@/lib/provider-rest';
+
+interface Props {
+  provider: ServiceProvider | null;
+  reviews: ReviewDoc[];
+  providerId: number;
+}
+
+export default function ProviderClient({ provider, reviews: initialReviews, providerId }: Props) {
+  const { user, firebaseUser } = useAuth();
+  const { showToast } = useToast();
+
+  // ---------- favorite state ----------
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favDocId, setFavDocId] = useState<string | null>(null);
+  const [favToggling, setFavToggling] = useState(false);
+
+  // ---------- review state ----------
+  const [reviews, setReviews] = useState<ReviewDoc[]>(initialReviews);
+  const [reviewsLoading] = useState(false); // data already loaded server-side
+  const [showForm, setShowForm] = useState(false);
+  const [newRating, setNewRating] = useState(0);
+  const [newComment, setNewComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const uid = firebaseUser?.uid || user?.id;
+
+  /* ── check if already favorited ── */
+  const checkFavorite = useCallback(async () => {
+    if (!uid || !provider) return;
+    try {
+      const docId = await findFavoriteIdRest(uid, providerId);
+      if (docId) {
+        setIsFavorited(true);
+        setFavDocId(docId);
+      }
+    } catch {
+      // not critical
+    }
+  }, [uid, provider, providerId]);
+
+  useEffect(() => {
+    checkFavorite();
+  }, [checkFavorite]);
+
+  /* ── favorite toggle ── */
+  const handleFavorite = async () => {
+    if (!uid) {
+      showToast('Please log in to save favorites.', 'error');
+      return;
+    }
+    if (!provider) return;
+
+    setFavToggling(true);
+    try {
+      if (isFavorited && favDocId) {
+        await removeFavoriteRest(favDocId);
+        setIsFavorited(false);
+        setFavDocId(null);
+        showToast('Removed from favorites.', 'success');
+      } else {
+        const newId = await addFavoriteRest({
+          userId: uid,
+          providerId,
+          providerName: provider.name,
+          category: provider.category,
+          emoji: provider.emoji,
+          rating: provider.rating,
+        });
+        setIsFavorited(true);
+        setFavDocId(newId);
+        showToast('Added to favorites!', 'success');
+      }
+    } catch {
+      showToast('Something went wrong. Try again.', 'error');
+    } finally {
+      setFavToggling(false);
+    }
+  };
+
+  /* ── review submission ── */
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRating) {
+      showToast('Please select a rating.', 'error');
+      return;
+    }
+    if (!uid) {
+      showToast('Please log in to submit a review.', 'error');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await addReviewRest({
+        providerId,
+        userId: uid,
+        userName: user?.name || 'Anonymous',
+        rating: newRating,
+        comment: newComment.trim(),
+      });
+      showToast('✅ Review submitted!', 'success');
+      setNewRating(0);
+      setNewComment('');
+      setShowForm(false);
+      // Optimistically add to local list
+      setReviews(prev => [
+        {
+          id: 'optimistic-' + Date.now(),
+          providerId,
+          userId: uid,
+          userName: user?.name || 'Anonymous',
+          rating: newRating,
+          comment: newComment.trim(),
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+    } catch {
+      showToast('❌ Failed to submit review. Try again.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* ── not found ── */
+  if (!provider) {
+    return (
+      <div className="pt-[120px] min-h-screen text-center">
+        <div className="text-4xl mb-4 opacity-50">🔍</div>
+        <h2 className="text-2xl font-heading text-[#2C3E50]">Provider not found</h2>
+        <Link href="/services" className="text-[#E86A33] font-semibold text-sm">Browse all providers</Link>
+      </div>
+    );
+  }
+
+  /* ── star renderer ── */
+  const renderStars = (rating: number) => {
+    const full = Math.floor(rating);
+    const half = rating % 1 >= 0.5;
+    return (
+      <>
+        {'★'.repeat(full)}
+        {half && '½'}
+      </>
+    );
+  };
+
+  return (
+    <div className="pt-[120px] pb-20 min-h-screen">
+      <div className="max-w-[1000px] mx-auto px-6">
+        {/* Back link */}
+        <Link
+          href="/services"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#E86A33] mb-6 transition-all"
+        >
+          ← Back to Services
+        </Link>
+
+        {/* ── Hero card ── */}
+        <div className="bg-white rounded-2xl p-8 sm:p-10 border border-[#F0E4D8] mb-8">
+          <div className="sm:flex sm:items-start sm:gap-8">
+            {/* Avatar */}
+            <div className="w-[100px] h-[100px] rounded-full bg-[#FFF0E0] flex items-center justify-center text-3xl mx-auto sm:mx-0 flex-shrink-0 mb-4 sm:mb-0">
+              {provider.emoji}
+            </div>
+
+            {/* Identity & meta */}
+            <div className="flex-1 min-w-0 text-center sm:text-left">
+              <h1 className="text-2xl font-heading text-[#2C3E50]">{provider.name}</h1>
+
+              {/* Rating */}
+              <div className="text-yellow-500 text-sm mb-1.5">
+                {renderStars(provider.rating)}
+                <span className="text-gray-500 font-medium ml-1">{provider.rating}</span>
+                <span className="text-gray-400 ml-1">({provider.reviews} reviews)</span>
+              </div>
+
+              {/* Quick info row */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mb-3 justify-center sm:justify-start">
+                <span>💼 {provider.category}</span>
+                <span>📍 {provider.location || 'New York, NY'}</span>
+                <span>📅 Member since {provider.since || '2022'}</span>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-4 max-w-[600px] mx-auto sm:mx-0">
+                {provider.desc}
+              </p>
+
+              {/* Trust badges (tags) */}
+              {provider.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-5 justify-center sm:justify-start">
+                  {provider.tags.map(t => (
+                    <span
+                      key={t}
+                      className="px-3 py-1 bg-[#FFF8F0] rounded-full text-xs font-medium text-gray-500 border border-[#F0E4D8]"
+                    >
+                      ✓ {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex gap-3 flex-wrap justify-center sm:justify-start">
+                <Link
+                  href={`/booking?provider=${provider.id}`}
+                  className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-6 py-3 rounded-full text-sm transition-all"
+                >
+                  Book Now — {provider.price}
+                </Link>
+                <button
+                  onClick={handleFavorite}
+                  disabled={favToggling}
+                  className={`border-2 font-semibold px-6 py-3 rounded-full text-sm transition-all ${
+                    isFavorited
+                      ? 'bg-red-50 border-red-300 text-red-500 hover:bg-red-100'
+                      : 'border-[#2C3E50] text-[#2C3E50] hover:bg-[#2C3E50] hover:text-white'
+                  }`}
+                >
+                  {isFavorited ? '❤️ Favorited' : '🤍 Favorite'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Two-column layout: Contact + Services ── */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* Contact info card */}
+          <div className="bg-white rounded-2xl p-7 border border-[#F0E4D8]">
+            <h3 className="text-base font-heading text-[#2C3E50] mb-4 flex items-center gap-2">
+              📞 Contact Information
+            </h3>
+            <div className="space-y-3 text-sm">
+              {provider.phone && (
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-[#FFF0E0] flex items-center justify-center text-sm flex-shrink-0">
+                    📱
+                  </span>
+                  <div>
+                    <p className="text-xs text-gray-400">Phone</p>
+                    <p className="text-[#2C3E50] font-medium">{provider.phone}</p>
+                  </div>
+                </div>
+              )}
+              {provider.email && (
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-[#FFF0E0] flex items-center justify-center text-sm flex-shrink-0">
+                    ✉️
+                  </span>
+                  <div>
+                    <p className="text-xs text-gray-400">Email</p>
+                    <p className="text-[#2C3E50] font-medium">{provider.email}</p>
+                  </div>
+                </div>
+              )}
+              {provider.location && (
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-[#FFF0E0] flex items-center justify-center text-sm flex-shrink-0">
+                    📍
+                  </span>
+                  <div>
+                    <p className="text-xs text-gray-400">Address</p>
+                    <p className="text-[#2C3E50] font-medium">{provider.location}</p>
+                  </div>
+                </div>
+              )}
+              {(!provider.phone && !provider.email) && (
+                <p className="text-gray-400 italic">No contact details listed.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Services & Pricing grid */}
+          <div className="bg-white rounded-2xl p-7 border border-[#F0E4D8]">
+            <h3 className="text-base font-heading text-[#2C3E50] mb-4 flex items-center gap-2">
+              💰 Services & Pricing
+            </h3>
+            {provider.services && provider.services.length > 0 ? (
+              <div className="space-y-2">
+                {provider.services.map((svc: ServiceItem, idx: number) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between py-2.5 px-4 rounded-xl bg-[#FFF8F0] border border-[#F0E4D8]"
+                  >
+                    <span className="text-sm text-[#2C3E50] font-medium">{svc.name}</span>
+                    <span className="text-sm font-bold text-[#E86A33]">{svc.price}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 italic">
+                {provider.price} — Contact for full pricing details.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Trust badges row ── */}
+        {provider.since && (
+          <div className="bg-white rounded-2xl p-5 border border-[#F0E4D8] mb-8 flex flex-wrap items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🏆</span>
+              <div>
+                <p className="text-xs text-gray-400">Member Since</p>
+                <p className="font-semibold text-[#2C3E50]">{provider.since}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⭐</span>
+              <div>
+                <p className="text-xs text-gray-400">Rating</p>
+                <p className="font-semibold text-[#2C3E50]">{provider.rating} / 5</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">💬</span>
+              <div>
+                <p className="text-xs text-gray-400">Total Reviews</p>
+                <p className="font-semibold text-[#2C3E50]">{provider.reviews}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Reviews section ── */}
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-heading text-[#2C3E50]">
+            ⭐ Reviews{' '}
+            <span className="text-sm font-normal text-gray-400">({reviews.length})</span>
+          </h3>
+          <button
+            onClick={() => {
+              if (!user) {
+                showToast('Please log in to write a review.', 'error');
+                return;
+              }
+              setShowForm(!showForm);
+            }}
+            className="text-sm font-semibold text-[#E86A33] hover:text-[#D4552A] transition-all"
+          >
+            + Write a Review
+          </button>
+        </div>
+
+        {/* Review form */}
+        {showForm && (
+          <form onSubmit={handleSubmitReview} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 mb-6">
+            <h4 className="text-sm font-semibold text-[#2C3E50] mb-4">Share your experience</h4>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Rating</label>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setNewRating(star)}
+                    className={`w-9 h-9 rounded-lg text-lg transition-all ${
+                      star <= newRating ? 'text-yellow-500 scale-110' : 'text-gray-300'
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Comment</label>
+              <textarea
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+                rows={4}
+                placeholder="Tell others about your experience..."
+                className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm resize-vertical"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-all disabled:opacity-50"
+              >
+                {submitting ? 'Submitting...' : 'Submit Review'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="border border-[#F0E4D8] text-gray-500 font-semibold px-6 py-2.5 rounded-full text-sm hover:bg-gray-50 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Review list */}
+        {reviewsLoading ? (
+          <div className="flex justify-center py-10">
+            <div className="w-8 h-8 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+          </div>
+        ) : reviews.length === 0 ? (
+          <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
+            <div className="text-4xl mb-3 opacity-50">💬</div>
+            <p className="text-sm text-gray-400">
+              No reviews yet. Be the first to share your experience!
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-1">
+            {reviews.map(r => (
+              <div key={r.id} className="bg-white border border-[#F0E4D8] rounded-2xl p-6">
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#FFF0E0] flex items-center justify-center text-sm font-bold text-[#E86A33]">
+                      {r.userName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <strong className="text-sm text-[#2C3E50]">{r.userName}</strong>
+                      <div className="text-yellow-500 text-xs">{'★'.repeat(r.rating)}</div>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-[#2C3E50]">{r.comment}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

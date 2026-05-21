@@ -28,6 +28,12 @@ export interface ServiceProvider {
   since?: string;
   phone?: string;
   email?: string;
+  services?: ServiceItem[];
+}
+
+export interface ServiceItem {
+  name: string;
+  price: string;
 }
 
 export interface Booking {
