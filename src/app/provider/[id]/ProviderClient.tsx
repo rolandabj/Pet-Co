@@ -338,19 +338,21 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
                 {provider.services.map((svc: ServiceItem, idx: number) => (
                   <div
                     key={idx}
-                    className="py-2.5 px-4 rounded-xl bg-[#FFF8F0] border border-[#F0E4D8]"
+                    className="w-full bg-white border border-[#F0E4D8]/60 p-3.5 rounded-xl flex flex-col gap-1 my-2"
                   >
-                    <div className="flex flex-col gap-1 w-full">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-[#2C3E50]">{svc.name}</span>
-                        <span className="text-sm font-bold text-[#E86A33]">{svc.price} {svc.currency || 'USD'}</span>
-                      </div>
-                      {svc.description && (
-                        <p className="text-xs text-gray-500 line-clamp-2 mt-0.5 max-w-[85%] leading-relaxed">
-                          {svc.description}
-                        </p>
-                      )}
+                    <div className="flex justify-between items-center w-full">
+                      <span className="font-semibold text-[#2C3E50] text-sm md:text-base">
+                        {svc.name}
+                      </span>
+                      <span className="font-bold text-[#E86A33]">
+                        {svc.price} {svc.currency || 'USD'}
+                      </span>
                     </div>
+                    {svc.description && (
+                      <p className="text-xs md:text-sm text-gray-500 mt-0.5 max-w-[90%] leading-relaxed">
+                        {svc.description}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
