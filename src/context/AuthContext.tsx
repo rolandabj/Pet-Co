@@ -325,11 +325,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // 1. Clear local session FIRST — before Firebase sign-out — so that if
+    //    onAuthStateChanged fires during signOut(), it finds no local session
+    //    and goes straight to the setUser(null) code path.
+    localAuth.logout();
+
     try {
       const { auth } = getFirebaseAuth();
       await firebaseSignOut(auth);
     } catch { /* ignore */ }
-    localAuth.logout();
+
+    // 2. Wipe React state so the UI re-renders to unauthenticated immediately.
     setUser(null);
     setFirebaseUser(null);
   }, []);

@@ -3,14 +3,23 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useToast } from '@/components/Toast';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
+  const { showToast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path;
+
+  const handleLogout = async () => {
+    await logout();
+    showToast('Logged out successfully', 'success');
+    router.push('/');
+  };
 
   const navLinks = [
     { href: '/', label: 'Home' },
@@ -59,7 +68,7 @@ export default function Navbar() {
                 <span>👤</span>
                 {user.name || user.email}
               </Link>
-              <button onClick={logout} className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2">
+              <button onClick={handleLogout} className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2">
                 Logout
               </button>
             </>
@@ -113,7 +122,7 @@ export default function Navbar() {
                 <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-[#E86A33]">
                   👤 Dashboard
                 </Link>
-                <button onClick={() => { logout(); setMenuOpen(false); }} className="block w-full text-left px-4 py-2.5 text-sm font-medium text-red-500">
+                <button onClick={() => { handleLogout(); setMenuOpen(false); }} className="block w-full text-left px-4 py-2.5 text-sm font-medium text-red-500">
                   Logout
                 </button>
               </>
