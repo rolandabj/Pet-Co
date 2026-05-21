@@ -15,6 +15,14 @@ function BookingForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Strip currency symbols ($, €, etc.) and non-numeric chars from price strings
+  const parseCleanPrice = (priceValue: any): number => {
+    if (!priceValue) return 0;
+    if (typeof priceValue === 'number') return priceValue;
+    const scrubbed = String(priceValue).replace(/[^0-9.]/g, '');
+    return parseFloat(scrubbed) || 0;
+  };
+
   const [serviceType, setServiceType] = useState('');
   const [provider, setProvider] = useState('');
   const [providersList, setProvidersList] = useState<ServiceProvider[]>([]);
@@ -66,7 +74,7 @@ function BookingForm() {
             if (found.services.length === 1) {
               const svc = found.services[0];
               setServiceType(svc.name);
-              const price = Number(svc.price) || 0;
+              const price = parseCleanPrice(svc.price);
               setServiceFee(price);
               setPlatformFee(price * 0.1);
             }
@@ -84,9 +92,24 @@ function BookingForm() {
     ? providerServices.map(s => ({
         value: s.name,
         label: `🐾 ${s.name}`,
-        price: Number(s.price) || 0,
+        price: parseCleanPrice(s.price),
       }))
     : serviceTypes;
+
+  // Sync pricing as soon as providerData + selectedService both resolve
+  // (handles the multi-service case where no auto-select fires on mount)
+  useEffect(() => {
+    if (providerData?.services && serviceType) {
+      const matchingService = providerData.services.find(
+        s => s.name.toLowerCase() === serviceType.toLowerCase(),
+      );
+      if (matchingService) {
+        const cleanFee = parseCleanPrice(matchingService.price);
+        setServiceFee(cleanFee);
+        setPlatformFee(cleanFee * 0.1);
+      }
+    }
+  }, [providerData, serviceType]);
 
   // Handler: when the user picks a service, update the service type and pricing states
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -94,9 +117,9 @@ function BookingForm() {
     setServiceType(serviceName);
 
     // Cross-reference against the provider's custom services (if available)
-    const matchingService = providerData?.services?.find(s => s.name === serviceName);
+    const matchingService = providerData?.services?.find(s => s.name.toLowerCase() === serviceName.toLowerCase());
     if (matchingService) {
-      const dynamicPrice = Number(matchingService.price) || 0;
+      const dynamicPrice = parseCleanPrice(matchingService.price);
       setServiceFee(dynamicPrice);
       setPlatformFee(dynamicPrice * 0.1);
     } else {
