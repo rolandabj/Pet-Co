@@ -61,6 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let unsubscribe: (() => void) | undefined;
 
     const initUser = async (appUser: AppUser) => {
+      // Set the user immediately so the UI doesn't redirect to /login
+      // while we wait for the Firestore enhancement below.
+      setUser(appUser);
+
       // Fetch Firestore user doc to merge custom fields, with a timeout
       // so it can't hang if Firestore is unreachable.
       try {
@@ -72,12 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         if (userSnap.exists()) {
           const data = userSnap.data();
-          appUser = { ...appUser, phone: data.phone, location: data.location };
+          setUser({ ...appUser, phone: data.phone, location: data.location });
         }
       } catch {
         /* Firestore may not be available — proceed with local data */
       }
-      setUser(appUser);
     };
 
     try {
