@@ -24,8 +24,9 @@ function mapDoc(doc: any): ServiceProvider {
       return { name: m.name?.stringValue ?? '', price: m.price?.stringValue ?? '' };
     });
   };
+  const docName = doc.name?.split('/').pop() ?? '';
   return {
-    id: n('id'),
+    id: docName || String(n('id')),
     name: s('name'),
     type: s('type'),
     category: s('category'),
@@ -43,7 +44,7 @@ function mapDoc(doc: any): ServiceProvider {
   };
 }
 
-export async function getProviderByIdRest(id: number): Promise<ServiceProvider | null> {
+export async function getProviderByIdRest(id: string): Promise<ServiceProvider | null> {
   const url = `${FIRESTORE_BASE}/providers/${id}?key=${API_KEY}`;
   const res = await fetch(url, { next: { revalidate: 60 } });
   if (!res.ok) {
@@ -58,7 +59,7 @@ export async function getProviderByIdRest(id: number): Promise<ServiceProvider |
 
 export interface ReviewDoc {
   id: string;
-  providerId: number;
+  providerId: string;
   userId: string;
   userName: string;
   rating: number;
@@ -72,7 +73,7 @@ function mapReviewDoc(doc: any): ReviewDoc {
   const n = (n: string) => Number(f[n]?.integerValue ?? f[n]?.doubleValue ?? 0);
   return {
     id: doc.name?.split('/').pop() ?? '',
-    providerId: n('providerId'),
+    providerId: s('providerId') || String(n('providerId')),
     userId: s('userId'),
     userName: s('userName'),
     rating: n('rating'),
@@ -81,7 +82,7 @@ function mapReviewDoc(doc: any): ReviewDoc {
   };
 }
 
-export async function getReviewsByProviderRest(providerId: number): Promise<ReviewDoc[]> {
+export async function getReviewsByProviderRest(providerId: string): Promise<ReviewDoc[]> {
   const url = `${FIRESTORE_BASE}:runQuery?key=${API_KEY}`;
   const body = {
     structuredQuery: {

@@ -17,7 +17,7 @@ import type { ReviewDoc } from '@/lib/firestore-rest';
 interface Props {
   provider: ServiceProvider | null;
   reviews: ReviewDoc[];
-  providerId: number;
+  providerId: string;
 }
 
 export default function ProviderClient({ provider, reviews: initialReviews, providerId }: Props) {

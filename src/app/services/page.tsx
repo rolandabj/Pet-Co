@@ -12,7 +12,7 @@ function docToProvider(doc: any): ServiceProvider {
   const n = (n: string) => Number(f[n]?.integerValue ?? f[n]?.doubleValue ?? 0);
   const a = (n: string) => f[n]?.arrayValue?.values?.map((v: any) => v.stringValue) ?? [];
   return {
-    id: Number(doc.name.split('/').pop()),
+    id: doc.name.split('/').pop() ?? '',
     name: s('name'),
     type: s('type'),
     category: s('category'),

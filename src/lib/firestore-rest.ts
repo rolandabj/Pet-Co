@@ -144,7 +144,7 @@ function mapServiceProvider(doc: any): ServiceProvider {
   const docName = doc.name?.split('/').pop() ?? '';
   return {
     _firestoreId: docName,
-    id: n('id'),
+    id: docName || String(n('id')),
     name: s('name'),
     type: s('type'),
     category: s('category'),
@@ -173,7 +173,7 @@ export async function getAllProvidersRest(): Promise<ServiceProvider[]> {
 
 export interface ReviewDoc {
   id: string;
-  providerId: number;
+  providerId: string;
   userId: string;
   userName: string;
   rating: number;
@@ -193,7 +193,7 @@ function mapReviewDoc(doc: { id: string; data: Record<string, any> }): ReviewDoc
   };
 }
 
-export async function getReviewsByProviderRest(providerId: number): Promise<ReviewDoc[]> {
+export async function getReviewsByProviderRest(providerId: string): Promise<ReviewDoc[]> {
   const docs = await fetchWhere('reviews', 'providerId', providerId, mapReviewDoc);
   return docs.sort((a, b) => {
     if (!a.createdAt && !b.createdAt) return 0;
@@ -231,7 +231,7 @@ export async function getUserReviewsRest(userId: string): Promise<ReviewDoc[]> {
 export interface FavoriteDoc {
   id: string;
   userId: string;
-  providerId: number;
+  providerId: string;
   providerName: string;
   category: string;
   emoji: string;
@@ -256,7 +256,7 @@ export async function getUserFavoritesRest(userId: string): Promise<FavoriteDoc[
   return fetchWhere('favorites', 'userId', userId, mapFavoriteDoc);
 }
 
-export async function findFavoriteIdRest(userId: string, providerId: number): Promise<string | null> {
+export async function findFavoriteIdRest(userId: string, providerId: string): Promise<string | null> {
   const docs = await fetchCollection<FavoriteDoc>(
     'favorites',
     (doc) => doc.data.userId === userId && (doc.data.providerId === providerId || doc.data.providerId == providerId),
@@ -267,7 +267,7 @@ export async function findFavoriteIdRest(userId: string, providerId: number): Pr
 
 export async function addFavoriteRest(data: {
   userId: string;
-  providerId: number;
+  providerId: string;
   providerName: string;
   category: string;
   emoji: string;
@@ -589,7 +589,7 @@ export async function deleteProviderDocRest(providerId: number | string): Promis
 function mapProviderFromDoc(doc: { id: string; data: Record<string, any> }): ServiceProvider {
   const d = doc.data;
   return {
-    id: Number(doc.id),
+    id: doc.id,
     name: d.name ?? '',
     type: d.type ?? '',
     category: d.category ?? '',
@@ -618,16 +618,16 @@ export async function getProviderByEmailRest(email: string): Promise<ServiceProv
   return list.length > 0 ? list[0] : null;
 }
 
-/** Fetch a provider document by its numeric ID. */
-export async function getProviderByIdRest(id: number): Promise<ServiceProvider | null> {
-  return fetchOne('providers', String(id), mapServiceProvider);
+/** Fetch a provider document by its ID (Firestore document name). */
+export async function getProviderByIdRest(id: string): Promise<ServiceProvider | null> {
+  return fetchOne('providers', id, mapServiceProvider);
 }
 
 /**
  * Update a provider document (PATCH).
  * Sends only the provided fields — other fields remain untouched.
  */
-export async function updateProviderDocRest(providerId: number, data: Record<string, unknown>): Promise<void> {
+export async function updateProviderDocRest(providerId: string, data: Record<string, unknown>): Promise<void> {
   const fields: Record<string, unknown> = {};
   const masks: string[] = [];
   for (const [key, val] of Object.entries(data)) {

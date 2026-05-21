@@ -11,12 +11,11 @@ interface Props {
 
 export default async function ProviderProfilePage({ params }: Props) {
   const { id: idStr } = await params;
-  const id = Number(idStr);
 
   const [provider, reviews] = await Promise.all([
-    getProviderByIdRest(id).catch(() => null),
-    getReviewsByProviderRest(id).catch(() => []),
+    getProviderByIdRest(idStr).catch(() => null),
+    getReviewsByProviderRest(idStr).catch(() => []),
   ]);
 
-  return <ProviderClient provider={provider} reviews={reviews} providerId={id} />;
+  return <ProviderClient provider={provider} reviews={reviews} providerId={idStr} />;
 }

@@ -180,7 +180,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const fetchReviews = useCallback(async () => {
     setReviewsLoading(true);
     try {
-      const list = await getReviewsByProviderRest(provider?.id ?? 0);
+      const list = await getReviewsByProviderRest(provider?.id ?? '');
       setReviews(list);
     } catch (err) {
       console.error('Failed to fetch reviews:', err);
@@ -233,7 +233,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       if (providerDocId) {
         await updateProviderByIdRest(providerDocId, data);
       } else {
-        await updateProviderDocRest(provider?.id ?? 0, data);
+        await updateProviderDocRest(provider?.id ?? '', data);
       }
     },
     [provider, providerDocId],
@@ -473,7 +473,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
 
               // Build a local provider object so the dashboard renders immediately
               const localProvider: ServiceProvider = {
-                id: 0,
+                id: docId || 'local',
                 name: userEmail.split('@')[0],
                 type: onboardingCategory,
                 category: categoryLabels[onboardingCategory] || 'Dog Walker',

@@ -14,7 +14,7 @@ export interface AppUser {
 }
 
 export interface ServiceProvider {
-  id: number;
+  id: string;
   /** Actual Firestore document name — used for deletes/updates when the
    *  numeric `id` doesn't match the Firestore document key. */
   _firestoreId?: string;

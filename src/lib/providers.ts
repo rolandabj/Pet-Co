@@ -4,7 +4,7 @@ import { ServiceProvider } from './types';
 
 function mapDoc(id: string, data: Record<string, unknown>): ServiceProvider {
   return {
-    id: Number(id),
+    id,
     name: data.name as string,
     type: data.type as string,
     category: data.category as string,
@@ -25,9 +25,9 @@ export async function getAllProviders(): Promise<ServiceProvider[]> {
   return snapshot.docs.map(d => mapDoc(d.id, d.data() as Record<string, unknown>));
 }
 
-export async function getProviderById(id: number): Promise<ServiceProvider | null> {
+export async function getProviderById(id: string): Promise<ServiceProvider | null> {
   const db = getFirestoreDb();
-  const snap = await getDoc(doc(db, 'providers', String(id)));
+  const snap = await getDoc(doc(db, 'providers', id));
   if (!snap.exists()) return null;
   return mapDoc(snap.id, snap.data() as Record<string, unknown>);
 }
