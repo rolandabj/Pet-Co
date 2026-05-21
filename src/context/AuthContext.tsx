@@ -171,19 +171,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { auth, googleProvider } = getFirebaseAuth();
 
-      // Helper to build AppUser from Firebase credential with the correct role
-      const buildAppUser = (credential: FirebaseUser) => {
+      // ── Try to load the user's existing role from Firestore ─────
+      // This must run BEFORE any routing/creation decisions so that
+      // returning users never see a role-selection screen and their
+      // role is never overwritten.
+      const getExistingRole = async (uid: string): Promise<UserRole | null> => {
+        try {
+          const db = getFirestoreDb();
+          const snap = await timeout(
+            getDoc(doc(db, 'users', uid)),
+            4000,
+            'Firestore getDoc (googleLogin)'
+          );
+          if (snap.exists()) {
+            const data = snap.data();
+            return (data.role as UserRole) ?? null;
+          }
+        } catch {
+          /* Firestore may be unreachable — caller handles null */
+        }
+        return null;
+      };
+
+      // Helper to build AppUser from Firebase credential with a resolved role
+      const buildAppUser = (credential: FirebaseUser, resolvedRole: UserRole) => {
         const appUser = localAuth.setSessionFromFirebase({
           uid: credential.uid,
           email: credential.email || '',
           name: credential.displayName || credential.email?.split('@')[0] || 'User',
           photoURL: credential.photoURL,
-        }, role);
+        }, resolvedRole);
         return appUser;
       };
 
-      // Persist/update role in Firestore users collection
-      const persistRole = async (appUser: AppUser) => {
+      // Persist a NEW user's role to Firestore (only called for first-time users)
+      const persistNewUser = async (appUser: AppUser) => {
         try {
           await updateUserDocRest(appUser.id, { role: appUser.role, name: appUser.name });
           // Auto-create a minimal provider doc for new provider registrations
@@ -211,6 +233,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
+      // ── Common handler for popup & redirect results ──────────────
+      const handleCredential = async (credential: FirebaseUser) => {
+        // 1) Check Firestore for an existing, immutable role
+        const existingRole = await getExistingRole(credential.uid);
+
+        // 2) Scenario A (Returning User): role exists in Firestore → freeze it
+        //    Scenario B (Brand New User): no role yet → use the caller-supplied role
+        const resolvedRole = existingRole ?? role ?? 'owner';
+
+        const appUser = buildAppUser(credential, resolvedRole);
+        setFirebaseUser(credential);
+        setUser(appUser);
+
+        // 3) Only persist for NEW users (no existing doc in Firestore)
+        if (!existingRole) {
+          persistNewUser(appUser);
+        }
+
+        return { user: appUser };
+      };
+
       // Handle redirect result first (if we came back from a redirect)
       try {
         const redirectResult = await timeout(
@@ -219,12 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           'getRedirectResult'
         );
         if (redirectResult?.user) {
-          const credential = redirectResult.user;
-          const appUser = buildAppUser(credential);
-          setFirebaseUser(credential);
-          setUser(appUser);
-          persistRole(appUser);
-          return { user: appUser };
+          return handleCredential(redirectResult.user);
         }
       } catch {
         // No pending redirect result — ignore
@@ -237,12 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         60000,
         'signInWithPopup'
       );
-      const credential = popupResult.user;
-      const appUser = buildAppUser(credential);
-      setFirebaseUser(popupResult.user);
-      setUser(appUser);
-      persistRole(appUser);
-      return { user: appUser };
+      return handleCredential(popupResult.user);
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };
       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
