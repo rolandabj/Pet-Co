@@ -165,13 +165,6 @@ export async function getAllProvidersRest(): Promise<ServiceProvider[]> {
   return (json.documents || []).map((d: any) => mapServiceProvider(d));
 }
 
-export async function getProviderByIdRest(id: number): Promise<ServiceProvider | null> {
-  const res = await authGet(docUrl('providers', String(id)));
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Failed to fetch provider: ${res.status}`);
-  return mapServiceProvider(await res.json());
-}
-
 // ─── Review helpers ───────────────────────────────────────────
 
 export interface ReviewDoc {
@@ -582,4 +575,71 @@ export async function deleteUserDocRest(userId: string): Promise<void> {
 export async function deleteProviderDocRest(providerId: number): Promise<void> {
   const res = await fetch(docUrl('providers', String(providerId)) + `?key=${API_KEY}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 404) throw new Error(`Failed to delete provider: ${res.status}`);
+}
+
+// ─── Provider update / lookup helpers ──────────────────────────
+
+/** Map a Firestore doc {id, data} to ServiceProvider (for fetchWhere/fetchCollection). */
+function mapProviderFromDoc(doc: { id: string; data: Record<string, any> }): ServiceProvider {
+  const d = doc.data;
+  return {
+    id: Number(doc.id),
+    name: d.name ?? '',
+    type: d.type ?? '',
+    category: d.category ?? '',
+    rating: d.rating ?? 0,
+    reviews: d.reviews ?? 0,
+    desc: d.desc ?? '',
+    tags: d.tags ?? [],
+    emoji: d.emoji ?? '',
+    price: d.price ?? '',
+    location: d.location ?? undefined,
+    since: d.since ?? undefined,
+    phone: d.phone ?? undefined,
+    email: d.email ?? undefined,
+    services: d.services ?? undefined,
+    businessName: d.businessName ?? undefined,
+    contactEmail: d.contactEmail ?? undefined,
+    contactPhone: d.contactPhone ?? undefined,
+    socialMedia: d.socialMedia ?? undefined,
+    products: d.products ?? undefined,
+  };
+}
+
+/** Fetch a provider document by email (for the provider dashboard). */
+export async function getProviderByEmailRest(email: string): Promise<ServiceProvider | null> {
+  const list = await fetchWhere('providers', 'email', email, mapProviderFromDoc);
+  return list.length > 0 ? list[0] : null;
+}
+
+/** Fetch a provider document by its numeric ID. */
+export async function getProviderByIdRest(id: number): Promise<ServiceProvider | null> {
+  return fetchOne('providers', String(id), mapServiceProvider);
+}
+
+/**
+ * Update a provider document (PATCH).
+ * Sends only the provided fields — other fields remain untouched.
+ */
+export async function updateProviderDocRest(providerId: number, data: Record<string, unknown>): Promise<void> {
+  const fields: Record<string, unknown> = {};
+  const masks: string[] = [];
+  for (const [key, val] of Object.entries(data)) {
+    fields[key] = toFieldValue(val);
+    masks.push(key);
+  }
+  const url = docUrl('providers', String(providerId))
+    + `?key=${API_KEY}&updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    body: JSON.stringify({ fields }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok && res.status !== 404)
+    throw new Error(`Failed to update provider: ${res.status}`);
+}
+
+/** Fetch bookings where the provider ID matches. */
+export async function getBookingsByProviderRest(providerId: string): Promise<BookingDoc[]> {
+  return fetchWhere('bookings', 'providerId', providerId, mapBookingDoc);
 }

@@ -29,11 +29,30 @@ export interface ServiceProvider {
   phone?: string;
   email?: string;
   services?: ServiceItem[];
+  businessName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  socialMedia?: {
+    instagram?: string;
+    facebook?: string;
+    twitter?: string;
+    website?: string;
+  };
+  products?: ProductItem[];
 }
 
 export interface ServiceItem {
   name: string;
   price: string;
+}
+
+export interface ProductItem {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+  description?: string;
+  inStock: boolean;
 }
 
 export interface Booking {

@@ -16,6 +16,7 @@ import {
   getUserReviewsRest,
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc, PetDoc, FavoriteDoc, ReviewDoc } from '@/lib/firestore-rest';
+import ProviderDashboard from './ProviderDashboard';
 
 type Tab = 'overview' | 'bookings' | 'favorites' | 'profile' | 'reviews' | 'payments' | 'pets';
 
@@ -150,6 +151,17 @@ export default function DashboardPage() {
     );
   }
 
+  // ── Service Provider Dashboard ────────────────────────────────
+  if (user.role === 'provider') {
+    return (
+      <div className="pt-[76px] min-h-screen bg-[#FFF8F0]">
+        <div className="max-w-[1200px] mx-auto px-6 py-8">
+          <ProviderDashboard userEmail={user.email} userId={user.id} />
+        </div>
+      </div>
+    );
+  }
+
   const tabs: { key: Tab; icon: string; label: string }[] = [
     { key: 'overview', icon: '📊', label: 'Overview' },
     { key: 'bookings', icon: '📅', label: 'My Bookings' },
@@ -159,8 +171,6 @@ export default function DashboardPage() {
     { key: 'reviews', icon: '⭐', label: 'Reviews' },
     { key: 'payments', icon: '💳', label: 'Payments' },
   ];
-
-  const isProvider = user.role === 'provider';
 
   const upcomingBookings = bookings.filter(b => b.status === 'pending' || b.status === 'confirmed');
   const completedBookingsCount = bookings.filter(b => b.status === 'completed').length;
@@ -242,10 +252,10 @@ export default function DashboardPage() {
         <aside className="hidden md:block w-[260px] bg-white border-r border-[#F0E4D8] p-8 sticky top-[76px] h-[calc(100vh-76px)] overflow-y-auto">
           <div className="text-center pb-6 border-b border-[#F0E4D8] mb-6">
             <div className="w-16 h-16 rounded-full bg-[#FFF0E0] flex items-center justify-center text-2xl mx-auto mb-3">
-              {isProvider ? '💼' : '🐾'}
+              {'🐾'}
             </div>
             <h4 className="text-sm font-semibold text-[#2C3E50]">{user.name}</h4>
-            <p className="text-xs text-gray-400">{isProvider ? 'Service Provider' : 'Pet Owner'}</p>
+            <p className="text-xs text-gray-400">{'Pet Owner'}</p>
           </div>
           <nav className="flex flex-col gap-1">
             {tabs.map(tab => (
@@ -632,7 +642,7 @@ export default function DashboardPage() {
           {activeTab === 'payments' && (
             <>
               <div className="flex justify-between items-center mb-8">
-                <h2 className="text-2xl font-heading text-[#2C3E50]">💳 {isProvider ? 'Incoming Payments' : 'My Receipts'}</h2>
+                <h2 className="text-2xl font-heading text-[#2C3E50]">💳 My Receipts</h2>
                 <span className="text-sm text-gray-400">{payments.length} transaction{payments.length !== 1 ? 's' : ''}</span>
               </div>
               {paymentsLoading ? (
@@ -657,8 +667,8 @@ export default function DashboardPage() {
                 <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
                   <div className="text-4xl mb-4 opacity-50">💳</div>
                   <h3 className="text-lg font-heading text-[#2C3E50] mb-2">No payments yet</h3>
-                  <p className="text-sm text-gray-400 mb-5">{isProvider ? 'Payments will appear here when customers book your services.' : 'Your receipts will appear here after booking a service.'}</p>
-                  <Link href={isProvider ? '/services' : '/services'} className="bg-[#E86A33] hover:bg-[#D4552A] text-white text-sm font-semibold px-6 py-3 rounded-full transition-all">{isProvider ? 'View Services' : 'Browse Services'}</Link>
+                  <p className="text-sm text-gray-400 mb-5">Your receipts will appear here after booking a service.</p>
+                  <Link href={'/services'} className="bg-[#E86A33] hover:bg-[#D4552A] text-white text-sm font-semibold px-6 py-3 rounded-full transition-all">Browse Services</Link>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
@@ -668,11 +678,7 @@ export default function DashboardPage() {
                         <div>
                           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{p.category}</span>
                           <h4 className="font-semibold text-[#2C3E50] text-sm">{p.providerName}</h4>
-                          {isProvider ? (
-                            <p className="text-xs text-gray-400">Customer: {p.customerName}</p>
-                          ) : (
-                            <p className="text-xs text-gray-400">Provider: {p.providerName}</p>
-                          )}
+                          <p className="text-xs text-gray-400">Provider: {p.providerName}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-heading text-emerald-600">${p.amount.toFixed(2)}</p>
