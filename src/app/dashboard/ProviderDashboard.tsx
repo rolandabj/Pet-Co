@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { onSnapshot, collection, query, where } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
 import { getFirestoreDb } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/components/Toast';
@@ -188,6 +188,8 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       const p = await getProviderByEmailRest(userEmail);
       setProvider(p);
       if (p) {
+        setProviderDocId(p._firestoreId ?? null);
+        console.log('[ProviderDashboard] Fetched provider, doc ID:', p._firestoreId);
         setBizName(p.businessName ?? p.name ?? '');
         setBizEmail(p.contactEmail ?? p.email ?? '');
         setBizPhone(p.contactPhone ?? p.phone ?? '');
@@ -517,9 +519,17 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   // ── Save business profile ──────────────────────────────────────
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!provider) return;
-    // Reconstruct availability payload explicitly to eliminate stale state
-    const finalAvailabilityMap = {
+    // 1. Resolve target provider ID safely
+    const targetDocId = provider?._firestoreId || providerDocId || provider?.id;
+    console.log('[ProviderDashboard] saveProfile — targetDocId:', targetDocId, '| providerDocId state:', providerDocId, '| provider._firestoreId:', provider?._firestoreId, '| provider.id:', provider?.id);
+    if (!targetDocId) {
+      console.error('[ProviderDashboard] CRITICAL: No valid provider ID found for database write.');
+      showToast('Could not save: Missing account profile context ID.', 'error');
+      return;
+    }
+
+    // 2. Format availability payload rigidly to strict primitives
+    const freshAvailabilityMap = {
       monday: { isOpen: Boolean(availability.monday?.isOpen), start: availability.monday?.start || '09:00', end: availability.monday?.end || '17:00' },
       tuesday: { isOpen: Boolean(availability.tuesday?.isOpen), start: availability.tuesday?.start || '09:00', end: availability.tuesday?.end || '17:00' },
       wednesday: { isOpen: Boolean(availability.wednesday?.isOpen), start: availability.wednesday?.start || '09:00', end: availability.wednesday?.end || '17:00' },
@@ -530,7 +540,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     };
     const updates: Record<string, unknown> = {
       businessName: bizName.trim(),
-      desc: provider.desc?.trim() || '',
+      desc: provider?.desc?.trim() || '',
       contactEmail: bizEmail.trim(),
       contactPhone: bizPhone.trim(),
       location: bizLocation.trim(),
@@ -539,14 +549,20 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
         facebook: bizFacebook.trim(),
         website: bizWebsite.trim(),
       },
-      availability: finalAvailabilityMap,
+      availability: freshAvailabilityMap,
     };
+
     try {
-      await updateProvider(updates);
-      setProvider({ ...provider, ...updates } as ServiceProvider);
+      console.log('[ProviderDashboard] Writing to providers/' + targetDocId, freshAvailabilityMap);
+      const db = getFirestoreDb();
+      const providerDocRef = doc(db, 'providers', targetDocId);
+      await updateDoc(providerDocRef, { availability: freshAvailabilityMap });
+      console.log('[ProviderDashboard] Firestore update successful!');
+      setProvider({ ...provider!, ...updates } as ServiceProvider);
       showToast('✅ Business profile updated!', 'success');
-    } catch {
-      showToast('❌ Failed to save profile.', 'error');
+    } catch (error) {
+      console.error('[ProviderDashboard] FIRESTORE WRITE CRASHED:', error);
+      showToast('Save failed. Check browser console for details.', 'error');
     }
   };
 
