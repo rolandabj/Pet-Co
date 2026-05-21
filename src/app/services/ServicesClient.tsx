@@ -5,35 +5,32 @@ import { ServiceProvider } from '@/lib/types';
 import Link from 'next/link';
 
 const filterTypes = [
-  { value: 'all', label: 'All' },
-  { value: 'shops', label: '🛍️ Pet Shops' },
-  { value: 'walkers', label: '🐕 Dog Walkers' },
-  { value: 'vets', label: '🏥 Vets' },
-  { value: 'hotels', label: '🏨 Dog Hotels' },
-  { value: 'sitters', label: '🛋️ Pet Sitters' },
-  { value: 'grooming', label: '✂️ Grooming' },
+  { value: 'all', label: 'All', href: '/services' },
+  { value: 'shops', label: '🛍️ Pet Shops', href: '/services?type=shops' },
+  { value: 'walkers', label: '🐕 Dog Walkers', href: '/services?type=walkers' },
+  { value: 'vets', label: '🏥 Vets', href: '/services?type=vets' },
+  { value: 'hotels', label: '🏨 Dog Hotels', href: '/services?type=hotels' },
+  { value: 'sitters', label: '🛋️ Pet Sitters', href: '/services?type=sitters' },
+  { value: 'grooming', label: '✂️ Grooming', href: '/services?type=grooming' },
 ];
 
 interface Props {
-  initialProviders: ServiceProvider[];
+  providers: ServiceProvider[];
+  activeFilter: string;
   loadError: string;
 }
 
-export default function ServicesClient({ initialProviders, loadError }: Props) {
-  const [providers] = useState(initialProviders);
-  const [error] = useState(loadError);
-  const [activeFilter, setActiveFilter] = useState('all');
+export default function ServicesClient({ providers, activeFilter, loadError }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filtered = providers.filter(p => {
-    const matchesFilter = activeFilter === 'all' || p.type === activeFilter;
-    const matchesSearch = !searchQuery || 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      p.desc.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  const filtered = searchQuery
+    ? providers.filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        p.desc.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : providers;
 
   return (
     <div className="pt-[120px] pb-20 min-h-screen">
@@ -58,27 +55,30 @@ export default function ServicesClient({ initialProviders, loadError }: Props) {
 
         {/* Filter chips */}
         <div className="flex gap-3 flex-wrap justify-center mb-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          {filterTypes.map(f => (
-            <button
-              key={f.value}
-              onClick={() => setActiveFilter(f.value)}
-              className={`px-5 py-2 rounded-full border text-sm font-medium transition-all ${
-                activeFilter === f.value
-                  ? 'bg-[#E86A33] text-white border-[#E86A33]'
-                  : 'bg-white text-gray-500 border-[#F0E4D8] hover:border-[#E86A33] hover:text-[#E86A33]'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+          {filterTypes.map(f => {
+            const isActive = activeFilter === f.value;
+            return (
+              <Link
+                key={f.value}
+                href={f.href}
+                className={`px-5 py-2 rounded-full border text-sm font-medium transition-all no-underline ${
+                  isActive
+                    ? 'bg-[#E86A33] text-white border-[#E86A33]'
+                    : 'bg-white text-gray-500 border-[#F0E4D8] hover:border-[#E86A33] hover:text-[#E86A33]'
+                }`}
+              >
+                {f.label}
+              </Link>
+            );
+          })}
         </div>
 
         {/* Error state */}
-        {error ? (
+        {loadError ? (
           <div className="text-center py-20 max-w-[500px] mx-auto">
             <div className="text-4xl mb-4 opacity-50">⚠️</div>
             <h3 className="text-xl font-heading text-[#2C3E50] mb-2">Something went wrong</h3>
-            <p className="text-gray-400 mb-6">{error}</p>
+            <p className="text-gray-400 mb-6">{loadError}</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">

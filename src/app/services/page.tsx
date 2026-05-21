@@ -1,6 +1,6 @@
 /**
  * Services page – server component.
- * Fetches provider data server-side and passes it to the interactive client component.
+ * Fetches provider data server-side and accepts ?type= search param for filtering.
  */
 import { ServiceProvider } from '@/lib/types';
 import ServicesClient from './ServicesClient';
@@ -27,7 +27,13 @@ function docToProvider(doc: any): ServiceProvider {
   };
 }
 
-export default async function ServicesPage() {
+interface Props {
+  searchParams: Promise<{ type?: string }>;
+}
+
+export default async function ServicesPage({ searchParams }: Props) {
+  const { type: activeFilter } = await searchParams;
+
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   let providers: ServiceProvider[] = [];
@@ -50,5 +56,16 @@ export default async function ServicesPage() {
     loadError = 'Firebase config missing';
   }
 
-  return <ServicesClient initialProviders={providers} loadError={loadError} />;
+  // Filter providers server-side based on ?type= search param
+  const filtered = activeFilter
+    ? providers.filter(p => p.type === activeFilter)
+    : providers;
+
+  return (
+    <ServicesClient
+      providers={filtered}
+      activeFilter={activeFilter ?? 'all'}
+      loadError={loadError}
+    />
+  );
 }
