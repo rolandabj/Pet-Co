@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { onSnapshot, collection, query, where } from 'firebase/firestore';
+import { getFirestoreDb } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/components/Toast';
 import {
-  getUserBookingsRest,
   getUserPaymentsRest,
   getUserPetsRest,
   addPetRest,
@@ -15,6 +16,7 @@ import {
   removeFavoriteRest,
   getUserReviewsRest,
   getAllProvidersRest,
+  updateBookingRest,
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc, PetDoc, FavoriteDoc, ReviewDoc } from '@/lib/firestore-rest';
 import type { ServiceProvider } from '@/lib/types';
@@ -23,10 +25,11 @@ import ProviderDashboard from './ProviderDashboard';
 type Tab = 'overview' | 'bookings' | 'favorites' | 'profile' | 'reviews' | 'payments' | 'pets';
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-500/10 text-yellow-600',
-  confirmed: 'bg-blue-500/10 text-blue-500',
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   completed: 'bg-emerald-500/10 text-emerald-600',
-  cancelled: 'bg-red-500/10 text-red-500',
+  cancelled: 'bg-rose-50 text-rose-700 border-rose-200',
+  declined: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
 export default function DashboardPage() {
@@ -55,18 +58,29 @@ export default function DashboardPage() {
   const [petAge, setPetAge] = useState('');
   const [petNotes, setPetNotes] = useState('');
 
-  const fetchBookings = useCallback(async () => {
+  // ── Real-time bookings listener ──────────────────────────────────
+  useEffect(() => {
     if (!user) return;
     const uid = firebaseUser?.uid || user.id;
     setBookingsLoading(true);
-    try {
-      const list = await getUserBookingsRest(uid);
-      setBookings(list);
-    } catch (err) {
-      console.error('Failed to fetch bookings:', err);
-    } finally {
-      setBookingsLoading(false);
-    }
+    const db = getFirestoreDb();
+    const q = query(collection(db, 'bookings'), where('userId', '==', uid));
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: BookingDoc[] = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as unknown as BookingDoc[];
+        setBookings(list);
+        setBookingsLoading(false);
+      },
+      (err) => {
+        console.error('Bookings onSnapshot error:', err);
+        setBookingsLoading(false);
+      },
+    );
+    return () => unsub();
   }, [user, firebaseUser]);
 
   const fetchFavorites = useCallback(async () => {
@@ -141,6 +155,17 @@ export default function DashboardPage() {
     return prov ? (prov.businessName || prov.name) : (fallbackName || providerId);
   }, [providers]);
 
+  // Cancel a booking (owner-facing)
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      await updateBookingRest(bookingId, { status: 'cancelled' } as Partial<BookingDoc>);
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b));
+      showToast('✅ Booking cancelled.', 'success');
+    } catch {
+      showToast('❌ Failed to cancel booking.', 'error');
+    }
+  };
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
@@ -154,14 +179,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user) {
-      fetchBookings();
       fetchFavorites();
       fetchReviews();
       fetchPayments();
       fetchPets();
       fetchProviders();
     }
-  }, [user, fetchBookings, fetchFavorites, fetchReviews, fetchPayments, fetchPets, fetchProviders]);
+  }, [user, fetchFavorites, fetchReviews, fetchPayments, fetchPets, fetchProviders]);
 
   if (loading || !user) {
     return (
@@ -401,7 +425,7 @@ export default function DashboardPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-[#F0E4D8]">
-                        {['Service', 'Provider', 'Date', 'Status', 'Price'].map(h => (
+                        {['Service', 'Provider', 'Date', 'Status', 'Price', ''].map(h => (
                           <th key={h} className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
@@ -418,6 +442,13 @@ export default function DashboardPage() {
                             </span>
                           </td>
                           <td className="px-5 py-4 text-sm text-gray-500">${b.price || 0}</td>
+                          <td className="px-5 py-4 text-sm">
+                            {(b.status === 'pending' || b.status === 'confirmed') && (
+                              <button onClick={() => handleCancelBooking(b.id)} className="text-xs px-3 py-1.5 rounded-full font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-all">
+                                Cancel
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

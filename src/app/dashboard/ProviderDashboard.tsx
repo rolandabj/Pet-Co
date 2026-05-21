@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { onSnapshot, collection, query, where } from 'firebase/firestore';
+import { getFirestoreDb } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/components/Toast';
 import {
@@ -8,7 +10,6 @@ import {
   updateProviderDocRest,
   createProviderRest,
   updateProviderByIdRest,
-  getBookingsByProviderRest,
   getUserPaymentsRest,
   getReviewsByProviderRest,
   updateBookingRest,
@@ -26,10 +27,11 @@ type ProviderTab =
   | 'profile';
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-500/10 text-yellow-600',
-  confirmed: 'bg-blue-500/10 text-blue-500',
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   completed: 'bg-emerald-500/10 text-emerald-600',
-  cancelled: 'bg-red-500/10 text-red-500',
+  cancelled: 'bg-rose-50 text-rose-700 border-rose-200',
+  declined: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
 const tabConfig: { key: ProviderTab; icon: string; label: string }[] = [
@@ -155,17 +157,27 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     }
   }, [userEmail]);
 
-  // ── Fetch bookings ─────────────────────────────────────────────
-  const fetchBookings = useCallback(async () => {
+  // ── Real-time bookings listener ──────────────────────────────────
+  useEffect(() => {
     setBookingsLoading(true);
-    try {
-      const list = await getBookingsByProviderRest(userId);
-      setBookings(list);
-    } catch (err) {
-      console.error('Failed to fetch bookings:', err);
-    } finally {
-      setBookingsLoading(false);
-    }
+    const db = getFirestoreDb();
+    const q = query(collection(db, 'bookings'), where('providerId', '==', userId));
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: BookingDoc[] = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as unknown as BookingDoc[];
+        setBookings(list);
+        setBookingsLoading(false);
+      },
+      (err) => {
+        console.error('Bookings onSnapshot error:', err);
+        setBookingsLoading(false);
+      },
+    );
+    return () => unsub();
   }, [userId]);
 
   // ── Fetch payments ─────────────────────────────────────────────
@@ -197,9 +209,8 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   // ── Initial data load ──────────────────────────────────────────
   useEffect(() => {
     fetchProvider();
-    fetchBookings();
     fetchPayments();
-  }, [fetchProvider, fetchBookings, fetchPayments]);
+  }, [fetchProvider, fetchPayments]);
 
   useEffect(() => {
     if (provider) fetchReviews();
@@ -1241,7 +1252,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                               Confirm
                             </button>
                             <button
-                              onClick={() => handleBookingStatus(b.id, 'cancelled')}
+                              onClick={() => handleBookingStatus(b.id, 'declined')}
                               className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-4 py-2 rounded-full transition-all"
                             >
                               Decline
@@ -1262,8 +1273,13 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                           </span>
                         )}
                         {b.status === 'cancelled' && (
-                          <span className="text-xs text-red-400 italic">
-                            Cancelled
+                          <span className="text-xs text-rose-400 italic">
+                            Cancelled by customer
+                          </span>
+                        )}
+                        {b.status === 'declined' && (
+                          <span className="text-xs text-rose-400 italic">
+                            Declined
                           </span>
                         )}
                       </div>

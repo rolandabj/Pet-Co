@@ -173,10 +173,11 @@ export default function AdminPage() {
   ];
 
   const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-500/10 text-yellow-600',
-    confirmed: 'bg-blue-500/10 text-blue-500',
+    pending: 'bg-amber-50 text-amber-700 border-amber-200',
+    confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     completed: 'bg-emerald-500/10 text-emerald-600',
-    cancelled: 'bg-red-500/10 text-red-500',
+    cancelled: 'bg-rose-50 text-rose-700 border-rose-200',
+    declined: 'bg-rose-50 text-rose-700 border-rose-200',
   };
 
   const serviceIcons: Record<string, string> = {
