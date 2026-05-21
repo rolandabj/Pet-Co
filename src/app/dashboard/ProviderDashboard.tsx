@@ -170,6 +170,16 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const [availability, setAvailability] = useState<Record<string, { isOpen: boolean; start: string; end: string }>>(
     Object.fromEntries(weekdays.map(d => [d, { ...defaultDaySchedule }])),
   );
+  // Explicit day toggle — forces a non-mutating boolean flip
+  const handleDayToggle = (day: string, currentVal: boolean) => {
+    setAvailability(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        isOpen: !currentVal,
+      },
+    }));
+  };
 
   // ── Fetch provider ─────────────────────────────────────────────
   const fetchProvider = useCallback(async () => {
@@ -508,6 +518,16 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!provider) return;
+    // Reconstruct availability payload explicitly to eliminate stale state
+    const finalAvailabilityMap = {
+      monday: { isOpen: Boolean(availability.monday?.isOpen), start: availability.monday?.start || '09:00', end: availability.monday?.end || '17:00' },
+      tuesday: { isOpen: Boolean(availability.tuesday?.isOpen), start: availability.tuesday?.start || '09:00', end: availability.tuesday?.end || '17:00' },
+      wednesday: { isOpen: Boolean(availability.wednesday?.isOpen), start: availability.wednesday?.start || '09:00', end: availability.wednesday?.end || '17:00' },
+      thursday: { isOpen: Boolean(availability.thursday?.isOpen), start: availability.thursday?.start || '09:00', end: availability.thursday?.end || '17:00' },
+      friday: { isOpen: Boolean(availability.friday?.isOpen), start: availability.friday?.start || '09:00', end: availability.friday?.end || '17:00' },
+      saturday: { isOpen: Boolean(availability.saturday?.isOpen), start: availability.saturday?.start || '09:00', end: availability.saturday?.end || '17:00' },
+      sunday: { isOpen: Boolean(availability.sunday?.isOpen), start: availability.sunday?.start || '09:00', end: availability.sunday?.end || '17:00' },
+    };
     const updates: Record<string, unknown> = {
       businessName: bizName.trim(),
       desc: provider.desc?.trim() || '',
@@ -519,7 +539,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
         facebook: bizFacebook.trim(),
         website: bizWebsite.trim(),
       },
-      availability,
+      availability: finalAvailabilityMap,
     };
     try {
       await updateProvider(updates);
@@ -1557,13 +1577,8 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                       <label className="w-28 text-sm font-medium text-secondary capitalize flex items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={sched.isOpen}
-                          onChange={(e) =>
-                            setAvailability((prev) => ({
-                              ...prev,
-                              [day]: { ...prev[day], isOpen: e.target.checked },
-                            }))
-                          }
+                          checked={!!sched.isOpen}
+                          onChange={() => handleDayToggle(day, sched.isOpen)}
                           className="rounded border-[#D4C8B8] text-primary focus:ring-primary/30"
                         />
                         {day}
