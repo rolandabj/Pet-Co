@@ -356,6 +356,12 @@ Prevents Firebase SDK hangs in sandboxed environments (15s for popup, 5s for red
 
 **Fix:** Added `hashPassword()` using the Web Crypto API (`crypto.subtle.digest('SHA-256')`). Both `register()` and `login()` are now async and hash/compare passwords using SHA-256.
 
+### Auth Redirect Race Condition Fix (`src/context/AuthContext.tsx`)
+
+**Problem:** After login, `window.location.href = '/dashboard'` triggered a page reload. The AuthProvider's `initUser()` was async and only called `setUser()` at the end (after awaiting a 4s Firestore `getDoc` timeout). Since `initUser()` wasn't awaited, `setLoading(false)` ran immediately — causing the dashboard's auth guard to see `loading=false, user=null` and redirect straight back to `/login`.
+
+**Fix:** Call `setUser(appUser)` at the start of `initUser()` before the Firestore enhancement, so the user is available immediately when `loading` becomes `false`. The Firestore data (phone, location) still updates the user asynchronously if available.
+
 ### Skeleton Loading States (dashboard + admin)
 
 **Problem:** Dashboard and admin pages showed blank content while Firestore REST API calls were in flight.
