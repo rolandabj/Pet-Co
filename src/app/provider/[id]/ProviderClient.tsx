@@ -12,6 +12,8 @@ import {
   findFavoriteIdRest,
   addFavoriteRest,
   removeFavoriteRest,
+  getReviewsByProviderRest,
+  updateProviderDocRest,
 } from '@/lib/firestore-rest';
 import type { ReviewDoc } from '@/lib/firestore-rest';
 
@@ -21,10 +23,13 @@ interface Props {
   providerId: string;
 }
 
-export default function ProviderClient({ provider, reviews: initialReviews, providerId }: Props) {
+export default function ProviderClient({ provider: initialProvider, reviews: initialReviews, providerId }: Props) {
   const { user, firebaseUser } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+
+  // ---------- provider state (mutable for review sync) ----------
+  const [provider, setProvider] = useState<ServiceProvider | null>(initialProvider);
 
   // ---------- favorite state ----------
   const [isFavorited, setIsFavorited] = useState(false);
@@ -119,6 +124,27 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
       };
       console.log('Review Payload:', reviewPayload);
       await addReviewRest(reviewPayload);
+
+      // Sync provider rating/reviewCount aggregates
+      try {
+        const allReviews = await getReviewsByProviderRest(providerId);
+        const totalReviews = allReviews.length;
+        const totalStars = allReviews.reduce((sum, r) => sum + r.rating, 0);
+        const computedAvg = totalReviews > 0 ? totalStars / totalReviews : 0;
+        const roundedAvg = parseFloat(computedAvg.toFixed(1));
+
+        await updateProviderDocRest(providerId, {
+          rating: roundedAvg,
+          reviews: totalReviews,
+        });
+
+        // Update local state so header reflects instantly
+        setProvider(prev => prev ? { ...prev, rating: roundedAvg, reviews: totalReviews } : prev);
+      } catch (syncErr) {
+        console.error('Failed to sync review aggregates:', syncErr);
+        // Non-fatal — review itself was saved
+      }
+
       showToast('✅ Review submitted!', 'success');
       setNewRating(0);
       setNewComment('');
