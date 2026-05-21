@@ -490,19 +490,24 @@ export default function AdminPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#F0E4D8]">
-                    {['Customer ID', 'Service', 'Provider', 'Date', 'Amount', 'Status', ''].map(h => (
+                    {['Customer', 'Service', 'Provider', 'Date', 'Amount', 'Status', ''].map(h => (
                       <th key={h} className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {bookings.map(b => (
+                  {bookings.map(b => {
+                    const matchingUser = allUsers.find(u => u.id === b.userId || (u as any).uid === b.userId);
+                    const displayCustomerName = matchingUser ? (matchingUser.name || matchingUser.email) : (b.customerName || b.userId);
+                    const matchingProvider = providers.find(p => p.id === b.providerId);
+                    const displayBusinessName = matchingProvider ? (matchingProvider.businessName || matchingProvider.name) : (b.providerBusinessName || b.providerName);
+                    return (
                     <tr key={b.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
-                      <td className="px-5 py-4 text-sm text-gray-500">{b.userId?.slice(0, 8)}...</td>
+                      <td className="px-5 py-4 text-sm text-gray-500">{displayCustomerName}</td>
                       <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">
                         {serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType}
                       </td>
-                      <td className="px-5 py-4 text-sm text-gray-500">{b.providerName}</td>
+                      <td className="px-5 py-4 text-sm text-gray-500">{displayBusinessName}</td>
                       <td className="px-5 py-4 text-sm text-gray-500">{b.date}{b.time ? `, ${b.time}` : ''}</td>
                       <td className="px-5 py-4 text-sm text-gray-500">${b.price || 0}</td>
                       <td className="px-5 py-4">
@@ -519,7 +524,7 @@ export default function AdminPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             )}

@@ -366,6 +366,8 @@ export interface BookingDoc {
   serviceType: string;
   providerId: string;
   providerName: string;
+  providerBusinessName?: string;
+  customerName?: string;
   date: string;
   time: string;
   instructions?: string;
@@ -383,6 +385,8 @@ function mapBookingDoc(doc: { id: string; data: Record<string, any> }): BookingD
     serviceType: doc.data.serviceType ?? '',
     providerId: doc.data.providerId ?? '',
     providerName: doc.data.providerName ?? '',
+    providerBusinessName: doc.data.providerBusinessName ?? undefined,
+    customerName: doc.data.customerName ?? undefined,
     date: doc.data.date ?? '',
     time: doc.data.time ?? '',
     instructions: doc.data.instructions ?? undefined,
@@ -414,6 +418,8 @@ export async function addBookingRest(data: Omit<BookingDoc, 'id' | 'createdAt'>)
     serviceType: { stringValue: data.serviceType },
     providerId: { stringValue: data.providerId },
     providerName: { stringValue: data.providerName },
+    providerBusinessName: { stringValue: data.providerBusinessName ?? '' },
+    customerName: { stringValue: data.customerName ?? '' },
     date: { stringValue: data.date },
     time: { stringValue: data.time },
     price: { integerValue: data.price },

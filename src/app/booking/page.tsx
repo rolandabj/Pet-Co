@@ -102,6 +102,8 @@ function BookingForm() {
         serviceType,
         providerId: provider,
         providerName: selectedProvider?.name || 'Unknown Provider',
+        providerBusinessName: selectedProvider?.businessName || selectedProvider?.name || '',
+        customerName: user?.name || user?.email || 'Unknown Customer',
         date,
         time: time || '',
         instructions,
