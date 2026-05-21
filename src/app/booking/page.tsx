@@ -18,6 +18,8 @@ function BookingForm() {
   const [serviceType, setServiceType] = useState('');
   const [provider, setProvider] = useState('');
   const [providersList, setProvidersList] = useState<ServiceProvider[]>([]);
+  // Track the preselected provider's type for service filtering
+  const [preselectedProviderType, setPreselectedProviderType] = useState<string | null>(null);
   const [selectedPet, setSelectedPet] = useState('');
   const [pets, setPets] = useState<{ id: string; name: string; type: string }[]>([]);
   const [petsLoading, setPetsLoading] = useState(true);
@@ -43,11 +45,33 @@ function BookingForm() {
       .finally(() => setPetsLoading(false));
   }, [user, firebaseUser]);
 
+  // Read providerId from URL, pre-fill provider and determine their service type
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
-    const providerParam = searchParams.get('provider');
-    if (providerParam) setProvider(providerParam);
-  }, [user, authLoading, router, searchParams]);
+    const providerIdParam = searchParams.get('providerId');
+    if (providerIdParam) {
+      setProvider(providerIdParam);
+      // Look up the provider in the list to get their type for service filtering
+      const found = providersList.find(p => String(p.id) === providerIdParam);
+      if (found) {
+        setPreselectedProviderType(found.type);
+        // Auto-select the service type matching the provider's category
+        const matching = serviceTypes.find(
+          s => s.value === found.type || s.value === found.category,
+        );
+        if (matching) setServiceType(matching.value);
+      }
+    }
+  }, [user, authLoading, router, searchParams, providersList]);
+
+  const isProviderLocked = !!searchParams.get('providerId');
+
+  // Filter service types based on the preselected provider's type
+  const availableServiceTypes = preselectedProviderType
+    ? serviceTypes.filter(
+        s => s.value === preselectedProviderType || s.value === providersList.find(p => String(p.id) === provider)?.category,
+      )
+    : serviceTypes;
 
   if (authLoading || !user) {
     return <div className="pt-[120px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
@@ -124,17 +148,20 @@ function BookingForm() {
                 <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Service Type</label>
                 <select value={serviceType} onChange={(e) => setServiceType(e.target.value)} className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm">
                   <option value="">Select a service...</option>
-                  {serviceTypes.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  {availableServiceTypes.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
               <div className="mb-5">
                 <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Provider</label>
-                <select value={provider} onChange={(e) => setProvider(e.target.value)} className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm">
+                <select value={provider} onChange={(e) => setProvider(e.target.value)} disabled={isProviderLocked} className={`w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm ${isProviderLocked ? 'opacity-60 cursor-not-allowed' : ''}`}>
                   <option value="">Select a provider...</option>
                   {providersList.map(p => (
                     <option key={p.id} value={p.id}>{p.name} — {p.category} ⭐{p.rating}</option>
                   ))}
                 </select>
+                {isProviderLocked && (
+                  <p className="text-xs text-gray-400 mt-1.5">🔒 Provider locked from referring page</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4 mb-5">
                 <div>

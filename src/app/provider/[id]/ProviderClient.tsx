@@ -259,7 +259,7 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
               {user?.role !== 'provider' && (
                 <div className="flex gap-3 flex-wrap justify-center sm:justify-start">
                   <Link
-                    href={`/booking?provider=${provider.id}`}
+                    href={`/booking?providerId=${provider.id}`}
                     className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-6 py-3 rounded-full text-sm transition-all"
                   >
                     Book Now — {provider.price}
