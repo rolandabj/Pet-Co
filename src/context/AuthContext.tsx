@@ -225,11 +225,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // No pending redirect result — ignore
       }
 
-      // Try popup with a timeout so it can't hang if the OAuth popup
-      // can't communicate back to this environment (e.g. unauthorized domain).
+      // Try popup with a timeout — 60s to allow for 2FA, password entry,
+      // and any account-creation flows on the Google side.
       const popupResult = await timeout(
         signInWithPopup(auth, googleProvider),
-        15000,
+        60000,
         'signInWithPopup'
       );
       const credential = popupResult.user;
