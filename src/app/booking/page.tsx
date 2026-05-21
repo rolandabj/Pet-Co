@@ -4,43 +4,113 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { serviceTypes } from '@/lib/data';
+import { serviceTypes, getAllProviders } from '@/lib/providers';
+import { ServiceProvider } from '@/lib/types';
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { getFirestoreDb } from '@/lib/firebase';
 import Link from 'next/link';
 
 function BookingForm() {
-  const { user, loading } = useAuth();
+  const { user, firebaseUser, loading: authLoading } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [serviceType, setServiceType] = useState('');
   const [provider, setProvider] = useState('');
+  const [providersList, setProvidersList] = useState<ServiceProvider[]>([]);
+  const [selectedPet, setSelectedPet] = useState('');
+  const [pets, setPets] = useState<{ id: string; name: string; type: string }[]>([]);
+  const [petsLoading, setPetsLoading] = useState(true);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) router.push('/login');
+    getAllProviders().then(setProvidersList).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!firebaseUser && !user) return;
+    const uid = firebaseUser?.uid || user?.id;
+    if (!uid) return;
+    setPetsLoading(true);
+    const db = getFirestoreDb();
+    getDocs(query(collection(db, 'pets'), where('userId', '==', uid)))
+      .then(snapshot => {
+        const list = snapshot.docs.map(d => ({ id: d.id, name: d.data().name, type: d.data().type }));
+        setPets(list);
+      })
+      .catch(err => console.error('Failed to fetch pets:', err))
+      .finally(() => setPetsLoading(false));
+  }, [user, firebaseUser]);
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
     const providerParam = searchParams.get('provider');
     if (providerParam) setProvider(providerParam);
-  }, [user, loading, router, searchParams]);
+  }, [user, authLoading, router, searchParams]);
 
-  if (loading || !user) {
+  if (authLoading || !user) {
     return <div className="pt-[120px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
   }
 
   const selectedService = serviceTypes.find(s => s.value === serviceType);
   const servicePrice = selectedService?.price || 0;
   const total = servicePrice * 1.1;
+  const selectedProvider = providersList.find(p => String(p.id) === provider);
 
-  const handleBooking = (e: React.FormEvent) => {
+  const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceType || !provider || !date) {
       showToast('Please fill in all required fields.', 'error');
       return;
     }
-    showToast('🎉 Booking confirmed! Check your dashboard for details.', 'success');
-    setTimeout(() => router.push('/dashboard'), 1500);
+
+    const uid = firebaseUser?.uid || user.id;
+
+    setSaving(true);
+    try {
+      const db = getFirestoreDb();
+
+      // 1. Create the booking document
+      const bookingRef = await addDoc(collection(db, 'bookings'), {
+        userId: uid,
+        serviceType,
+        providerId: provider,
+        providerName: selectedProvider?.name || 'Unknown Provider',
+        date,
+        time: time || '',
+        instructions,
+        petId: selectedPet || '',
+        petName: pets.find(p => p.id === selectedPet)?.name || '',
+        price: servicePrice,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      });
+
+      // 2. Simultaneously create a payment ledger entry
+      await addDoc(collection(db, 'payments'), {
+        bookingId: bookingRef.id,
+        customerId: uid,
+        customerName: user?.name || 'Unknown Customer',
+        providerId: provider,
+        providerName: selectedProvider?.name || 'Unknown Provider',
+        category: selectedService?.label || serviceType,
+        amount: total,
+        status: 'paid',
+        createdAt: serverTimestamp(),
+      });
+
+      showToast('🎉 Booking confirmed! Check your dashboard for details.', 'success');
+      setTimeout(() => router.push('/dashboard'), 1500);
+    } catch (err) {
+      console.error('Failed to save booking:', err);
+      showToast('❌ Failed to save booking. Please try again.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -68,11 +138,9 @@ function BookingForm() {
                 <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Provider</label>
                 <select value={provider} onChange={(e) => setProvider(e.target.value)} className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm">
                   <option value="">Select a provider...</option>
-                  <option value="1">Sarah W. — Dog Walker ⭐4.9</option>
-                  <option value="2">Dr. Martinez — Veterinarian ⭐4.8</option>
-                  <option value="3">Paws Paradise — Dog Hotel ⭐4.9</option>
-                  <option value="4">PetCozy Shop ⭐4.7</option>
-                  <option value="5">Fluffy Cuts — Groomer ⭐4.8</option>
+                  {providersList.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} — {p.category} ⭐{p.rating}</option>
+                  ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-5">
@@ -97,19 +165,29 @@ function BookingForm() {
               </div>
               <div className="mb-5">
                 <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Your Pet</label>
-                <select className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm">
-                  <option value="">Select your pet...</option>
-                  <option value="max">🐕 Max — Golden Retriever</option>
-                  <option value="luna">🐕 Luna — Siberian Husky</option>
-                  <option value="bella">🐕 Bella — Poodle</option>
-                  <option value="new">+ Add a new pet</option>
-                </select>
+                {petsLoading ? (
+                  <div className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-gray-50 flex items-center gap-2 text-sm text-gray-400">
+                    <div className="w-4 h-4 border-2 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                    Loading your pets...
+                  </div>
+                ) : pets.length === 0 ? (
+                  <div className="w-full px-4 py-3.5 border-2 border-red-200 rounded-xl bg-red-50 text-sm">
+                    <span className="text-red-500 font-semibold">⚠️ Please <Link href="/dashboard" className="underline font-bold">add a pet to your profile first</Link> before booking.</span>
+                  </div>
+                ) : (
+                  <select value={selectedPet} onChange={e => setSelectedPet(e.target.value)} className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm">
+                    <option value="">Select your pet...</option>
+                    {pets.map(p => (
+                      <option key={p.id} value={p.id}>{p.type === 'Dog' ? '🐕' : p.type === 'Cat' ? '🐈' : p.type === 'Bird' ? '🐦' : p.type === 'Rabbit' ? '🐇' : p.type === 'Fish' ? '🐟' : '🐾'} {p.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Special Instructions</label>
                 <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={4} placeholder="Any special needs or instructions for the provider..." className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm resize-vertical" />
               </div>
-              <button type="submit" className="w-full bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold py-3.5 px-6 rounded-full text-base transition-all hover:shadow-lg">Confirm Booking</button>
+              <button type="submit" disabled={saving} className="w-full bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold py-3.5 px-6 rounded-full text-base transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">{saving ? 'Saving...' : 'Confirm Booking'}</button>
             </form>
           </div>
 

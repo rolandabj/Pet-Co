@@ -1,5 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
 
 const requiredVars = [
   'NEXT_PUBLIC_FIREBASE_API_KEY',
@@ -28,6 +29,7 @@ function getConfig() {
 
 let app: FirebaseApp | undefined;
 let auth: Auth | undefined;
+let db: Firestore | undefined;
 let googleProvider: GoogleAuthProvider | undefined;
 
 export function initFirebase() {
@@ -37,6 +39,7 @@ export function initFirebase() {
     app = getApps()[0];
   }
   auth = getAuth(app);
+  db = getFirestore(app);
   googleProvider = new GoogleAuthProvider();
 
   // Use the registered OAuth client ID if provided in env
@@ -46,15 +49,23 @@ export function initFirebase() {
     prompt: 'select_account',
   });
 
-  return { auth, googleProvider };
+  return { auth, db, googleProvider };
 }
 
 export function getFirebaseAuth() {
-  if (!auth) {
+  if (!auth || !db) {
     const result = initFirebase();
     auth = result.auth;
+    db = result.db;
     googleProvider = result.googleProvider;
   }
-  return { auth: auth!, googleProvider: googleProvider! };
+  return { auth: auth!, db: db!, googleProvider: googleProvider! };
+}
+
+export function getFirestoreDb() {
+  if (!db) {
+    initFirebase();
+  }
+  return db!;
 }
 

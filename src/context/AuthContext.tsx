@@ -12,6 +12,8 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestoreDb } from '@/lib/firebase';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -21,7 +23,7 @@ interface AuthContextType {
   register: (email: string, password: string, name: string, role: UserRole) => Promise<{ user?: AppUser; error?: string }>;
   googleLogin: () => Promise<{ user?: AppUser; error?: string }>;
   logout: () => Promise<void>;
-  updateProfile: (updates: Partial<AppUser>) => { user?: AppUser; error?: string };
+  updateProfile: (updates: Partial<AppUser>) => Promise<{ user?: AppUser; error?: string }>;
   requireAuth: () => boolean;
 }
 
@@ -48,6 +50,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
+    const initUser = async (appUser: AppUser) => {
+      // Fetch Firestore user doc to merge custom fields
+      try {
+        const db = getFirestoreDb();
+        const userSnap = await getDoc(doc(db, 'users', appUser.id));
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          appUser = { ...appUser, phone: data.phone, location: data.location };
+        }
+      } catch { /* Firestore may not be available */ }
+      setUser(appUser);
+    };
+
     try {
       const { auth } = getFirebaseAuth();
       unsubscribe = onAuthStateChanged(auth, (fbUser) => {
@@ -59,12 +74,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
             photoURL: fbUser.photoURL,
           });
-          setUser(appUser);
+          initUser(appUser);
         } else {
           // Check local session as fallback
           const local = localAuth.getCurrentUser();
           if (local) {
-            setUser(local);
+            initUser(local);
           } else {
             setUser(null);
             setFirebaseUser(null);
@@ -160,11 +175,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setFirebaseUser(null);
   }, []);
 
-  const updateProfile = useCallback((updates: Partial<AppUser>) => {
+  const updateProfile = useCallback(async (updates: Partial<AppUser>) => {
     const result = localAuth.updateProfile(updates);
     if (result.user) setUser(result.user);
+
+    // Also save phone/location to Firestore users doc
+    const uid = firebaseUser?.uid || result.user?.id;
+    if (uid && (updates.phone !== undefined || updates.location !== undefined)) {
+      try {
+        const db = getFirestoreDb();
+        const firestoreUpdates: Record<string, string | undefined> = {};
+        if (updates.phone !== undefined) firestoreUpdates.phone = updates.phone;
+        if (updates.location !== undefined) firestoreUpdates.location = updates.location;
+        await setDoc(doc(db, 'users', uid), firestoreUpdates, { merge: true });
+      } catch (err) {
+        console.error('Failed to save profile to Firestore:', err);
+      }
+    }
+
     return result;
-  }, []);
+  }, [firebaseUser]);
 
   const requireAuth = useCallback(() => {
     if (!user) {

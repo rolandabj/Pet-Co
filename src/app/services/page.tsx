@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { providers } from '@/lib/data';
+import { useState, useEffect } from 'react';
+import { getAllProviders, serviceTypes } from '@/lib/providers';
+import { ServiceProvider } from '@/lib/types';
 import Link from 'next/link';
 
 const filterTypes = [
@@ -15,8 +16,20 @@ const filterTypes = [
 ];
 
 export default function ServicesPage() {
+  const [providers, setProviders] = useState<ServiceProvider[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    getAllProviders().then(data => {
+      setProviders(data);
+      setLoading(false);
+    }).catch(err => {
+      console.error('Failed to load providers:', err);
+      setLoading(false);
+    });
+  }, []);
 
   const filtered = providers.filter(p => {
     const matchesFilter = activeFilter === 'all' || p.type === activeFilter;
@@ -66,8 +79,12 @@ export default function ServicesPage() {
           ))}
         </div>
 
-        {/* Providers grid */}
-        {filtered.length === 0 ? (
+        {/* Loading state */}
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-4xl mb-4 opacity-50">🔍</div>
             <h3 className="text-xl font-heading text-[#2C3E50] mb-2">No providers found</h3>

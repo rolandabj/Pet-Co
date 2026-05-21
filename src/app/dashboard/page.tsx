@@ -1,24 +1,196 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useToast } from '@/components/Toast';
+import { collection, query, where, getDocs, orderBy, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { getFirestoreDb } from '@/lib/firebase';
+import { getUserFavorites, removeFavorite, FavoriteDoc } from '@/lib/favorites';
+import { getUserReviews, ReviewDoc } from '@/lib/reviews';
 
-type Tab = 'overview' | 'bookings' | 'favorites' | 'profile' | 'reviews';
+type Tab = 'overview' | 'bookings' | 'favorites' | 'profile' | 'reviews' | 'payments' | 'pets';
+
+interface BookingDoc {
+  id: string;
+  serviceType: string;
+  providerId: string;
+  providerName: string;
+  date: string;
+  time: string;
+  price: number;
+  status: string;
+  createdAt?: unknown;
+}
+
+interface PaymentDoc {
+  id: string;
+  bookingId: string;
+  customerId: string;
+  customerName: string;
+  providerId: string;
+  providerName: string;
+  category: string;
+  amount: number;
+  status: string;
+  createdAt?: unknown;
+}
+
+interface PetDoc {
+  id: string;
+  userId: string;
+  name: string;
+  type: string;
+  breed: string;
+  age: string;
+  notes: string;
+}
+
+const statusColors: Record<string, string> = {
+  pending: 'bg-yellow-500/10 text-yellow-600',
+  confirmed: 'bg-blue-500/10 text-blue-500',
+  completed: 'bg-emerald-500/10 text-emerald-600',
+  cancelled: 'bg-red-500/10 text-red-500',
+};
 
 export default function DashboardPage() {
-  const { user, loading, updateProfile } = useAuth();
+  const { user, firebaseUser, loading, updateProfile } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [profileName, setProfileName] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileLocation, setProfileLocation] = useState('');
+  const [bookings, setBookings] = useState<BookingDoc[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [favorites, setFavorites] = useState<FavoriteDoc[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(true);
+  const [userReviews, setUserReviews] = useState<ReviewDoc[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [payments, setPayments] = useState<PaymentDoc[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
+  const [pets, setPets] = useState<PetDoc[]>([]);
+  const [petsLoading, setPetsLoading] = useState(true);
+  const [petName, setPetName] = useState('');
+  const [petType, setPetType] = useState('');
+  const [petBreed, setPetBreed] = useState('');
+  const [petAge, setPetAge] = useState('');
+  const [petNotes, setPetNotes] = useState('');
+
+  const fetchBookings = useCallback(async () => {
+    if (!user) return;
+    const uid = firebaseUser?.uid || user.id;
+    setBookingsLoading(true);
+    try {
+      const db = getFirestoreDb();
+      const q = query(
+        collection(db, 'bookings'),
+        where('userId', '==', uid),
+        orderBy('createdAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BookingDoc));
+      setBookings(list);
+    } catch (err) {
+      console.error('Failed to fetch bookings:', err);
+    } finally {
+      setBookingsLoading(false);
+    }
+  }, [user, firebaseUser]);
+
+  const fetchFavorites = useCallback(async () => {
+    if (!user) return;
+    const uid = firebaseUser?.uid || user.id;
+    setFavoritesLoading(true);
+    try {
+      const list = await getUserFavorites(uid);
+      setFavorites(list);
+    } catch (err) {
+      console.error('Failed to fetch favorites:', err);
+    } finally {
+      setFavoritesLoading(false);
+    }
+  }, [user, firebaseUser]);
+
+  const fetchReviews = useCallback(async () => {
+    if (!user) return;
+    const uid = firebaseUser?.uid || user.id;
+    setReviewsLoading(true);
+    try {
+      const list = await getUserReviews(uid);
+      setUserReviews(list);
+    } catch (err) {
+      console.error('Failed to fetch reviews:', err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [user, firebaseUser]);
+
+  const fetchPayments = useCallback(async () => {
+    if (!user) return;
+    const uid = firebaseUser?.uid || user.id;
+    setPaymentsLoading(true);
+    try {
+      const db = getFirestoreDb();
+      const role = user.role || 'owner';
+      const field = role === 'provider' ? 'providerId' : 'customerId';
+      const q = query(
+        collection(db, 'payments'),
+        where(field, '==', uid),
+        orderBy('createdAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentDoc));
+      setPayments(list);
+    } catch (err) {
+      console.error('Failed to fetch payments:', err);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }, [user, firebaseUser]);
+
+  const fetchPets = useCallback(async () => {
+    if (!user) return;
+    const uid = firebaseUser?.uid || user.id;
+    setPetsLoading(true);
+    try {
+      const db = getFirestoreDb();
+      const q = query(
+        collection(db, 'pets'),
+        where('userId', '==', uid),
+        orderBy('name', 'asc')
+      );
+      const snapshot = await getDocs(q);
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PetDoc));
+      setPets(list);
+    } catch (err) {
+      console.error('Failed to fetch pets:', err);
+    } finally {
+      setPetsLoading(false);
+    }
+  }, [user, firebaseUser]);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
-    if (user) setProfileName(user.name || '');
+    if (user) {
+      setProfileName(user.name || '');
+      setProfilePhone(user.phone || '');
+      setProfileLocation(user.location || '');
+    }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user) {
+      fetchBookings();
+      fetchFavorites();
+      fetchReviews();
+      fetchPayments();
+      fetchPets();
+    }
+  }, [user, fetchBookings, fetchFavorites, fetchReviews, fetchPayments, fetchPets]);
 
   if (loading || !user) {
     return (
@@ -32,18 +204,88 @@ export default function DashboardPage() {
     { key: 'overview', icon: '📊', label: 'Overview' },
     { key: 'bookings', icon: '📅', label: 'My Bookings' },
     { key: 'favorites', icon: '❤️', label: 'Favorites' },
+    { key: 'pets', icon: '🐾', label: 'My Pets' },
     { key: 'profile', icon: '👤', label: 'My Profile' },
     { key: 'reviews', icon: '⭐', label: 'Reviews' },
+    { key: 'payments', icon: '💳', label: 'Payments' },
   ];
 
   const isProvider = user.role === 'provider';
 
-  const handleProfileUpdate = (e: React.FormEvent) => {
+  const upcomingBookings = bookings.filter(b => b.status === 'pending' || b.status === 'confirmed');
+  const completedBookingsCount = bookings.filter(b => b.status === 'completed').length;
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (profileName.trim()) {
-      updateProfile({ name: profileName.trim() });
-      alert('Profile updated!');
+      try {
+        await updateProfile({ name: profileName.trim(), phone: profilePhone.trim(), location: profileLocation.trim() });
+        showToast('✅ Profile updated successfully!', 'success');
+      } catch {
+        showToast('❌ Failed to save profile.', 'error');
+      }
     }
+  };
+
+  const handleAddPet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!petName.trim() || !petType) {
+      showToast('⚠️ Please enter a name and select a type for your pet.', 'error');
+      return;
+    }
+    const uid = firebaseUser?.uid || user.id;
+    try {
+      const db = getFirestoreDb();
+      await addDoc(collection(db, 'pets'), {
+        userId: uid,
+        name: petName.trim(),
+        type: petType,
+        breed: petBreed.trim(),
+        age: petAge.trim(),
+        notes: petNotes.trim(),
+        createdAt: serverTimestamp(),
+      });
+      showToast('🐾 Pet added successfully!', 'success');
+      setPetName('');
+      setPetType('');
+      setPetBreed('');
+      setPetAge('');
+      setPetNotes('');
+      fetchPets();
+    } catch (err) {
+      console.error('Failed to add pet:', err);
+      showToast('❌ Failed to add pet.', 'error');
+    }
+  };
+
+  const handleRemovePet = async (petId: string, petName: string) => {
+    try {
+      const db = getFirestoreDb();
+      await deleteDoc(doc(db, 'pets', petId));
+      setPets(prev => prev.filter(p => p.id !== petId));
+      showToast(`🗑️ "${petName}" removed.`, 'success');
+    } catch (err) {
+      console.error('Failed to remove pet:', err);
+      showToast('❌ Failed to remove pet.', 'error');
+    }
+  };
+
+  const serviceIcons: Record<string, string> = {
+    walking: '🐕',
+    vet: '🏥',
+    hotel: '🏨',
+    sitting: '🛋️',
+    grooming: '✂️',
+    shop: '🛍️',
+  };
+
+  const serviceLabels: Record<string, string> = {
+    walking: 'Dog Walking',
+    vet: 'Vet Visit',
+    hotel: 'Dog Hotel',
+    sitting: 'Pet Sitting',
+    grooming: 'Grooming',
+    shop: 'Pet Shop',
   };
 
   return (
@@ -94,9 +336,9 @@ export default function DashboardPage() {
 
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
                 {[
-                  { icon: '📅', bg: 'bg-orange-500/12', value: '3', label: 'Upcoming Bookings' },
-                  { icon: '✅', bg: 'bg-emerald-500/12', value: '12', label: 'Completed Services' },
-                  { icon: '❤️', bg: 'bg-yellow-500/12', value: '5', label: 'Saved Favorites' },
+                  { icon: '📅', bg: 'bg-orange-500/12', value: String(upcomingBookings.length), label: 'Upcoming Bookings' },
+                  { icon: '✅', bg: 'bg-emerald-500/12', value: String(completedBookingsCount), label: 'Completed Services' },
+                  { icon: '❤️', bg: 'bg-yellow-500/12', value: String(favorites.length), label: 'Saved Favorites' },
                   { icon: '⭐', bg: 'bg-purple-500/12', value: '4.9', label: 'Average Rating' },
                 ].map((s, i) => (
                   <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 hover:shadow-md hover:-translate-y-1 transition-all">
@@ -109,30 +351,19 @@ export default function DashboardPage() {
 
               <div className="bg-white border border-[#F0E4D8] rounded-2xl p-8">
                 <h3 className="text-base font-heading text-[#2C3E50] mb-5">📅 Upcoming Bookings</h3>
-                {isProvider ? (
-                  <div className="flex flex-col gap-4">
-                    {[
-                      { pet: 'Max · Golden Retriever', date: 'Tomorrow, 10:00 AM', tag: 'Dog Walking' },
-                      { pet: 'Luna · Siberian Husky', date: 'Fri, 2:00 PM', tag: 'Pet Sitting' },
-                    ].map((b, i) => (
-                      <div key={i} className="flex justify-between items-center p-4 bg-[#FFF8F0] rounded-xl">
-                        <span className="text-sm font-semibold text-[#2C3E50]">{b.pet}</span>
-                        <span className="text-sm text-gray-500">{b.date}</span>
-                        <span className="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-500 font-semibold">{b.tag}</span>
-                      </div>
-                    ))}
+                {bookingsLoading ? (
+                  <div className="flex justify-center py-10">
+                    <div className="w-8 h-8 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
                   </div>
+                ) : upcomingBookings.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 text-sm">No upcoming bookings. <Link href="/services" className="text-[#E86A33] font-semibold">Book a service</Link></div>
                 ) : (
                   <div className="flex flex-col gap-4">
-                    {[
-                      { service: '🐕 Dog Walking with Sarah', date: 'Tomorrow, 10:00 AM', badge: 'Confirmed', badgeColor: 'bg-blue-500/10 text-blue-500' },
-                      { service: '🏥 Vet Visit with Dr. Martinez', date: 'Fri, 2:00 PM', badge: 'Pending', badgeColor: 'bg-yellow-500/10 text-yellow-600' },
-                      { service: '🏨 Dog Hotel · Paws Paradise', date: 'Next Week', badge: 'Confirmed', badgeColor: 'bg-emerald-500/10 text-emerald-600' },
-                    ].map((b, i) => (
-                      <div key={i} className="flex justify-between items-center p-4 bg-[#FFF8F0] rounded-xl">
-                        <span className="text-sm font-semibold text-[#2C3E50]">{b.service}</span>
-                        <span className="text-sm text-gray-500">{b.date}</span>
-                        <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${b.badgeColor}`}>{b.badge}</span>
+                    {upcomingBookings.map(b => (
+                      <div key={b.id} className="flex justify-between items-center p-4 bg-[#FFF8F0] rounded-xl">
+                        <span className="text-sm font-semibold text-[#2C3E50]">{serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType} with {b.providerName}</span>
+                        <span className="text-sm text-gray-500">{b.date}{b.time ? `, ${b.time}` : ''}</span>
+                        <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColors[b.status] || 'bg-gray-500/10 text-gray-500'}`}>{b.status.charAt(0).toUpperCase() + b.status.slice(1)}</span>
                       </div>
                     ))}
                   </div>
@@ -147,67 +378,181 @@ export default function DashboardPage() {
                 <h2 className="text-2xl font-heading text-[#2C3E50]">📅 My Bookings</h2>
                 <Link href="/services" className="bg-[#E86A33] hover:bg-[#D4552A] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">+ New Booking</Link>
               </div>
-              <div className="bg-white border border-[#F0E4D8] rounded-2xl overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#F0E4D8]">
-                      {['Service', 'Provider', 'Date', 'Status', 'Price'].map(h => (
-                        <th key={h} className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ['🐕 Dog Walking', 'Sarah W.', 'May 21, 2026', 'Confirmed', '$25'],
-                      ['🏥 Vet Visit', 'Dr. Martinez', 'May 23, 2026', 'Pending', '$60'],
-                      ['🏨 Dog Hotel', 'Paws Paradise', 'May 26, 2026', 'Confirmed', '$180'],
-                      ['🛍️ Pet Supplies', 'PetCozy Shop', 'May 15, 2026', 'Completed', '$45'],
-                      ['✂️ Grooming', 'Fluffy Cuts', 'May 10, 2026', 'Completed', '$35'],
-                    ].map((row, i) => (
-                      <tr key={i} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
-                        {row.map((cell, j) => (
-                          <td key={j} className="px-5 py-4 text-sm">
-                            {j === 3 ? (
-                              <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${
-                                cell === 'Confirmed' ? 'bg-blue-500/10 text-blue-500' :
-                                cell === 'Pending' ? 'bg-yellow-500/10 text-yellow-600' :
-                                'bg-emerald-500/10 text-emerald-600'
-                              }`}>{cell}</span>
-                            ) : j === 0 ? <strong className="text-[#2C3E50]">{cell}</strong> : (
-                              <span className="text-gray-500">{cell}</span>
-                            )}
-                          </td>
+              {bookingsLoading ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                </div>
+              ) : bookings.length === 0 ? (
+                <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
+                  <div className="text-4xl mb-4 opacity-50">📅</div>
+                  <h3 className="text-lg font-heading text-[#2C3E50] mb-2">No bookings yet</h3>
+                  <p className="text-sm text-gray-400 mb-5">Start by booking a service from our trusted providers.</p>
+                  <Link href="/services" className="bg-[#E86A33] hover:bg-[#D4552A] text-white text-sm font-semibold px-6 py-3 rounded-full transition-all">Browse Services</Link>
+                </div>
+              ) : (
+                <div className="bg-white border border-[#F0E4D8] rounded-2xl overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-[#F0E4D8]">
+                        {['Service', 'Provider', 'Date', 'Status', 'Price'].map(h => (
+                          <th key={h} className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {bookings.map(b => (
+                        <tr key={b.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
+                          <td className="px-5 py-4 text-sm"><strong className="text-[#2C3E50]">{serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType}</strong></td>
+                          <td className="px-5 py-4 text-sm text-gray-500">{b.providerName}</td>
+                          <td className="px-5 py-4 text-sm text-gray-500">{b.date}{b.time ? `, ${b.time}` : ''}</td>
+                          <td className="px-5 py-4 text-sm">
+                            <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColors[b.status] || 'bg-gray-500/10 text-gray-500'}`}>
+                              {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-sm text-gray-500">${b.price || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           )}
 
           {activeTab === 'favorites' && (
             <>
-              <h2 className="text-2xl font-heading text-[#2C3E50] mb-8">❤️ Favorite Providers</h2>
-              <div className="grid sm:grid-cols-2 gap-6">
-                {[
-                  { emoji: '🐕', name: 'Sarah W.', rating: '★★★★★ 4.9', desc: 'Experienced dog walker · 5+ years', tags: ['Dog Walking', 'Pet Sitting'] },
-                  { emoji: '🏥', name: 'Dr. Martinez', rating: '★★★★★ 4.8', desc: 'Veterinarian · Specializes in small animals', tags: ['Vet', 'Vaccinations'] },
-                  { emoji: '🏨', name: 'Paws Paradise Hotel', rating: '★★★★★ 4.9', desc: 'Luxury pet boarding · Indoor pool', tags: ['Dog Hotel', 'Daycare'] },
-                ].map((p, i) => (
-                  <div key={i} className="bg-white rounded-2xl p-6 border border-[#F0E4D8] hover:shadow-md transition-all flex gap-4">
-                    <div className="w-14 h-14 rounded-full bg-[#FFF0E0] flex items-center justify-center text-lg flex-shrink-0">{p.emoji}</div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-[#2C3E50]">{p.name}</h3>
-                      <div className="text-yellow-500 text-xs mb-1">{p.rating}</div>
-                      <p className="text-xs text-gray-500 mb-3">{p.desc}</p>
-                      <div className="flex gap-2 flex-wrap">
-                        {p.tags.map(t => <span key={t} className="px-2.5 py-1 bg-[#FFF8F0] rounded-full text-xs text-gray-500">{t}</span>)}
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-heading text-[#2C3E50]">❤️ Favorite Providers</h2>
+              </div>
+              {favoritesLoading ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                </div>
+              ) : favorites.length === 0 ? (
+                <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
+                  <div className="text-4xl mb-4 opacity-50">❤️</div>
+                  <h3 className="text-lg font-heading text-[#2C3E50] mb-2">No favorites yet</h3>
+                  <p className="text-sm text-gray-400 mb-5">Save your favorite providers for quick access.</p>
+                  <Link href="/services" className="bg-[#E86A33] hover:bg-[#D4552A] text-white text-sm font-semibold px-6 py-3 rounded-full transition-all">Browse Providers</Link>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-6">
+                  {favorites.map(fav => (
+                    <div key={fav.id} className="bg-white rounded-2xl p-6 border border-[#F0E4D8] hover:shadow-md transition-all flex gap-4 items-start">
+                      <div className="w-14 h-14 rounded-full bg-[#FFF0E0] flex items-center justify-center text-lg flex-shrink-0">{fav.emoji}</div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-[#2C3E50]">{fav.providerName}</h3>
+                        <div className="text-yellow-500 text-xs mb-1">{'★'.repeat(Math.floor(fav.rating))} {fav.rating}</div>
+                        <p className="text-xs text-gray-500 mb-3">{fav.category}</p>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/provider/${fav.providerId}`}
+                            className="text-xs px-3 py-1.5 bg-[#E86A33] text-white rounded-full font-semibold hover:bg-[#D4552A] transition-all"
+                          >
+                            View Profile
+                          </Link>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await removeFavorite(fav.id);
+                                setFavorites(prev => prev.filter(f => f.id !== fav.id));
+                              } catch (err) {
+                                console.error('Failed to remove favorite:', err);
+                              }
+                            }}
+                            className="text-xs px-3 py-1.5 border border-red-200 text-red-400 rounded-full font-semibold hover:bg-red-50 transition-all"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === 'pets' && (
+            <>
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-heading text-[#2C3E50]">🐾 My Pets</h2>
+                <span className="text-sm text-gray-400">{pets.length} pet{pets.length !== 1 ? 's' : ''}</span>
               </div>
+
+              {/* Add Pet Form */}
+              <div className="bg-white border border-[#F0E4D8] rounded-2xl p-8 mb-8 max-w-[600px]">
+                <h3 className="text-base font-semibold text-[#2C3E50] mb-5">➕ Add a New Pet</h3>
+                <form onSubmit={handleAddPet}>
+                  <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Pet Name *</label>
+                      <input type="text" value={petName} onChange={e => setPetName(e.target.value)} placeholder="Max" className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Type *</label>
+                      <select value={petType} onChange={e => setPetType(e.target.value)} className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm">
+                        <option value="">Select...</option>
+                        <option value="Dog">🐕 Dog</option>
+                        <option value="Cat">🐈 Cat</option>
+                        <option value="Bird">🐦 Bird</option>
+                        <option value="Rabbit">🐇 Rabbit</option>
+                        <option value="Fish">🐟 Fish</option>
+                        <option value="Other">🐾 Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Breed</label>
+                      <input type="text" value={petBreed} onChange={e => setPetBreed(e.target.value)} placeholder="Golden Retriever" className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Age</label>
+                      <input type="text" value={petAge} onChange={e => setPetAge(e.target.value)} placeholder="2 years" className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm" />
+                    </div>
+                  </div>
+                  <div className="mb-5">
+                    <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Dietary &amp; Medical Notes</label>
+                    <textarea value={petNotes} onChange={e => setPetNotes(e.target.value)} rows={3} placeholder="Any allergies, medications, or special instructions..." className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm resize-vertical" />
+                  </div>
+                  <button type="submit" className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-6 py-3 rounded-full text-sm transition-all">Add Pet</button>
+                </form>
+              </div>
+
+              {/* Pet Cards Grid */}
+              {petsLoading ? (
+                <div className="flex justify-center py-10">
+                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                </div>
+              ) : pets.length === 0 ? (
+                <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
+                  <div className="text-4xl mb-4 opacity-50">🐾</div>
+                  <h3 className="text-lg font-heading text-[#2C3E50] mb-2">No pets yet</h3>
+                  <p className="text-sm text-gray-400">Add your furry (or not-so-furry) friends above.</p>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {pets.map(pet => (
+                    <div key={pet.id} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 hover:shadow-md transition-all">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-12 h-12 rounded-full bg-[#FFF0E0] flex items-center justify-center text-lg">
+                          {pet.type === 'Dog' ? '🐕' : pet.type === 'Cat' ? '🐈' : pet.type === 'Bird' ? '🐦' : pet.type === 'Rabbit' ? '🐇' : pet.type === 'Fish' ? '🐟' : '🐾'}
+                        </div>
+                        <button onClick={() => handleRemovePet(pet.id, pet.name)} className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-all">✕ Remove</button>
+                      </div>
+                      <h3 className="text-base font-semibold text-[#2C3E50]">{pet.name}</h3>
+                      <div className="flex flex-wrap gap-2 mt-2 mb-3">
+                        <span className="text-xs px-2.5 py-1 bg-orange-500/10 text-[#E86A33] rounded-full font-medium">{pet.type}</span>
+                        {pet.breed && <span className="text-xs px-2.5 py-1 bg-blue-500/10 text-blue-500 rounded-full font-medium">{pet.breed}</span>}
+                        {pet.age && <span className="text-xs px-2.5 py-1 bg-purple-500/10 text-purple-500 rounded-full font-medium">{pet.age}</span>}
+                      </div>
+                      {pet.notes && <p className="text-xs text-gray-400 mt-2 line-clamp-2">{pet.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
@@ -227,11 +572,11 @@ export default function DashboardPage() {
                   </div>
                   <div className="mb-5">
                     <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Phone Number</label>
-                    <input type="tel" placeholder="+1 (555) 000-0000" className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm" />
+                    <input type="tel" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} placeholder="+1 (555) 000-0000" className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm" />
                   </div>
                   <div className="mb-5">
                     <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Location</label>
-                    <input type="text" placeholder="City, State" className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm" />
+                    <input type="text" value={profileLocation} onChange={(e) => setProfileLocation(e.target.value)} placeholder="City, State" className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm" />
                   </div>
                   <button type="submit" className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-6 py-3 rounded-full text-sm transition-all">Save Changes</button>
                 </form>
@@ -241,24 +586,84 @@ export default function DashboardPage() {
 
           {activeTab === 'reviews' && (
             <>
-              <h2 className="text-2xl font-heading text-[#2C3E50] mb-8">⭐ My Reviews</h2>
-              <div className="flex flex-col gap-4">
-                {[
-                  { name: 'Dog Walking with Sarah', rating: '★★★★★', date: '2 days ago', text: 'Sarah was amazing with Max! He came back tired and happy. Highly recommend!' },
-                  { name: 'Vet Visit at City Vet', rating: '★★★★★', date: '1 week ago', text: 'Dr. Martinez is so gentle with Bella. Best vet experience we\'ve ever had!' },
-                ].map((r, i) => (
-                  <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6">
-                    <div className="flex justify-between items-center mb-3">
-                      <div>
-                        <strong className="text-sm text-[#2C3E50]">{r.name}</strong>
-                        <div className="text-yellow-500 text-sm">{r.rating}</div>
-                      </div>
-                      <span className="text-xs text-gray-400">{r.date}</span>
-                    </div>
-                    <p className="text-sm text-[#2C3E50]">{r.text}</p>
-                  </div>
-                ))}
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-heading text-[#2C3E50]">⭐ My Reviews</h2>
               </div>
+              {reviewsLoading ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                </div>
+              ) : userReviews.length === 0 ? (
+                <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
+                  <div className="text-4xl mb-4 opacity-50">⭐</div>
+                  <h3 className="text-lg font-heading text-[#2C3E50] mb-2">No reviews yet</h3>
+                  <p className="text-sm text-gray-400 mb-5">Book a service and leave a review for the provider.</p>
+                  <Link href="/services" className="bg-[#E86A33] hover:bg-[#D4552A] text-white text-sm font-semibold px-6 py-3 rounded-full transition-all">Browse Services</Link>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {userReviews.map(r => (
+                    <div key={r.id} className="bg-white border border-[#F0E4D8] rounded-2xl p-6">
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <div className="text-yellow-500 text-sm">{'★'.repeat(r.rating)}</div>
+                          <span className="text-xs text-gray-400">Provider #{r.providerId}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-[#2C3E50]">{r.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === 'payments' && (
+            <>
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-heading text-[#2C3E50]">💳 {isProvider ? 'Incoming Payments' : 'My Receipts'}</h2>
+                <span className="text-sm text-gray-400">{payments.length} transaction{payments.length !== 1 ? 's' : ''}</span>
+              </div>
+              {paymentsLoading ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                </div>
+              ) : payments.length === 0 ? (
+                <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
+                  <div className="text-4xl mb-4 opacity-50">💳</div>
+                  <h3 className="text-lg font-heading text-[#2C3E50] mb-2">No payments yet</h3>
+                  <p className="text-sm text-gray-400 mb-5">{isProvider ? 'Payments will appear here when customers book your services.' : 'Your receipts will appear here after booking a service.'}</p>
+                  <Link href={isProvider ? '/services' : '/services'} className="bg-[#E86A33] hover:bg-[#D4552A] text-white text-sm font-semibold px-6 py-3 rounded-full transition-all">{isProvider ? 'View Services' : 'Browse Services'}</Link>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {payments.map(p => (
+                    <div key={p.id} className="bg-white border border-[#F0E4D8] rounded-2xl p-6">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{p.category}</span>
+                          <h4 className="font-semibold text-[#2C3E50] text-sm">{p.providerName}</h4>
+                          {isProvider ? (
+                            <p className="text-xs text-gray-400">Customer: {p.customerName}</p>
+                          ) : (
+                            <p className="text-xs text-gray-400">Provider: {p.providerName}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-heading text-emerald-600">${p.amount.toFixed(2)}</p>
+                          <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold mt-1 ${p.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600' : p.status === 'refunded' ? 'bg-red-500/10 text-red-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                            {p.status.charAt(0).toUpperCase() + p.status.slice(1)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Booking: {p.bookingId.slice(0, 8)}...</span>
+                        <span>{p.createdAt ? 'Just now' : ''}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </main>

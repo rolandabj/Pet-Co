@@ -2,21 +2,43 @@
 
 import React, { useState } from 'react';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/context/AuthContext';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestoreDb } from '@/lib/firebase';
 
 export default function ContactPage() {
+  const { user, firebaseUser } = useAuth();
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('general');
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    showToast(`Thanks, ${name}! We've received your message and will get back to you soon. 🐾`, 'success');
-    setName('');
-    setEmail('');
-    setSubject('general');
-    setMessage('');
+    setSaving(true);
+    try {
+      const db = getFirestoreDb();
+      await addDoc(collection(db, 'messages'), {
+        name,
+        email,
+        subject,
+        message,
+        userId: firebaseUser?.uid || user?.id || 'anonymous',
+        createdAt: serverTimestamp(),
+      });
+      showToast(`Thanks, ${name}! We've received your message and will get back to you soon. 🐾`, 'success');
+      setName('');
+      setEmail('');
+      setSubject('general');
+      setMessage('');
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      showToast('❌ Something went wrong. Please try again.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -92,8 +114,8 @@ export default function ContactPage() {
                 <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} placeholder="Tell us how we can help..." required
                   className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm resize-vertical" />
               </div>
-              <button type="submit" className="w-full bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold py-3.5 px-6 rounded-full text-base transition-all hover:shadow-lg">
-                Send Message
+              <button type="submit" disabled={saving} className="w-full bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold py-3.5 px-6 rounded-full text-base transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                {saving ? 'Sending...' : 'Send Message'}
               </button>
             </form>
           </div>
