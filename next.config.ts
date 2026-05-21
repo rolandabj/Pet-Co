@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
         'work-1-jeuxkxyhhadkcukn.prod-runtime.all-hands.dev',
         'work-2-jeuxkxyhhadkcukn.prod-runtime.all-hands.dev',
       ],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        pathname: '/v0/b/**',
+      },
+    ],
+  },
   turbopack: {
     root: path.resolve(__dirname),
   },

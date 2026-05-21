@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ServiceProvider, ServiceItem, ProductItem } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
@@ -328,45 +329,40 @@ export default function ProviderClient({ provider, reviews: initialReviews, prov
                   key={product.id}
                   className="flex-none w-72 h-auto snap-center bg-white rounded-3xl border border-[#F0E4D8] overflow-hidden group hover:border-[#E86A33] transition-all duration-300"
                 >
-                  {/* Image area */}
-                  <div className="relative h-40 bg-gradient-to-br from-orange-50 to-amber-100 overflow-hidden">
-                    {product.image ? (
-                      <>
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-                      </>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-5xl opacity-30">🛍️</span>
-                      </div>
-                    )}
-                    {/* Price badge */}
-                    <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-[#E86A33] text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
-                      ${product.price.toFixed(2)}
-                    </span>
-                    {/* Stock badge */}
-                    <span
-                      className={`absolute bottom-3 left-3 text-[10px] px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm ${
-                        product.inStock
-                          ? 'bg-emerald-500/80 text-white'
-                          : 'bg-gray-500/70 text-white'
-                      }`}
-                    >
-                      {product.inStock ? '✓ In Stock' : 'Out of Stock'}
-                    </span>
+                  {/* Image container — 1:1 aspect ratio */}
+                  <div className="relative aspect-square bg-gradient-to-br from-orange-50 to-amber-100 overflow-hidden">
+                    <Image
+                      src={product.image || '/placeholder.svg'}
+                      alt={product.name}
+                      fill
+                      sizes="288px"
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
                   </div>
-                  {/* Content area */}
-                  <div className="p-4 flex flex-col flex-1">
-                    <h4 className="text-sm font-bold text-[#2C3E50] mb-1 truncate">{product.name}</h4>
+                  {/* Details below image */}
+                  <div className="p-4 flex flex-col gap-2">
+                    <h4 className="text-sm font-bold text-[#2C3E50] truncate">{product.name}</h4>
                     {product.description && (
                       <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
                         {product.description}
                       </p>
                     )}
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs font-bold text-[#0D9488] bg-teal-50 px-2.5 py-1 rounded-full">
+                        ${product.price.toFixed(2)}
+                      </span>
+                      <span
+                        className={`text-[10px] px-2 py-1 rounded-full font-semibold ${
+                          product.inStock
+                            ? 'bg-emerald-500/10 text-emerald-600'
+                            : 'bg-gray-500/10 text-gray-500'
+                        }`}
+                      >
+                        {product.inStock ? '✓ In Stock' : 'Out of Stock'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
