@@ -50,6 +50,11 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
+              {user.email === 'rolandabj@gmail.com' && (
+                <Link href="/admin" className="text-sm font-medium text-gray-500 hover:text-[#E86A33] px-3 py-2">
+                  ⚙️ Admin
+                </Link>
+              )}
               <Link href="/dashboard" className="flex items-center gap-2 bg-[#E86A33] text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-[#D4552A] transition-all">
                 <span>👤</span>
                 {user.name || user.email}
@@ -100,6 +105,11 @@ export default function Navbar() {
           <div className="border-t border-gray-100 mt-3 pt-3">
             {user ? (
               <>
+                {user.email === 'rolandabj@gmail.com' && (
+                  <Link href="/admin" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-600">
+                    ⚙️ Admin
+                  </Link>
+                )}
                 <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-[#E86A33]">
                   👤 Dashboard
                 </Link>

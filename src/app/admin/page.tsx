@@ -26,6 +26,8 @@ interface EditStatusState {
   value: string;
 }
 
+const ADMIN_EMAIL = 'rolandabj@gmail.com';
+
 export default function AdminPage() {
   const { user, loading } = useAuth();
   const { showToast } = useToast();
@@ -43,6 +45,14 @@ export default function AdminPage() {
   useEffect(() => {
     if (!loading && !user) router.push('/login');
   }, [user, loading, router]);
+
+  // Admin email gate — only rolandabj@gmail.com can access
+  useEffect(() => {
+    if (!loading && user && user.email !== ADMIN_EMAIL) {
+      showToast('Access denied. Admin only.', 'error');
+      router.push('/dashboard');
+    }
+  }, [user, loading, router, showToast]);
 
   const fetchLiveData = useCallback(async () => {
     setDataLoading(true);
@@ -67,6 +77,11 @@ export default function AdminPage() {
   }, [user, loading, fetchLiveData]);
 
   if (loading || !user) {
+    return <div className="pt-[100px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
+  }
+
+  // Admin email gate — block non-admin users from seeing any content
+  if (user.email !== ADMIN_EMAIL) {
     return <div className="pt-[100px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
   }
 
