@@ -199,6 +199,17 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
         setBizWebsite(p.socialMedia?.website ?? '');
         if (p.availability) {
           setAvailability(prev => ({ ...prev, ...p.availability }));
+        } else {
+          // Fallback: restore from localStorage backup
+          try {
+            const localKey = `availability_${p._firestoreId || p.id}`;
+            const cached = localStorage.getItem(localKey);
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              setAvailability(prev => ({ ...prev, ...parsed }));
+              console.log('[ProviderDashboard] Restored availability from localStorage backup');
+            }
+          } catch { /* ignore parse errors */ }
         }
       }
     } catch (err) {
@@ -563,6 +574,40 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     } catch (error) {
       console.error('[ProviderDashboard] FIRESTORE WRITE CRASHED:', error);
       showToast('Save failed. Check browser console for details.', 'error');
+    }
+  };
+
+  // ── Standalone operating-hours-only direct write ────────────────
+  const forceSaveOperatingHours = async () => {
+    try {
+      const activeId = provider?._firestoreId || providerDocId || provider?.id || userId;
+      if (!activeId) {
+        showToast('Error: Cannot find active Provider ID account context!', 'error');
+        return;
+      }
+
+      const manualSchedulePayload = {
+        monday: { isOpen: availability.monday?.isOpen ?? true, start: availability.monday?.start || '09:00', end: availability.monday?.end || '17:00' },
+        tuesday: { isOpen: availability.tuesday?.isOpen ?? true, start: availability.tuesday?.start || '09:00', end: availability.tuesday?.end || '17:00' },
+        wednesday: { isOpen: availability.wednesday?.isOpen ?? true, start: availability.wednesday?.start || '09:00', end: availability.wednesday?.end || '17:00' },
+        thursday: { isOpen: availability.thursday?.isOpen ?? true, start: availability.thursday?.start || '09:00', end: availability.thursday?.end || '17:00' },
+        friday: { isOpen: availability.friday?.isOpen ?? true, start: availability.friday?.start || '09:00', end: availability.friday?.end || '17:00' },
+        saturday: { isOpen: availability.saturday?.isOpen ?? true, start: availability.saturday?.start || '09:00', end: availability.saturday?.end || '17:00' },
+        sunday: { isOpen: availability.sunday?.isOpen ?? true, start: availability.sunday?.start || '09:00', end: availability.sunday?.end || '17:00' },
+      };
+
+      console.log('[ProviderDashboard] CRITICAL DIRECT-WRITE INITIATED FOR ID:', activeId, manualSchedulePayload);
+      const db = getFirestoreDb();
+      const docRef = doc(db, 'providers', activeId);
+      await updateDoc(docRef, { availability: manualSchedulePayload });
+
+      showToast('✅ Operating hours saved securely via direct write!', 'success');
+
+      // Backup to localStorage so availability loads instantly on refresh
+      localStorage.setItem(`availability_${activeId}`, JSON.stringify(manualSchedulePayload));
+    } catch (error) {
+      console.error('[ProviderDashboard] DIRECT WRITE OPERATIONAL HOURS CRASHED:', error);
+      showToast('❌ Database rejected direct update path.', 'error');
     }
   };
 
@@ -1633,6 +1678,14 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                   );
                 })}
               </div>
+
+              <button
+                type="button"
+                onClick={forceSaveOperatingHours}
+                className="mt-2 mb-6 bg-[#E86A33] hover:bg-[#d05928] text-white font-medium py-2 px-5 rounded-xl transition-all text-sm shadow-sm"
+              >
+                💾 Save Operating Hours Only
+              </button>
 
               <h4 className="font-semibold text-secondary text-sm mb-3">
                 Social Media Links
