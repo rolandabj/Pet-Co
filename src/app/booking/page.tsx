@@ -4,10 +4,9 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { serviceTypes, getAllProviders } from '@/lib/providers';
+import { serviceTypes } from '@/lib/providers';
+import { getAllProvidersRest, getUserPetsRest, addBookingRest, addPaymentRest } from '@/lib/firestore-rest';
 import { ServiceProvider } from '@/lib/types';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
-import { getFirestoreDb } from '@/lib/firebase';
 import Link from 'next/link';
 
 function BookingForm() {
@@ -28,7 +27,7 @@ function BookingForm() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getAllProviders().then(setProvidersList).catch(console.error);
+    getAllProvidersRest().then(setProvidersList).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -36,11 +35,9 @@ function BookingForm() {
     const uid = firebaseUser?.uid || user?.id;
     if (!uid) return;
     setPetsLoading(true);
-    const db = getFirestoreDb();
-    getDocs(query(collection(db, 'pets'), where('userId', '==', uid)))
-      .then(snapshot => {
-        const list = snapshot.docs.map(d => ({ id: d.id, name: d.data().name, type: d.data().type }));
-        setPets(list);
+    getUserPetsRest(uid)
+      .then(list => {
+        setPets(list.map(p => ({ id: p.id, name: p.name, type: p.type })));
       })
       .catch(err => console.error('Failed to fetch pets:', err))
       .finally(() => setPetsLoading(false));
@@ -72,10 +69,8 @@ function BookingForm() {
 
     setSaving(true);
     try {
-      const db = getFirestoreDb();
-
       // 1. Create the booking document
-      const bookingRef = await addDoc(collection(db, 'bookings'), {
+      const bookingId = await addBookingRest({
         userId: uid,
         serviceType,
         providerId: provider,
@@ -87,12 +82,11 @@ function BookingForm() {
         petName: pets.find(p => p.id === selectedPet)?.name || '',
         price: servicePrice,
         status: 'pending',
-        createdAt: serverTimestamp(),
       });
 
       // 2. Simultaneously create a payment ledger entry
-      await addDoc(collection(db, 'payments'), {
-        bookingId: bookingRef.id,
+      await addPaymentRest({
+        bookingId,
         customerId: uid,
         customerName: user?.name || 'Unknown Customer',
         providerId: provider,
@@ -100,7 +94,6 @@ function BookingForm() {
         category: selectedService?.label || serviceType,
         amount: total,
         status: 'paid',
-        createdAt: serverTimestamp(),
       });
 
       showToast('🎉 Booking confirmed! Check your dashboard for details.', 'success');

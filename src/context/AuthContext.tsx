@@ -12,8 +12,9 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { getFirestoreDb } from '@/lib/firebase';
+import { updateUserDocRest } from '@/lib/firestore-rest';
 
 /** Promise that rejects after `ms` milliseconds — prevents Firestore SDK hangs. */
 function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -114,13 +115,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const result = localAuth.login(email, password);
+    const result = await localAuth.login(email, password);
     if (result.user) setUser(result.user);
     return result;
   }, []);
 
   const register = useCallback(async (email: string, password: string, name: string, role: UserRole) => {
-    const result = localAuth.register(email, password, name, role);
+    const result = await localAuth.register(email, password, name, role);
     if (result.user) setUser(result.user);
     return result;
   }, []);
@@ -235,11 +236,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const uid = firebaseUser?.uid || result.user?.id;
     if (uid && (updates.phone !== undefined || updates.location !== undefined)) {
       try {
-        const db = getFirestoreDb();
-        const firestoreUpdates: Record<string, string | undefined> = {};
+        const firestoreUpdates: Record<string, string> = {};
         if (updates.phone !== undefined) firestoreUpdates.phone = updates.phone;
         if (updates.location !== undefined) firestoreUpdates.location = updates.location;
-        await setDoc(doc(db, 'users', uid), firestoreUpdates, { merge: true });
+        await updateUserDocRest(uid, firestoreUpdates);
       } catch (err) {
         console.error('Failed to save profile to Firestore:', err);
       }

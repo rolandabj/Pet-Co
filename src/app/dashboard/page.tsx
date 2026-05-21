@@ -5,47 +5,19 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/components/Toast';
-import { collection, query, where, getDocs, orderBy, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { getFirestoreDb } from '@/lib/firebase';
-import { getUserFavorites, removeFavorite, FavoriteDoc } from '@/lib/favorites';
-import { getUserReviews, ReviewDoc } from '@/lib/reviews';
+import {
+  getUserBookingsRest,
+  getUserPaymentsRest,
+  getUserPetsRest,
+  addPetRest,
+  deletePetRest,
+  getUserFavoritesRest,
+  removeFavoriteRest,
+  getUserReviewsRest,
+} from '@/lib/firestore-rest';
+import type { BookingDoc, PaymentDoc, PetDoc, FavoriteDoc, ReviewDoc } from '@/lib/firestore-rest';
 
 type Tab = 'overview' | 'bookings' | 'favorites' | 'profile' | 'reviews' | 'payments' | 'pets';
-
-interface BookingDoc {
-  id: string;
-  serviceType: string;
-  providerId: string;
-  providerName: string;
-  date: string;
-  time: string;
-  price: number;
-  status: string;
-  createdAt?: unknown;
-}
-
-interface PaymentDoc {
-  id: string;
-  bookingId: string;
-  customerId: string;
-  customerName: string;
-  providerId: string;
-  providerName: string;
-  category: string;
-  amount: number;
-  status: string;
-  createdAt?: unknown;
-}
-
-interface PetDoc {
-  id: string;
-  userId: string;
-  name: string;
-  type: string;
-  breed: string;
-  age: string;
-  notes: string;
-}
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-500/10 text-yellow-600',
@@ -83,14 +55,7 @@ export default function DashboardPage() {
     const uid = firebaseUser?.uid || user.id;
     setBookingsLoading(true);
     try {
-      const db = getFirestoreDb();
-      const q = query(
-        collection(db, 'bookings'),
-        where('userId', '==', uid),
-        orderBy('createdAt', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BookingDoc));
+      const list = await getUserBookingsRest(uid);
       setBookings(list);
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
@@ -104,7 +69,7 @@ export default function DashboardPage() {
     const uid = firebaseUser?.uid || user.id;
     setFavoritesLoading(true);
     try {
-      const list = await getUserFavorites(uid);
+      const list = await getUserFavoritesRest(uid);
       setFavorites(list);
     } catch (err) {
       console.error('Failed to fetch favorites:', err);
@@ -118,7 +83,7 @@ export default function DashboardPage() {
     const uid = firebaseUser?.uid || user.id;
     setReviewsLoading(true);
     try {
-      const list = await getUserReviews(uid);
+      const list = await getUserReviewsRest(uid);
       setUserReviews(list);
     } catch (err) {
       console.error('Failed to fetch reviews:', err);
@@ -132,16 +97,8 @@ export default function DashboardPage() {
     const uid = firebaseUser?.uid || user.id;
     setPaymentsLoading(true);
     try {
-      const db = getFirestoreDb();
       const role = user.role || 'owner';
-      const field = role === 'provider' ? 'providerId' : 'customerId';
-      const q = query(
-        collection(db, 'payments'),
-        where(field, '==', uid),
-        orderBy('createdAt', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentDoc));
+      const list = await getUserPaymentsRest(uid, role);
       setPayments(list);
     } catch (err) {
       console.error('Failed to fetch payments:', err);
@@ -155,14 +112,7 @@ export default function DashboardPage() {
     const uid = firebaseUser?.uid || user.id;
     setPetsLoading(true);
     try {
-      const db = getFirestoreDb();
-      const q = query(
-        collection(db, 'pets'),
-        where('userId', '==', uid),
-        orderBy('name', 'asc')
-      );
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PetDoc));
+      const list = await getUserPetsRest(uid);
       setPets(list);
     } catch (err) {
       console.error('Failed to fetch pets:', err);
@@ -235,15 +185,13 @@ export default function DashboardPage() {
     }
     const uid = firebaseUser?.uid || user.id;
     try {
-      const db = getFirestoreDb();
-      await addDoc(collection(db, 'pets'), {
+      await addPetRest({
         userId: uid,
         name: petName.trim(),
         type: petType,
         breed: petBreed.trim(),
         age: petAge.trim(),
         notes: petNotes.trim(),
-        createdAt: serverTimestamp(),
       });
       showToast('🐾 Pet added successfully!', 'success');
       setPetName('');
@@ -260,8 +208,7 @@ export default function DashboardPage() {
 
   const handleRemovePet = async (petId: string, petName: string) => {
     try {
-      const db = getFirestoreDb();
-      await deleteDoc(doc(db, 'pets', petId));
+      await deletePetRest(petId);
       setPets(prev => prev.filter(p => p.id !== petId));
       showToast(`🗑️ "${petName}" removed.`, 'success');
     } catch (err) {
@@ -334,26 +281,45 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-                {[
-                  { icon: '📅', bg: 'bg-orange-500/12', value: String(upcomingBookings.length), label: 'Upcoming Bookings' },
-                  { icon: '✅', bg: 'bg-emerald-500/12', value: String(completedBookingsCount), label: 'Completed Services' },
-                  { icon: '❤️', bg: 'bg-yellow-500/12', value: String(favorites.length), label: 'Saved Favorites' },
-                  { icon: '⭐', bg: 'bg-purple-500/12', value: '4.9', label: 'Average Rating' },
-                ].map((s, i) => (
-                  <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 hover:shadow-md hover:-translate-y-1 transition-all">
-                    <div className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center text-lg mb-4`}>{s.icon}</div>
-                    <h3 className="text-2xl font-heading text-[#2C3E50]">{s.value}</h3>
-                    <p className="text-sm text-gray-400">{s.label}</p>
-                  </div>
-                ))}
-              </div>
+              {/* Stat cards skeleton */}
+              {bookingsLoading && favoritesLoading ? (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 animate-pulse">
+                      <div className="w-12 h-12 bg-gray-200 rounded-xl mb-4" />
+                      <div className="h-8 w-16 bg-gray-200 rounded-lg mb-2" />
+                      <div className="h-4 w-32 bg-gray-100 rounded-lg" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+                  {[
+                    { icon: '📅', bg: 'bg-orange-500/12', value: String(upcomingBookings.length), label: 'Upcoming Bookings' },
+                    { icon: '✅', bg: 'bg-emerald-500/12', value: String(completedBookingsCount), label: 'Completed Services' },
+                    { icon: '❤️', bg: 'bg-yellow-500/12', value: String(favorites.length), label: 'Saved Favorites' },
+                    { icon: '⭐', bg: 'bg-purple-500/12', value: '4.9', label: 'Average Rating' },
+                  ].map((s, i) => (
+                    <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 hover:shadow-md hover:-translate-y-1 transition-all">
+                      <div className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center text-lg mb-4`}>{s.icon}</div>
+                      <h3 className="text-2xl font-heading text-[#2C3E50]">{s.value}</h3>
+                      <p className="text-sm text-gray-400">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="bg-white border border-[#F0E4D8] rounded-2xl p-8">
                 <h3 className="text-base font-heading text-[#2C3E50] mb-5">📅 Upcoming Bookings</h3>
                 {bookingsLoading ? (
-                  <div className="flex justify-center py-10">
-                    <div className="w-8 h-8 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                  <div className="flex flex-col gap-4">
+                    {[1, 2].map(i => (
+                      <div key={i} className="flex justify-between items-center p-4 bg-[#FFF8F0] rounded-xl animate-pulse">
+                        <div className="h-4 w-48 bg-gray-200 rounded-lg" />
+                        <div className="h-4 w-32 bg-gray-100 rounded-lg" />
+                        <div className="h-6 w-20 bg-gray-200 rounded-full" />
+                      </div>
+                    ))}
                   </div>
                 ) : upcomingBookings.length === 0 ? (
                   <div className="text-center py-10 text-gray-400 text-sm">No upcoming bookings. <Link href="/services" className="text-[#E86A33] font-semibold">Book a service</Link></div>
@@ -379,8 +345,19 @@ export default function DashboardPage() {
                 <Link href="/services" className="bg-[#E86A33] hover:bg-[#D4552A] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-all">+ New Booking</Link>
               </div>
               {bookingsLoading ? (
-                <div className="flex justify-center py-20">
-                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                <div className="bg-white border border-[#F0E4D8] rounded-2xl overflow-hidden animate-pulse">
+                  <div className="p-5 border-b border-[#F0E4D8]">
+                    <div className="h-4 w-32 bg-gray-200 rounded-lg" />
+                  </div>
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="flex gap-4 px-5 py-4 border-b border-[#F0E4D8]">
+                      <div className="h-4 w-36 bg-gray-200 rounded-lg" />
+                      <div className="h-4 w-28 bg-gray-100 rounded-lg" />
+                      <div className="h-4 w-28 bg-gray-100 rounded-lg" />
+                      <div className="h-6 w-20 bg-gray-200 rounded-full" />
+                      <div className="h-4 w-12 bg-gray-100 rounded-lg" />
+                    </div>
+                  ))}
                 </div>
               ) : bookings.length === 0 ? (
                 <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
@@ -426,8 +403,20 @@ export default function DashboardPage() {
                 <h2 className="text-2xl font-heading text-[#2C3E50]">❤️ Favorite Providers</h2>
               </div>
               {favoritesLoading ? (
-                <div className="flex justify-center py-20">
-                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                <div className="grid sm:grid-cols-2 gap-6">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="bg-white rounded-2xl p-6 border border-[#F0E4D8] animate-pulse flex gap-4 items-start">
+                      <div className="w-14 h-14 rounded-full bg-gray-200 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="h-4 w-32 bg-gray-200 rounded-lg mb-2" />
+                        <div className="h-3 w-20 bg-gray-100 rounded-lg mb-3" />
+                        <div className="flex gap-2">
+                          <div className="h-7 w-20 bg-gray-200 rounded-full" />
+                          <div className="h-7 w-16 bg-gray-100 rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : favorites.length === 0 ? (
                 <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
@@ -455,7 +444,7 @@ export default function DashboardPage() {
                           <button
                             onClick={async () => {
                               try {
-                                await removeFavorite(fav.id);
+                                await removeFavoriteRest(fav.id);
                                 setFavorites(prev => prev.filter(f => f.id !== fav.id));
                               } catch (err) {
                                 console.error('Failed to remove favorite:', err);
@@ -523,8 +512,21 @@ export default function DashboardPage() {
 
               {/* Pet Cards Grid */}
               {petsLoading ? (
-                <div className="flex justify-center py-10">
-                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 animate-pulse">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-12 h-12 rounded-full bg-gray-200" />
+                        <div className="h-4 w-14 bg-gray-100 rounded-lg" />
+                      </div>
+                      <div className="h-5 w-24 bg-gray-200 rounded-lg mb-3" />
+                      <div className="flex gap-2 mb-3">
+                        <div className="h-5 w-14 bg-gray-100 rounded-full" />
+                        <div className="h-5 w-20 bg-gray-100 rounded-full" />
+                      </div>
+                      <div className="h-3 w-full bg-gray-100 rounded-lg" />
+                    </div>
+                  ))}
                 </div>
               ) : pets.length === 0 ? (
                 <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
@@ -590,8 +592,17 @@ export default function DashboardPage() {
                 <h2 className="text-2xl font-heading text-[#2C3E50]">⭐ My Reviews</h2>
               </div>
               {reviewsLoading ? (
-                <div className="flex justify-center py-20">
-                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                <div className="flex flex-col gap-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 animate-pulse">
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="h-4 w-24 bg-gray-200 rounded-lg" />
+                        <div className="h-3 w-16 bg-gray-100 rounded-lg" />
+                      </div>
+                      <div className="h-3 w-full bg-gray-100 rounded-lg mb-1" />
+                      <div className="h-3 w-3/4 bg-gray-100 rounded-lg" />
+                    </div>
+                  ))}
                 </div>
               ) : userReviews.length === 0 ? (
                 <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">
@@ -625,8 +636,22 @@ export default function DashboardPage() {
                 <span className="text-sm text-gray-400">{payments.length} transaction{payments.length !== 1 ? 's' : ''}</span>
               </div>
               {paymentsLoading ? (
-                <div className="flex justify-center py-20">
-                  <div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                <div className="flex flex-col gap-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 animate-pulse">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <div className="h-3 w-24 bg-gray-200 rounded-lg mb-2" />
+                          <div className="h-4 w-32 bg-gray-100 rounded-lg" />
+                        </div>
+                        <div className="text-right">
+                          <div className="h-6 w-16 bg-gray-200 rounded-lg mb-1" />
+                          <div className="h-4 w-14 bg-gray-100 rounded-full" />
+                        </div>
+                      </div>
+                      <div className="h-3 w-40 bg-gray-100 rounded-lg" />
+                    </div>
+                  ))}
                 </div>
               ) : payments.length === 0 ? (
                 <div className="bg-white border border-[#F0E4D8] rounded-2xl p-10 text-center">

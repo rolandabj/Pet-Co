@@ -6,44 +6,20 @@ import { useRouter } from 'next/navigation';
 import { localAuth } from '@/lib/localAuth';
 import { useToast } from '@/components/Toast';
 import {
-  collection,
-  query,
-  getDocs,
-  doc,
-  deleteDoc,
-  updateDoc,
-  orderBy,
-} from 'firebase/firestore';
-import { getFirestoreDb } from '@/lib/firebase';
-import { getAllProviders } from '@/lib/providers';
+  getAllBookingsRest,
+  getAllPaymentsRest,
+  getAllProvidersRest,
+  deleteBookingRest,
+  deletePaymentRest,
+  deleteProviderDocRest,
+  deleteUserDocRest,
+  updateBookingRest,
+  updatePaymentRest,
+} from '@/lib/firestore-rest';
+import type { BookingDoc, PaymentDoc } from '@/lib/firestore-rest';
 import { ServiceProvider } from '@/lib/types';
 
 type AdminTab = 'users' | 'services' | 'bookings' | 'analytics' | 'payments';
-
-interface BookingDoc {
-  id: string;
-  userId: string;
-  providerId: string;
-  providerName: string;
-  serviceType: string;
-  date: string;
-  time: string;
-  price: number;
-  status: string;
-}
-
-interface PaymentDoc {
-  id: string;
-  bookingId: string;
-  customerId: string;
-  customerName: string;
-  providerId: string;
-  providerName: string;
-  category: string;
-  amount: number;
-  status: string;
-  createdAt?: unknown;
-}
 
 interface EditStatusState {
   id: string;
@@ -71,20 +47,13 @@ export default function AdminPage() {
   const fetchLiveData = useCallback(async () => {
     setDataLoading(true);
     try {
-      const db = getFirestoreDb();
-
-      // Fetch bookings
-      const bSnapshot = await getDocs(query(collection(db, 'bookings'), orderBy('createdAt', 'desc')));
-      const bList = bSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as BookingDoc));
+      const [bList, pList, paymentList] = await Promise.all([
+        getAllBookingsRest(),
+        getAllProvidersRest(),
+        getAllPaymentsRest(),
+      ]);
       setBookings(bList);
-
-      // Fetch providers
-      const pList = await getAllProviders();
       setProviders(pList);
-
-      // Fetch payments
-      const pSnapshot = await getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc')));
-      const paymentList = pSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentDoc));
       setPayments(paymentList);
     } catch (err) {
       console.error('Failed to fetch admin data:', err);
@@ -132,8 +101,7 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (userId: string, userName: string) => {
     try {
-      const db = getFirestoreDb();
-      await deleteDoc(doc(db, 'users', userId)).catch(() => { /* doc may not exist */ });
+      await deleteUserDocRest(userId).catch(() => { /* doc may not exist */ });
       localAuth.deleteUser(userId);
       showToast(`✅ User "${userName}" successfully removed from database.`, 'success');
     } catch (err) {
@@ -144,8 +112,7 @@ export default function AdminPage() {
 
   const handleDeleteBooking = async (bookingId: string) => {
     try {
-      const db = getFirestoreDb();
-      await deleteDoc(doc(db, 'bookings', bookingId));
+      await deleteBookingRest(bookingId);
       setBookings(prev => prev.filter(b => b.id !== bookingId));
       showToast('✅ Booking cancelled and removed.', 'success');
     } catch (err) {
@@ -156,8 +123,7 @@ export default function AdminPage() {
 
   const handleCancelBooking = async (bookingId: string) => {
     try {
-      const db = getFirestoreDb();
-      await updateDoc(doc(db, 'bookings', bookingId), { status: 'cancelled' });
+      await updateBookingRest(bookingId, { status: 'cancelled' });
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b));
       showToast('✅ Booking status set to cancelled.', 'success');
     } catch (err) {
@@ -168,8 +134,7 @@ export default function AdminPage() {
 
   const handleDeleteProvider = async (providerId: number, providerName: string) => {
     try {
-      const db = getFirestoreDb();
-      await deleteDoc(doc(db, 'providers', String(providerId)));
+      await deleteProviderDocRest(providerId);
       setProviders(prev => prev.filter(p => p.id !== providerId));
       showToast(`✅ Provider "${providerName}" removed from database.`, 'success');
     } catch (err) {
@@ -180,8 +145,7 @@ export default function AdminPage() {
 
   const handlePaymentStatusEdit = async (paymentId: string, newStatus: string) => {
     try {
-      const db = getFirestoreDb();
-      await updateDoc(doc(db, 'payments', paymentId), { status: newStatus });
+      await updatePaymentRest(paymentId, newStatus);
       setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, status: newStatus } : p));
       setEditStatus(null);
       showToast(`✅ Payment status updated to "${newStatus}".`, 'success');
@@ -193,8 +157,7 @@ export default function AdminPage() {
 
   const handleDeletePayment = async (paymentId: string) => {
     try {
-      const db = getFirestoreDb();
-      await deleteDoc(doc(db, 'payments', paymentId));
+      await deletePaymentRest(paymentId);
       setPayments(prev => prev.filter(p => p.id !== paymentId));
       showToast('✅ Payment record deleted.', 'success');
     } catch (err) {
@@ -215,20 +178,32 @@ export default function AdminPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          {[
-            { icon: '👥', bg: 'bg-orange-500/12', value: String(allUsers.length), label: 'Total Users' },
-            { icon: '🏪', bg: 'bg-emerald-500/12', value: String(providers.length), label: 'Active Providers' },
-            { icon: '📅', bg: 'bg-yellow-500/12', value: String(bookings.length), label: 'Total Bookings' },
-            { icon: '💰', bg: 'bg-blue-500/12', value: '$12.4K', label: 'Revenue (MTD)' },
-          ].map((s, i) => (
-            <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 hover:shadow-md transition-all">
-              <div className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center text-lg mb-4`}>{s.icon}</div>
-              <h3 className="text-2xl font-heading text-[#2C3E50]">{s.value}</h3>
-              <p className="text-sm text-gray-400">{s.label}</p>
-            </div>
-          ))}
-        </div>
+        {dataLoading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 animate-pulse">
+                <div className="w-12 h-12 bg-gray-200 rounded-xl mb-4" />
+                <div className="h-8 w-16 bg-gray-200 rounded-lg mb-2" />
+                <div className="h-4 w-28 bg-gray-100 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            {[
+              { icon: '👥', bg: 'bg-orange-500/12', value: String(allUsers.length), label: 'Total Users' },
+              { icon: '🏪', bg: 'bg-emerald-500/12', value: String(providers.length), label: 'Active Providers' },
+              { icon: '📅', bg: 'bg-yellow-500/12', value: String(bookings.length), label: 'Total Bookings' },
+              { icon: '💰', bg: 'bg-blue-500/12', value: '$12.4K', label: 'Revenue (MTD)' },
+            ].map((s, i) => (
+              <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 hover:shadow-md transition-all">
+                <div className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center text-lg mb-4`}>{s.icon}</div>
+                <h3 className="text-2xl font-heading text-[#2C3E50]">{s.value}</h3>
+                <p className="text-sm text-gray-400">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 border-b border-[#F0E4D8] pb-1">
@@ -296,8 +271,22 @@ export default function AdminPage() {
               <h4 className="text-sm font-semibold text-[#2C3E50]">Providers ({providers.length})</h4>
             </div>
             {dataLoading ? (
-              <div className="flex justify-center py-10">
-                <div className="w-8 h-8 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+              <div className="animate-pulse">
+                <div className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="h-3 w-20 bg-gray-200 rounded-lg" />
+                  ))}
+                </div>
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
+                    <div className="h-4 w-40 bg-gray-200 rounded-lg" />
+                    <div className="h-4 w-24 bg-gray-100 rounded-lg" />
+                    <div className="h-4 w-16 bg-gray-100 rounded-lg" />
+                    <div className="h-4 w-20 bg-gray-100 rounded-lg" />
+                    <div className="h-6 w-16 bg-gray-200 rounded-full" />
+                    <div className="h-4 w-12 bg-gray-100 rounded-lg" />
+                  </div>
+                ))}
               </div>
             ) : (
               <table className="w-full">
@@ -341,8 +330,23 @@ export default function AdminPage() {
               <h4 className="text-sm font-semibold text-[#2C3E50]">All Bookings ({bookings.length})</h4>
             </div>
             {dataLoading ? (
-              <div className="flex justify-center py-10">
-                <div className="w-8 h-8 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+              <div className="animate-pulse">
+                <div className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="h-3 w-24 bg-gray-200 rounded-lg" />
+                  ))}
+                </div>
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
+                    <div className="h-4 w-20 bg-gray-200 rounded-lg" />
+                    <div className="h-4 w-28 bg-gray-100 rounded-lg" />
+                    <div className="h-4 w-24 bg-gray-100 rounded-lg" />
+                    <div className="h-4 w-28 bg-gray-100 rounded-lg" />
+                    <div className="h-4 w-16 bg-gray-100 rounded-lg" />
+                    <div className="h-6 w-20 bg-gray-200 rounded-full" />
+                    <div className="h-4 w-16 bg-gray-100 rounded-lg" />
+                  </div>
+                ))}
               </div>
             ) : bookings.length === 0 ? (
               <div className="text-center py-10 text-gray-400 text-sm">No bookings found.</div>
@@ -393,8 +397,23 @@ export default function AdminPage() {
                 <h4 className="text-sm font-semibold text-[#2C3E50]">Payments Ledger ({payments.length})</h4>
               </div>
               {dataLoading ? (
-                <div className="flex justify-center py-10">
-                  <div className="w-8 h-8 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" />
+                <div className="animate-pulse">
+                  <div className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                      <div key={i} className="h-3 w-24 bg-gray-200 rounded-lg" />
+                    ))}
+                  </div>
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
+                      <div className="h-4 w-20 bg-gray-200 rounded-lg" />
+                      <div className="h-4 w-24 bg-gray-100 rounded-lg" />
+                      <div className="h-4 w-28 bg-gray-100 rounded-lg" />
+                      <div className="h-4 w-24 bg-gray-100 rounded-lg" />
+                      <div className="h-4 w-16 bg-gray-100 rounded-lg" />
+                      <div className="h-6 w-20 bg-gray-200 rounded-full" />
+                      <div className="h-4 w-16 bg-gray-100 rounded-lg" />
+                    </div>
+                  ))}
                 </div>
               ) : payments.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 text-sm">No payment records found.</div>

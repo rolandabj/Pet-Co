@@ -4,10 +4,24 @@ const USERS_KEY = 'paws_users';
 const SESSION_KEY = 'paws_session';
 
 /**
+ * Hash a password using the Web Crypto API (SHA-256).
+ * Returns a hex-encoded hash string.
+ */
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
  * Local email/password auth fallback used when Firebase is not configured.
  * Real Google auth goes through Firebase Auth directly (firebase.ts).
  * In production with Firebase configured, email/password should also use
  * Firebase Auth — this module exists as a dev-friendly fallback.
+ *
+ * Passwords are hashed with SHA-256 via the Web Crypto API before storage.
  */
 class LocalAuth {
   private users: (AppUser & { password?: string })[] = [];
@@ -47,14 +61,15 @@ class LocalAuth {
     return !!this.session;
   }
 
-  register(email: string, password: string, name: string, role: UserRole): { user?: AppUser; error?: string } {
+  async register(email: string, password: string, name: string, role: UserRole): Promise<{ user?: AppUser; error?: string }> {
     const existing = this.users.find(u => u.email === email);
     if (existing) return { error: 'An account with this email already exists.' };
 
+    const hashedPassword = await hashPassword(password);
     const user: AppUser & { password: string } = {
       id: 'user_' + Date.now(),
       email,
-      password,
+      password: hashedPassword,
       name,
       role,
       photoURL: null,
@@ -68,8 +83,9 @@ class LocalAuth {
     return { user: safeUser as AppUser };
   }
 
-  login(email: string, password: string): { user?: AppUser; error?: string } {
-    const user = this.users.find(u => u.email === email && u.password === password);
+  async login(email: string, password: string): Promise<{ user?: AppUser; error?: string }> {
+    const hashedPassword = await hashPassword(password);
+    const user = this.users.find(u => u.email === email && u.password === hashedPassword);
     if (!user) return { error: 'Invalid email or password.' };
     const { password: _, ...safeUser } = user;
     this.saveSession(safeUser as AppUser);

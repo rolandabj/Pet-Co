@@ -53,10 +53,11 @@ src/
     ├── data.ts                   # Static fallback provider data (12 providers, 6 service types)
     ├── firebase.ts               # Firebase SDK initialization (app, auth, db, GoogleProvider)
     ├── localAuth.ts              # Local email/password auth (localStorage-based fallback)
-    ├── providers.ts              # Firestore SDK helpers for providers
-    ├── provider-rest.ts          # Firestore REST API helpers (for server components)
-    ├── favorites.ts              # Firestore SDK helpers for favorites
-    └── reviews.ts                # Firestore SDK helpers for reviews
+    ├── firestore-rest.ts         # Firestore REST API helpers (all collections — primary data layer)
+    ├── providers.ts              # (legacy) Firestore SDK helpers for providers
+    ├── provider-rest.ts          # (legacy) Firestore REST API helpers (server components)
+    ├── favorites.ts              # (legacy) Firestore SDK helpers for favorites
+    └── reviews.ts                # (legacy) Firestore SDK helpers for reviews
 ```
 
 ---
@@ -83,7 +84,7 @@ src/
 
 ### `/services` — Browse Services
 - **Type:** Server component + Client component
-- **Data source:** Firestore REST API (server-side fetch) with 60s revalidation
+- **Data source:** Firestore REST API with 60s revalidation
 - **Filter:** URL-based `?type=` param (shops, walkers, vets, hotels, sitters, grooming)
 - **Search:** Client-side keyword search across name, category, tags, description
 - **Fallback:** Displays error state if Firebase config missing or fetch fails
@@ -108,7 +109,7 @@ src/
 ### `/booking` — Book a Service
 - **Type:** Client component with `Suspense`
 - **Auth required:** Redirects to `/login` if not authenticated
-- **Data source:** Firestore SDK (bookings + payments collections)
+- **Data source:** Firestore REST API (bookings + payments collections)
 - **Fields:** Service type (dropdown), Provider (dropdown), Date, Time, Pet (from user's pets list)
 - **Features:**
   - Pre-selects provider from `?provider=` search param
@@ -122,7 +123,8 @@ src/
 - **Auth required:** Redirects to `/login` if not authenticated
 - **Tabs (desktop sidebar):** Overview, My Bookings, Favorites, My Pets, My Profile, Reviews, Payments
 - **Tabs (mobile):** Fixed bottom tab bar
-- **Data sources:** Firestore SDK (bookings, payments, pets), favorites.ts (SDK), reviews.ts (SDK)
+- **Data sources:** Firestore REST API (`firestore-rest.ts`) — all collections via `fetchWhere`/`fetchCollection`
+- **Skeleton loading:** Per-tab skeleton placeholders while data loads
 - **Features:**
   - Overview: Upcoming bookings count, favorite count, completed bookings count, review count
   - Bookings: List with status colors (pending/confirmed/completed/cancelled)
@@ -136,7 +138,8 @@ src/
 - **Type:** Client component
 - **Auth required:** Redirects to `/login` if not authenticated (no role gate implemented yet)
 - **Tabs:** Users, Services, Bookings, Payments, Analytics
-- **Data sources:** `localAuth.getAllUsers()`, Firestore SDK (bookings, providers, payments)
+- **Data sources:** `localAuth.getAllUsers()`, Firestore REST API (bookings, providers, payments)
+- **Skeleton loading:** Per-tab skeleton placeholders while data loads
 - **Features:**
   - Users: Search, list all registered users, delete users (Firestore + localStorage)
   - Services: List providers from Firestore, delete providers
@@ -184,20 +187,42 @@ src/
 ### Local Auth (localAuth.ts)
 - **Storage:** `localStorage` (users + session)
 - **Methods:** register, login, logout, getCurrentUser, updateProfile, getAllUsers, deleteUser, setSessionFromFirebase
-- **Password:** Stored as plaintext (dev-only fallback — NOT production-safe)
+- **Password:** Hashed with SHA-256 via the Web Crypto API (`crypto.subtle.digest`) before storage
 - **Session:** Stores `AppUser` in localStorage under `paws_session`
 
-### Firestore REST API Helpers (provider-rest.ts)
-Used by **server components** (`/services`, `/provider/[id]`) since the Firebase SDK hangs in this sandboxed environment.
+### Firestore REST API Helpers (firestore-rest.ts)
+Used in place of the Firebase SDK, which can hang in sandboxed environments. All calls go to the Firestore REST API via plain `fetch`.
 
 | Function | Purpose |
 |---|---|
+| `getAllProvidersRest()` | Fetch all providers |
+| `fetchCollection(collection, filter?, map?)` | Generic fetch+filter+map helper (no composite indexes) |
+| `fetchWhere(collection, field, value, map)` | Shorthand for equality filter with client-side filtering |
 | `getProviderByIdRest(id)` | Fetch single provider by ID |
-| `getReviewsByProviderRest(id)` | Fetch reviews for a provider, sorted newest-first |
+| `getReviewsByProviderRest(id)` | Fetch reviews for a provider |
+| `getUserReviewsRest(userId)` | Fetch reviews by a user |
 | `addReviewRest(data)` | Create a new review document |
 | `findFavoriteIdRest(userId, providerId)` | Check if a favorite exists |
+| `getUserFavoritesRest(userId)` | Fetch all favorites for a user |
 | `addFavoriteRest(data)` | Add a favorite |
 | `removeFavoriteRest(docId)` | Remove a favorite by doc ID |
+| `getUserBookingsRest(userId)` | Fetch bookings for a user |
+| `getAllBookingsRest()` | Fetch all bookings (admin) |
+| `addBookingRest(data)` | Create a new booking |
+| `updateBookingRest(id, updates)` | Update a booking (e.g. status) |
+| `deleteBookingRest(id)` | Delete a booking |
+| `getUserPaymentsRest(userId, role)` | Fetch payments for a user |
+| `getAllPaymentsRest()` | Fetch all payments (admin) |
+| `addPaymentRest(data)` | Create a payment ledger entry |
+| `updatePaymentRest(id, status)` | Update payment status |
+| `deletePaymentRest(id)` | Delete a payment record |
+| `getUserPetsRest(userId)` | Fetch pets for a user |
+| `addPetRest(data)` | Add a pet |
+| `deletePetRest(id)` | Delete a pet |
+| `addMessageRest(data)` | Submit a contact form message |
+| `updateUserDocRest(userId, data)` | Update a user doc (phone, location) |
+| `deleteUserDocRest(userId)` | Delete a user document |
+| `deleteProviderDocRest(providerId)` | Delete a provider document |
 
 ---
 
@@ -312,13 +337,55 @@ Prevents Firebase SDK hangs in sandboxed environments (15s for popup, 5s for red
 
 ---
 
+## Recent Changes
+
+### Firestore REST API Overhaul (`src/lib/firestore-rest.ts`)
+
+**Problem:** The Firestore REST API's `POST :runQuery` endpoint requires composite indexes for queries using `WHERE` clauses, even simple equality filters. Additionally, the map functions (`mapPetDoc`, `mapBookingDoc`, etc.) were calling `docFromJson()` on objects already processed by `fetchCollection` — causing silent failures in list refreshes after create/update operations.
+
+**Fix:**
+- Added `fetchCollection()` / `fetchWhere()` helpers that fetch all documents from a collection and filter client-side — no composite indexes required
+- Removed `runQuery()`, `queryUrl()`, `buildWhere()`, `buildCompositeAnd()`, `docsFromRunQueryResults()` (all dead code)
+- Fixed all 5 map functions (`mapPetDoc`, `mapBookingDoc`, `mapPaymentDoc`, `mapFavoriteDoc`, `mapReviewDoc`) to accept `{ id, data }` directly instead of calling `docFromJson` internally
+- Updated `getAllBookingsRest()` and `getAllPaymentsRest()` to pre-process raw API responses through `docFromJson` before mapping
+- Migrated all 7 query functions to use `fetchWhere`/`fetchCollection`
+
+### SHA-256 Password Hashing (`src/lib/localAuth.ts`)
+
+**Problem:** Local auth passwords were stored in plaintext in `localStorage`.
+
+**Fix:** Added `hashPassword()` using the Web Crypto API (`crypto.subtle.digest('SHA-256')`). Both `register()` and `login()` are now async and hash/compare passwords using SHA-256.
+
+### Skeleton Loading States (dashboard + admin)
+
+**Problem:** Dashboard and admin pages showed blank content while Firestore REST API calls were in flight.
+
+**Fix:** Added per-tab skeleton placeholders in:
+- `src/app/dashboard/page.tsx` — skeleton for each dashboard tab (overview, bookings, favorites, pets, profile, reviews, payments)
+- `src/app/admin/page.tsx` — skeleton for each admin tab (users, services, bookings, payments, analytics)
+
+### Cross-Origin Dev Environment (`next.config.ts`)
+
+**Problem:** React hydration failures when accessing dev server through a proxy domain.
+
+**Fix:** Added `allowedDevOrigins` configuration referencing both work host domains. Also added `turbopack.root` to resolve Turbopack workspace root detection in proxied environments.
+
+### Firestore SDK → REST Migration
+
+All client-facing pages now use the Firestore REST API helpers instead of the Firebase SDK:
+- `src/app/booking/page.tsx` — bookings, payments, pets via REST helpers
+- `src/app/contact/page.tsx` — contact form submission via `addMessageRest`
+- `src/app/provider/[id]/ProviderClient.tsx` — favorites via REST helpers
+- `src/app/dashboard/page.tsx` — all data via REST helpers
+- `src/app/admin/page.tsx` — all data via REST helpers
+
+---
+
 ## Known Issues & Limitations
 
 1. **Cross-origin dev environment:** `allowedDevOrigins` in `next.config.ts` is required for React hydration
 2. **Google sign-in:** Requires domain to be authorized in Firebase Console
-3. **Local auth:** Passwords stored as plaintext (dev-only — not for production)
-4. **Admin panel:** No actual role-based access control (any logged-in user can access)
-5. **Firestore SDK:** May hang in sandboxed environments — REST API used as fallback
-6. **Payment system:** Simulated/ledger-only — no real payment processing
-7. **Statics in footer:** Blog, Careers, Press, Help Center, etc. are placeholder links
-8. **Loading states:** Some pages (dashboard, admin) fetch all data on mount without streaming/skeletons
+3. **Admin panel:** No actual role-based access control (any logged-in user can access)
+4. **Firestore SDK & initial page load:** The `getDoc` call in `AuthContext` still uses the Firebase SDK (wrapped in a 4s timeout). If the Firestore REST API is unreachable, the `getAllProvidersRest()` call on `/booking` will throw — handled gracefully via `.catch()`.
+5. **Payment system:** Simulated/ledger-only — no real payment processing
+6. **Statics in footer:** Blog, Careers, Press, Help Center, etc. are placeholder links

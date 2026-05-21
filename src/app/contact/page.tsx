@@ -3,8 +3,7 @@
 import React, { useState } from 'react';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/context/AuthContext';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getFirestoreDb } from '@/lib/firebase';
+import { addMessageRest } from '@/lib/firestore-rest';
 
 export default function ContactPage() {
   const { user, firebaseUser } = useAuth();
@@ -19,14 +18,12 @@ export default function ContactPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const db = getFirestoreDb();
-      await addDoc(collection(db, 'messages'), {
+      await addMessageRest({
         name,
         email,
         subject,
         message,
         userId: firebaseUser?.uid || user?.id || 'anonymous',
-        createdAt: serverTimestamp(),
       });
       showToast(`Thanks, ${name}! We've received your message and will get back to you soon. 🐾`, 'success');
       setName('');

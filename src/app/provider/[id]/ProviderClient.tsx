@@ -11,8 +11,8 @@ import {
   findFavoriteIdRest,
   addFavoriteRest,
   removeFavoriteRest,
-  ReviewDoc,
-} from '@/lib/provider-rest';
+} from '@/lib/firestore-rest';
+import type { ReviewDoc } from '@/lib/firestore-rest';
 
 interface Props {
   provider: ServiceProvider | null;
