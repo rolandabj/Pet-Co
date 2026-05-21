@@ -630,6 +630,39 @@ export async function addMessageRest(data: {
 
 // ─── User document helpers ────────────────────────────────────
 
+export interface UserDoc {
+  id: string;
+  uid?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  photoURL?: string;
+}
+
+function mapUserDoc(doc: { id: string; data: Record<string, any> }): UserDoc {
+  const d = doc.data;
+  return {
+    id: doc.id,
+    uid: d.uid ?? d.id ?? doc.id,
+    name: d.name ?? d.displayName ?? '',
+    email: d.email ?? '',
+    phone: d.phone ?? d.phoneNumber ?? '',
+    photoURL: d.photoURL ?? '',
+  };
+}
+
+export async function getUserByIdRest(userId: string): Promise<UserDoc | null> {
+  try {
+    const res = await authGet(docUrl('users', userId));
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    const parsed = docFromJson(await res.json());
+    return parsed ? mapUserDoc(parsed) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function updateUserDocRest(userId: string, data: Record<string, string>): Promise<void> {
   const fields: Record<string, unknown> = {};
   const masks: string[] = [];

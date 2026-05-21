@@ -13,8 +13,9 @@ import {
   getUserPaymentsRest,
   getReviewsByProviderRest,
   updateBookingRest,
+  getUserByIdRest,
 } from '@/lib/firestore-rest';
-import type { BookingDoc, PaymentDoc, ReviewDoc } from '@/lib/firestore-rest';
+import type { BookingDoc, PaymentDoc, ReviewDoc, UserDoc } from '@/lib/firestore-rest';
 import type { ServiceProvider, ServiceItem, ProductItem } from '@/lib/types';
 import { getStorageDb } from '@/lib/firebase';
 
@@ -98,6 +99,9 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   // ── Bookings ───────────────────────────────────────────────────
   const [bookings, setBookings] = useState<BookingDoc[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
+
+  // ── Live user profiles (for cross-referencing phone numbers) ──
+  const [usersMap, setUsersMap] = useState<Record<string, string>>({});
 
   // ── Payments ───────────────────────────────────────────────────
   const [payments, setPayments] = useState<PaymentDoc[]>([]);
@@ -190,6 +194,19 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     );
     return () => unsub();
   }, [userId]);
+
+  // ── Fetch live user profiles for phone number cross-reference ──
+  useEffect(() => {
+    if (bookings.length === 0) return;
+    const ids = [...new Set(bookings.map((b) => b.userId).filter(Boolean))];
+    ids.forEach(async (uid) => {
+      if (usersMap[uid]) return; // already cached
+      const u = await getUserByIdRest(uid);
+      if (u?.phone) {
+        setUsersMap((prev) => ({ ...prev, [uid]: u.phone! }));
+      }
+    });
+  }, [bookings]);
 
   // ── Fetch payments ─────────────────────────────────────────────
   const fetchPayments = useCallback(async () => {
@@ -1275,7 +1292,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                             🐾 <span className="text-gray-500 font-normal">Pet:</span> {b.petName || 'Pet'}
                           </span>
                           <span className="flex items-center gap-1.5 bg-blue-50/50 px-2.5 py-1 rounded-lg text-blue-700 border border-blue-100">
-                            📞 <span className="text-gray-500 font-normal">Phone:</span> {b.customerPhone || 'No Phone Provided'}
+                            📞 <span className="text-gray-500 font-normal">Phone:</span> {usersMap[b.userId] || b.customerPhone || 'No Phone Provided'}
                           </span>
                         </div>
 

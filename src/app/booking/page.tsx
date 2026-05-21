@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { serviceTypes } from '@/lib/providers';
-import { getAllProvidersRest, getProviderByIdRest, getUserPetsRest, addBookingRest, addPaymentRest, getBookingsForProviderDateRest } from '@/lib/firestore-rest';
+import { getAllProvidersRest, getProviderByIdRest, getUserPetsRest, addBookingRest, addPaymentRest, getBookingsForProviderDateRest, getUserByIdRest } from '@/lib/firestore-rest';
 import { ServiceProvider, ServiceItem } from '@/lib/types';
 import Link from 'next/link';
 
@@ -36,6 +36,7 @@ function BookingForm() {
   const [selectedPet, setSelectedPet] = useState('');
   const [pets, setPets] = useState<{ id: string; name: string; type: string }[]>([]);
   const [petsLoading, setPetsLoading] = useState(true);
+  const [profilePhone, setProfilePhone] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
@@ -57,6 +58,11 @@ function BookingForm() {
       })
       .catch(err => console.error('Failed to fetch pets:', err))
       .finally(() => setPetsLoading(false));
+
+    // Fetch user's saved profile phone number for the booking snapshot
+    getUserByIdRest(uid).then(u => {
+      if (u?.phone) setProfilePhone(u.phone);
+    }).catch(() => {});
   }, [user, firebaseUser]);
 
   // Read providerId from URL, pre-fill provider, fetch their custom services, and seed pricing
@@ -242,7 +248,7 @@ function BookingForm() {
         providerName: selectedProvider?.name || 'Unknown Provider',
         providerBusinessName: selectedProvider?.businessName || selectedProvider?.name || '',
         customerName: user?.name || user?.email || 'Unknown Customer',
-        customerPhone: (user as any)?.phone || '',
+        customerPhone: profilePhone || (user as any)?.phone || '',
         date,
         time: time || '',
         timeSlot: slot,
