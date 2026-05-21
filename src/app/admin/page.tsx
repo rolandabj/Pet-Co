@@ -42,17 +42,17 @@ export default function AdminPage() {
   const [editStatus, setEditStatus] = useState<EditStatusState | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
 
-  useEffect(() => {
-    if (!loading && !user) router.push('/login');
-  }, [user, loading, router]);
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
-  // Admin email gate — only rolandabj@gmail.com can access
+  // Combined auth + admin gate — redirect unauthenticated or non-admin users
   useEffect(() => {
-    if (!loading && user && user.email !== ADMIN_EMAIL) {
+    if (loading) return;
+    if (!user) { router.push('/login'); return; }
+    if (!isAdmin) {
       showToast('Access denied. Admin only.', 'error');
       router.push('/dashboard');
     }
-  }, [user, loading, router, showToast]);
+  }, [user, loading, router, showToast, isAdmin]);
 
   const fetchLiveData = useCallback(async () => {
     setDataLoading(true);
@@ -72,16 +72,13 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Only fetch data for the admin user — no wasted API calls for others
   useEffect(() => {
-    if (!loading && user) fetchLiveData();
-  }, [user, loading, fetchLiveData]);
+    if (!loading && isAdmin) fetchLiveData();
+  }, [loading, isAdmin, fetchLiveData]);
 
-  if (loading || !user) {
-    return <div className="pt-[100px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
-  }
-
-  // Admin email gate — block non-admin users from seeing any content
-  if (user.email !== ADMIN_EMAIL) {
+  // Early returns while auth resolves or during redirect
+  if (loading || !user || !isAdmin) {
     return <div className="pt-[100px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
   }
 

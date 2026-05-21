@@ -391,7 +391,7 @@ All client-facing pages now use the Firestore REST API helpers instead of the Fi
 
 1. **Cross-origin dev environment:** `allowedDevOrigins` in `next.config.ts` is required for React hydration
 2. **Google sign-in:** Requires domain to be authorized in Firebase Console
-3. **Admin panel:** No actual role-based access control (any logged-in user can access)
+3. **Admin panel:** Access restricted to `rolandabj@gmail.com` only (hardcoded email check in `AdminPage` + navbar link hidden for others)
 4. **Firestore SDK & initial page load:** The `getDoc` call in `AuthContext` still uses the Firebase SDK (wrapped in a 4s timeout). If the Firestore REST API is unreachable, the `getAllProvidersRest()` call on `/booking` will throw — handled gracefully via `.catch()`.
 5. **Payment system:** Simulated/ledger-only — no real payment processing
 6. **Statics in footer:** Blog, Careers, Press, Help Center, etc. are placeholder links
