@@ -58,42 +58,66 @@ async function runQueryRest<T>(
   value: string,
   mapFn: (doc: { id: string; data: Record<string, any> }) => T,
 ): Promise<T[]> {
-  // Retry once on 403: the Firebase Auth token may not have been ready
-  // when the first request was dispatched (transient init lag).
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await authFetch(`${FIRESTORE_BASE}:runQuery`, {
-      method: 'POST',
-      body: JSON.stringify({
-        structuredQuery: {
-          from: [{ collectionId }],
-          where: {
-            fieldFilter: {
-              field: { fieldPath: field },
-              op: 'EQUAL',
-              value: { stringValue: value },
+  try {
+    // Retry once on 403: the Firebase Auth token may not have been ready
+    // when the first request was dispatched (transient init lag).
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let res: Response;
+      try {
+        res = await authFetch(`${FIRESTORE_BASE}:runQuery`, {
+          method: 'POST',
+          body: JSON.stringify({
+            structuredQuery: {
+              from: [{ collectionId }],
+              where: {
+                fieldFilter: {
+                  field: { fieldPath: field },
+                  op: 'EQUAL',
+                  value: { stringValue: value },
+                },
+              },
             },
-          },
-        },
-      }),
-    });
+          }),
+        });
+      } catch (fetchErr) {
+        // Network error on this attempt — log and retry if first attempt
+        console.warn(`runQueryRest network error for ${collectionId} (attempt ${attempt}):`, fetchErr);
+        if (attempt === 0) {
+          await new Promise(r => setTimeout(r, 500));
+          continue;
+        }
+        break;
+      }
 
-    if (res.ok) {
-      const json = await res.json();
-      const documents: Array<{ id: string; data: Record<string, any> }> = (json as Array<{ document?: any }> | undefined)
-        ?.map((item) => (item?.document ? docFromJson(item.document) : null))
-        .filter((d): d is NonNullable<typeof d> => d != null) ?? [];
-      return documents.map(mapFn);
+      if (res.ok) {
+        try {
+          const json = await res.json();
+          const documents: Array<{ id: string; data: Record<string, any> }> = (json as Array<{ document?: any }> | undefined)
+            ?.map((item) => (item?.document ? docFromJson(item.document) : null))
+            .filter((d): d is NonNullable<typeof d> => d != null) ?? [];
+          return documents.map(mapFn);
+        } catch (parseErr) {
+          // JSON parsing failed — fall through to SDK fallback
+          console.warn(`runQueryRest JSON parse error for ${collectionId}:`, parseErr);
+          break;
+        }
+      }
+
+      if (res.status === 403 && attempt === 0) {
+        // Transient 403 — wait, re-fetch the token, and retry once.
+        // If the retry also 403s, fall through to the SDK fallback below.
+        await new Promise(r => setTimeout(r, 500));
+        continue;
+      }
+
+      // Non-403 failure or second 403 — break to fallback
+      break;
     }
-
-    if (res.status === 403 && attempt === 0) {
-      // Transient 403 — wait, re-fetch the token, and retry once.
-      // If the retry also 403s, fall through to the SDK fallback below.
-      await new Promise(r => setTimeout(r, 500));
-      continue;
-    }
-
-    // Non-403 failure or second 403 — break to fallback
-    break;
+  } catch (outerErr) {
+    // Catch any unexpected error at the outer level so we always
+    // fall through to the SDK/localStorage fallback instead of
+    // propagating the error to the caller.
+    console.warn(`runQueryRest unexpected error for ${collectionId}:`, outerErr);
   }
 
   // Fallback: the REST :runQuery endpoint is treated as a list operation

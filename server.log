@@ -348,3 +348,172 @@ Incoming: [[object Object], false, true, async ()=>{
   192 |       // Providers only need their payments and the full provider listing (src/app/dashboard/page.tsx:189:12)
 [browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
 [browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] The final argument passed to useEffect changed size between renders. The order and size of this array must remain constant.
+
+Previous: [[object Object], [object Object], false]
+Incoming: [[object Object], [object Object], false, true] 
+    at DashboardPage (src/app/dashboard/page.tsx:67:12)
+    at Set.forEach (<anonymous>)
+  65 |
+  66 |   // ── Real-time bookings listener ──────────────────────────────────
+> 67 |   useEffect(() => {
+     |            ^
+  68 |     if (!isInitialized || loading || !user) return;
+  69 |     const uid = firebaseUser?.uid || user.id;
+  70 |     setBookingsLoading(true); (src/app/dashboard/page.tsx:67:12)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] The final argument passed to useEffect changed size between renders. The order and size of this array must remain constant.
+
+Previous: [[object Object], false, async ()=>{
+            if (!user || user.role === 'provider') return;
+            const uid = firebaseUser?.uid || user.id;
+            setFavoritesLoading(true);
+            try {
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getUserFavoritesRest"])(uid);
+                setFavorites(list);
+            } catch (err) {
+                console.error('Failed to fetch favorites:', err);
+            } finally{
+                setFavoritesLoading(false);
+            }
+        }, async ()=>{
+            if (!user || user.role === 'provider') return;
+            const uid = firebaseUser?.uid || user.id;
+            setReviewsLoading(true);
+            try {
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getUserReviewsRest"])(uid);
+                setUserReviews(list);
+            } catch (err) {
+                console.error('Failed to fetch reviews:', err);
+            } finally{
+                setReviewsLoading(false);
+            }
+        }, async ()=>{
+            if (!user) return;
+            const uid = firebaseUser?.uid || user.id;
+            setPaymentsLoading(true);
+            try {
+                const role = user.role || 'owner';
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getUserPaymentsRest"])(uid, role);
+                setPayments(list);
+            } catch (err) {
+                console.error('Failed to fetch payments:', err);
+            } finally{
+                setPaymentsLoading(false);
+            }
+        }, async ()=>{
+            if (!user || user.role === 'provider') return;
+            const uid = firebaseUser?.uid || user.id;
+            setPetsLoading(true);
+            try {
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getUserPetsRest"])(uid);
+                setPets(list);
+            } catch (err) {
+                console.error('Failed to fetch pets:', err);
+            } finally{
+                setPetsLoading(false);
+            }
+        }, async ()=>{
+            try {
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getAllProvidersRest"])();
+                setProviders(list);
+            } catch (err) {
+                console.error('Failed to fetch providers:', err);
+            }
+        }]
+Incoming: [[object Object], false, true, async ()=>{
+            if (!user || user.role === 'provider') return;
+            const uid = firebaseUser?.uid || user.id;
+            setFavoritesLoading(true);
+            try {
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getUserFavoritesRest"])(uid);
+                setFavorites(list);
+            } catch (err) {
+                console.error('Failed to fetch favorites:', err);
+            } finally{
+                setFavoritesLoading(false);
+            }
+        }, async ()=>{
+            if (!user || user.role === 'provider') return;
+            const uid = firebaseUser?.uid || user.id;
+            setReviewsLoading(true);
+            try {
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getUserReviewsRest"])(uid);
+                setUserReviews(list);
+            } catch (err) {
+                console.error('Failed to fetch reviews:', err);
+            } finally{
+                setReviewsLoading(false);
+            }
+        }, async ()=>{
+            if (!user) return;
+            const uid = firebaseUser?.uid || user.id;
+            setPaymentsLoading(true);
+            try {
+                const role = user.role || 'owner';
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getUserPaymentsRest"])(uid, role);
+                setPayments(list);
+            } catch (err) {
+                console.error('Failed to fetch payments:', err);
+            } finally{
+                setPaymentsLoading(false);
+            }
+        }, async ()=>{
+            if (!user || user.role === 'provider') return;
+            const uid = firebaseUser?.uid || user.id;
+            setPetsLoading(true);
+            try {
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getUserPetsRest"])(uid);
+                setPets(list);
+            } catch (err) {
+                console.error('Failed to fetch pets:', err);
+            } finally{
+                setPetsLoading(false);
+            }
+        }, async ()=>{
+            try {
+                const list = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firestore$2d$rest$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getAllProvidersRest"])();
+                setProviders(list);
+            } catch (err) {
+                console.error('Failed to fetch providers:', err);
+            }
+        }] 
+    at DashboardPage (src/app/dashboard/page.tsx:189:12)
+    at Set.forEach (<anonymous>)
+  187 |   }, [user, isInitialized, router]);
+  188 |
+> 189 |   useEffect(() => {
+      |            ^
+  190 |     if (!isInitialized || loading || !user) return;
+  191 |     if (user.role === 'provider') {
+  192 |       // Providers only need their payments and the full provider listing (src/app/dashboard/page.tsx:189:12)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+ GET /dashboard 200 in 42ms (next.js: 4ms, application-code: 39ms)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+ GET /services 200 in 100ms (next.js: 4ms, application-code: 97ms)
+ GET /provider/wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 100ms (next.js: 42ms, application-code: 58ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+ GET /dashboard 200 in 14ms (next.js: 2ms, application-code: 12ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:102:11)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 85ms
+ GET /dashboard 200 in 60ms (next.js: 5ms, application-code: 55ms)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET /dashboard 200 in 40ms (next.js: 2ms, application-code: 38ms)
