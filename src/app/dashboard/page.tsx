@@ -10,16 +10,14 @@ import Link from 'next/link';
 import { useToast } from '@/components/Toast';
 import {
   getUserPaymentsRest,
-  getUserPetsRest,
-  addPetRest,
-  deletePetRest,
-  getUserFavoritesRest,
-  removeFavoriteRest,
   getUserReviewsRest,
   getAllProvidersRest,
   updateBookingRest,
   deleteUserAccountRest,
+  deletePetRest,
+  removeFavoriteRest,
 } from '@/lib/firestore-rest';
+import { fetchMyPets, addMyPet, fetchMyFavorites } from '@/lib/me-api';
 import type { BookingDoc, PaymentDoc, PetDoc, FavoriteDoc, ReviewDoc } from '@/lib/firestore-rest';
 import type { ServiceProvider } from '@/lib/types';
 import ProviderDashboard from './ProviderDashboard';
@@ -106,28 +104,18 @@ export default function DashboardPage() {
   }, [user, dashboardUserId, loading, isInitialized]);
 
   const fetchFavorites = useCallback(async () => {
-    if (!user || user.role === 'provider') return;
-    const uid = dashboardUserId;
-    if (!uid) return;
-    console.log('🐛 DASHBOARD AUTH DEBUG', {
-      appUserId: user?.id,
-      userEmail: user?.email,
-      firebaseUid: firebaseUser?.uid,
-      isInitialized,
-      loading,
-    });
-    console.log('🐛 FETCH FAVORITES WITH', uid);
+    if (!isInitialized || !user) return;
     setFavoritesLoading(true);
     try {
-      const list = await getUserFavoritesRest(uid);
-      console.log('🐛 FAVORITES RESULT — count:', list.length, '| uid:', uid);
+      const list = await fetchMyFavorites();
       setFavorites(list);
     } catch (err) {
-      console.error('Failed to fetch favorites:', err);
+      console.error('Failed to fetch favorites from /api/me/favorites', err);
+      setFavorites([]);
     } finally {
       setFavoritesLoading(false);
     }
-  }, [dashboardUserId, user, firebaseUser, isInitialized, loading]);
+  }, [isInitialized, user]);
 
   const fetchReviews = useCallback(async () => {
     if (!user || user.role === 'provider') return;
@@ -161,28 +149,18 @@ export default function DashboardPage() {
   }, [dashboardUserId, user, firebaseUser]);
 
   const fetchPets = useCallback(async () => {
-    if (!user || user.role === 'provider') return;
-    const uid = dashboardUserId;
-    if (!uid) return;
-    console.log('🐛 DASHBOARD AUTH DEBUG', {
-      appUserId: user?.id,
-      userEmail: user?.email,
-      firebaseUid: firebaseUser?.uid,
-      isInitialized,
-      loading,
-    });
-    console.log('🐛 FETCH PETS WITH', uid);
+    if (!isInitialized || !user) return;
     setPetsLoading(true);
     try {
-      const list = await getUserPetsRest(uid);
-      console.log('🐛 PETS RESULT — count:', list.length, '| uid:', uid);
+      const list = await fetchMyPets();
       setPets(list);
     } catch (err) {
-      console.error('Failed to fetch pets:', err);
+      console.error('Failed to fetch pets from /api/me/pets', err);
+      setPets([]);
     } finally {
       setPetsLoading(false);
     }
-  }, [dashboardUserId, user, firebaseUser, isInitialized, loading]);
+  }, [isInitialized, user]);
 
   const fetchProviders = useCallback(async () => {
     try {
@@ -325,44 +303,28 @@ export default function DashboardPage() {
       showToast('⚠️ Please enter a name and select a type for your pet.', 'error');
       return;
     }
-    const uid = dashboardUserId;
-    if (!uid) {
+    if (!isInitialized || !user) {
       showToast('🚫 You must be logged in to add a pet.', 'error');
       return;
     }
-    console.log('🐛 ADDING PET — dashboardUserId:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
+    console.log('🐛 ADDING PET:', { name: petName.trim(), type: petType });
     try {
-      const newPetId = await addPetRest({
-        userId: uid,
+      const newPet = await addMyPet({
         name: petName.trim(),
         type: petType,
         breed: petBreed.trim(),
         age: petAge.trim(),
         notes: petNotes.trim(),
       });
-      // Optimistic update: immediately append the new pet to local state
-      // so the UI updates instantly even if the read query falls back to
-      // localStorage (which won't contain Firestore-saved data).
-      const newPet: PetDoc = {
-        id: newPetId,
-        userId: uid,
-        name: petName.trim(),
-        type: petType,
-        breed: petBreed.trim(),
-        age: petAge.trim(),
-        notes: petNotes.trim(),
-      };
       setPets(prev => [...prev, newPet]);
       setPetName('');
       setPetType('');
       setPetBreed('');
       setPetAge('');
       setPetNotes('');
-      // Background re-fetch to reconcile with Firestore
-      fetchPets();
-      router.refresh();
+      showToast('🐾 Pet added successfully!', 'success');
     } catch (err) {
-      console.error('Failed to add pet:', err);
+      console.error('Failed to add pet from /api/me/pets', err);
       showToast(`❌ ${err instanceof Error ? err.message : 'Failed to add pet.'}`, 'error');
     }
   };

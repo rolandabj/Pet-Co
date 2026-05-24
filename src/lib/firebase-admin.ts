@@ -7,11 +7,13 @@
 import type { ServiceAccount } from 'firebase-admin';
 import type { App } from 'firebase-admin/app';
 import type { Auth } from 'firebase-admin/auth';
+import type { Firestore } from 'firebase-admin/firestore';
 
 // Lazy imports so this module can be required without throwing when
 // the Admin SDK is not installed (e.g. in test environments).
 let cachedApp: App | null = null;
 let cachedAuth: Auth | null = null;
+let cachedDb: Firestore | null = null;
 
 function getCredentials(): ServiceAccount | null {
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -71,4 +73,23 @@ export function getAdminAuth() {
   const admin = require('firebase-admin');
   cachedAuth = admin.auth();
   return cachedAuth;
+}
+
+/**
+ * Get the Firebase Admin Firestore instance.
+ * Returns null when credentials are missing.
+ */
+export function getAdminDb() {
+  if (cachedDb) return cachedDb;
+
+  const app = getAdminApp();
+  if (!app) {
+    cachedDb = null;
+    return null;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const admin = require('firebase-admin');
+  cachedDb = admin.firestore();
+  return cachedDb;
 }

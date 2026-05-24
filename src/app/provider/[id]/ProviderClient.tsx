@@ -10,12 +10,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import {
   addReviewRest,
-  findFavoriteIdRest,
-  addFavoriteRest,
-  removeFavoriteRest,
   getReviewsByProviderRest,
   updateProviderDocRest,
 } from '@/lib/firestore-rest';
+import {
+  fetchMyFavorites,
+  addMyFavorite,
+  removeMyFavoriteByProvider,
+} from '@/lib/me-api';
 import type { ReviewDoc } from '@/lib/firestore-rest';
 
 interface Props {
@@ -73,11 +75,9 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
   const checkFavorite = useCallback(async () => {
     if (!uid || !provider) return;
     try {
-      const docId = await findFavoriteIdRest(uid, providerId);
-      if (docId) {
-        setIsFavorited(true);
-        setFavDocId(docId);
-      }
+      const favorites = await fetchMyFavorites(providerId);
+      setIsFavorited(favorites.length > 0);
+      setFavDocId(favorites[0]?.id ?? null);
     } catch {
       // not critical
     }
@@ -98,22 +98,21 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
 
     setFavToggling(true);
     try {
-      if (isFavorited && favDocId) {
-        await removeFavoriteRest(favDocId, uid);
+      if (isFavorited) {
+        await removeMyFavoriteByProvider(providerId);
         setIsFavorited(false);
         setFavDocId(null);
         showToast('Removed from favorites.', 'success');
       } else {
-        const newId = await addFavoriteRest({
-          userId: uid,
+        const favorite = await addMyFavorite({
           providerId,
           providerName: provider.name,
-          category: provider.category,
-          emoji: provider.emoji,
-          rating: provider.rating,
+          category: provider.category || provider.type,
+          emoji: provider.emoji || '🐾',
+          rating: provider.rating || 0,
         });
         setIsFavorited(true);
-        setFavDocId(newId);
+        setFavDocId(favorite.id);
         showToast('Added to favorites!', 'success');
       }
     } catch (err) {
