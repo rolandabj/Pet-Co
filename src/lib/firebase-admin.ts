@@ -21,7 +21,12 @@ function ensureInitialized() {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
-  const privateKey = rawPrivateKey?.replace(/\\n/g, '\n');
+
+  // Strip surrounding double-quotes if present (some env setups add them)
+  // then convert literal \n to actual newline characters.
+  const privateKey = rawPrivateKey
+    ?.replace(/^"|"$/g, '')
+    .replace(/\\n/g, '\n');
 
   console.log('🐛 FIREBASE ADMIN ENV DEBUG', {
     hasProjectId: Boolean(projectId),
