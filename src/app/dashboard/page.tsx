@@ -309,7 +309,7 @@ export default function DashboardPage() {
       fetchPets();
     } catch (err) {
       console.error('Failed to add pet:', err);
-      showToast('❌ Failed to add pet.', 'error');
+      showToast(`❌ ${err instanceof Error ? err.message : 'Failed to add pet.'}`, 'error');
     }
   };
 
@@ -320,7 +320,7 @@ export default function DashboardPage() {
       showToast(`🗑️ "${petName}" removed.`, 'success');
     } catch (err) {
       console.error('Failed to remove pet:', err);
-      showToast('❌ Failed to remove pet.', 'error');
+      showToast(`❌ ${err instanceof Error ? err.message : 'Failed to remove pet.'}`, 'error');
     }
   };
 
@@ -565,8 +565,10 @@ export default function DashboardPage() {
                               try {
                                 await removeFavoriteRest(fav.id);
                                 setFavorites(prev => prev.filter(f => f.id !== fav.id));
+                                showToast('⭐ Removed from favorites.', 'success');
                               } catch (err) {
                                 console.error('Failed to remove favorite:', err);
+                                showToast(`❌ ${err instanceof Error ? err.message : 'Failed to remove favorite.'}`, 'error');
                               }
                             }}
                             className="text-xs px-3 py-1.5 border border-red-200 text-red-400 rounded-full font-semibold hover:bg-red-50 transition-all"

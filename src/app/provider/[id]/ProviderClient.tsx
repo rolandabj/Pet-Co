@@ -115,8 +115,9 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
         setFavDocId(newId);
         showToast('Added to favorites!', 'success');
       }
-    } catch {
-      showToast('Something went wrong. Try again.', 'error');
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+      showToast(`❌ ${err instanceof Error ? err.message : 'Something went wrong.'}`, 'error');
     } finally {
       setFavToggling(false);
     }
@@ -172,8 +173,9 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
       setShowForm(false);
       // Re-fetch live reviews so the list shows the new entry immediately
       fetchLiveReviews();
-    } catch {
-      showToast('❌ Failed to submit review. Try again.', 'error');
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      showToast(`❌ ${err instanceof Error ? err.message : 'Failed to submit review.'}`, 'error');
     } finally {
       setSubmitting(false);
     }

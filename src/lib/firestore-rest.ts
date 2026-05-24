@@ -5,7 +5,8 @@
  * via plain `fetch`, so they respect standard HTTP timeouts.
  */
 import type { ServiceProvider, ServiceItem, ProductItem } from './types';
-import { getFirebaseAuth } from './firebase';
+import { getFirebaseAuth, getFirestoreDb } from './firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!;
 const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY!;
@@ -67,12 +68,40 @@ async function runQueryRest<T>(
     }),
   });
 
+  if (res.status === 403) {
+    // Fallback: the REST :runQuery endpoint is treated as a list operation
+    // by security rules, where `resource.data` is unavailable. Use the
+    // Firebase SDK instead, which handles query-based reads properly.
+    console.warn(`runQueryRest got 403 for ${collectionId} — falling back to Firebase SDK`);
+    return runQuerySdk(collectionId, field, value, mapFn);
+  }
+
   if (!res.ok) throw new Error(`Failed to query ${collectionId}: ${res.status}`);
   const json = await res.json();
   const documents: Array<{ id: string; data: Record<string, any> }> = (json as Array<{ document?: any }> | undefined)
     ?.map((item) => (item?.document ? docFromJson(item.document) : null))
     .filter((d): d is NonNullable<typeof d> => d != null) ?? [];
   return documents.map(mapFn);
+}
+
+/** Fallback query using the Firebase SDK when the REST :runQuery gets a 403. */
+async function runQuerySdk<T>(
+  collectionId: string,
+  field: string,
+  value: string,
+  mapFn: (doc: { id: string; data: Record<string, any> }) => T,
+): Promise<T[]> {
+  let db;
+  try {
+    db = getFirestoreDb();
+  } catch {
+    throw new Error(`Firebase SDK not available for ${collectionId}`);
+  }
+  if (!db) throw new Error(`Firebase SDK not available for ${collectionId}`);
+
+  const q = query(collection(db, collectionId), where(field, '==', value));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => mapFn({ id: d.id, data: d.data() }));
 }
 
 // ─── Low-level helpers ────────────────────────────────────────
@@ -457,7 +486,7 @@ function mapFavoriteDoc(doc: { id: string; data: Record<string, any> }): Favorit
   return {
     id: doc.id,
     userId: doc.data.userId ?? '',
-    providerId: doc.data.providerId ?? 0,
+    providerId: doc.data.providerId ?? '',
     providerName: doc.data.providerName ?? '',
     category: doc.data.category ?? '',
     emoji: doc.data.emoji ?? '',
