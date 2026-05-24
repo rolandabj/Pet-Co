@@ -1,6 +1,6 @@
 # Paws & Co. — Comprehensive Architecture Brain Dump
 
-> **Last updated:** 2026-05-24  
+> **Last updated:** 2026-05-24 (updated with `runQueryRest` error hardening, `isInitialized` gate, optimistic updates, and security rules)  
 > **Next.js 16.2.6 · App Router · TypeScript 5 · Tailwind CSS 4 · Firebase Firestore REST + SDK**
 
 ---
@@ -262,8 +262,56 @@ fieldToValue(f: any): any
 |---|---|---|
 | **Fetch single doc** | `fetchOne(collection, docId, mapFn)` | `GET /documents/{collection}/{docId}` → 404 returns `null` |
 | **Fetch collection** | `fetchCollection(collection, filterFn?, mapFn?)` | `GET /documents/{collection}` → client-side filter + map |
-| **Fetch where** | `fetchWhere(collection, field, value, mapFn)` | Wraps `fetchCollection` with equality filter — **no composite indexes needed** |
+| **Fetch where (REST structured query)** | `runQueryRest(collection, field, value, mapFn)` | `POST /documents:runQuery` with `structuredQuery` — server-side equality filter |
+| **Fetch where (SDK fallback)** | `runQuerySdk(collection, field, value, mapFn)` | Firebase SDK `getDocs(query(collection, where(...)))` — used when REST `:runQuery` 403s |
+| **Fetch where (localStorage fallback)** | `runQueryLocal(collection, userId, mapFn)` | `localStorage.getItem('local_{collection}_{userId}')` — used when both REST and SDK fail |
 | **PATCH update** | `updateProviderByIdRest`, etc. | `PATCH /documents/{path}?updateMask.fieldPaths=X&updateMask.fieldPaths=Y` |
+
+#### Triple-Layer Read Fallback Chain
+
+All collection queries (`getUserPetsRest`, `getUserFavoritesRest`, `getUserReviewsRest`, etc.) route through `runQueryRest`, which has a **three-layer fallback** to handle the Firestore REST API `:runQuery` limitation (security rules can't check `resource.data.userId` on list operations):
+
+```
+runQueryRest(collection, field, value, mapFn)
+  │
+  ├── Attempt 1: REST :runQuery POST
+  │   ├── 200 OK → parse JSON response, return documents
+  │   └── 403 Forbidden (expected: resource.data unavailable for list ops)
+  │       └── wait 500ms, retry once
+  │
+  ├── Attempt 2: REST :runQuery POST (retry)
+  │   ├── 200 OK → return documents
+  │   └── 403 → fall through
+  │
+  ├── runQuerySdk (Firebase SDK getDocs)
+  │   ├── Success → return documents
+  │   └── Error (network, rules) → fall through
+  │
+  └── runQueryLocal (localStorage)
+      ├── Data exists → return parsed documents
+      └── No data → return []
+```
+
+**Error hardening (added 2026-05-24):** `runQueryRest` originally had no try-catch — any network error, JSON parse failure, or unexpected response format would propagate uncaught to the caller's catch handler (`fetchPets`/`fetchFavorites`), which logs but never calls `setPets`/`setFavorites`, leaving the state as empty `[]`. Fixed with three-layer error boundary:
+1. Inner fetch try-catch: network errors → retry once → SDK fallback
+2. JSON parse try-catch: malformed responses → SDK fallback
+3. Outer try-catch: any unexpected error → SDK/localStorage fallback
+
+#### Auth Header Retry Loop
+
+`getAuthHeaders()` has a 2-second polling loop (10 × 200ms) that waits for `auth?.currentUser` to be non-null before obtaining the ID token. This prevents the first dashboard queries from firing without a Bearer token (which would get a 403 because Firestore security rules require `request.auth.uid`).
+Added alongside a `runQueryRest` 403 retry (500ms wait, one retry) for transient token propagation lag.
+
+#### `isInitialized` Loading Gate
+
+A separate `isInitialized` state in `AuthContext` (distinct from `loading`) becomes `true` only after `onAuthStateChanged` fires its first callback. All dashboard `useEffect` hooks guard with `if (!isInitialized) return;` so no network request fires before Firebase Auth has confirmed the user's identity.
+
+#### Optimistic State Update for Mutations
+
+`handleAddPet` appends the new `PetDoc` to local state immediately after `addPetRest` succeeds (using the real Firestore doc ID), rather than relying solely on `fetchPets()` to refresh the list. This works around the read-fallback gap: `addPetRest` writes to Firestore via REST (200 OK), but the subsequent `fetchPets()` may route through `runQueryLocal` (localStorage) which doesn't contain the new document. The background `fetchPets()` still runs for reconciliation when reads work.
+
+| Operation | Function | How it works |
+|---|---|---|
 | **POST create** | `addBookingRest`, etc. | `POST /documents/{collection}` with auto-ID or ?documentId= for explicit ID |
 | **DELETE** | `deleteBookingRest`, etc. | `DELETE /documents/{path}` |
 
@@ -577,7 +625,7 @@ Pet-Co/
 | **S3** | No rate limiting on booking/review endpoints | **Medium** | No throttling anywhere. A bot could spam bookings or reviews. Should add middleware or Firestore Rules with rate limits. |
 | **S4** | Admin panel accessible by email fallback | **Low** (Transitional) | Hardcoded `rolandabj@gmail.com` in 4 files. If email changes, all gates break. Migrate fully to `role === 'admin'` once migration is verified. |
 | **S5** | API key exposed in client-side REST calls | **Informational** | `NEXT_PUBLIC_FIREBASE_API_KEY` is visible in browser network requests. This is by design — Firebase API keys are meant to be public (Firestore Security Rules enforce real access control). |
-| **S6** | No Firestore Security Rules documented or deployed | **High** | All REST calls use the API key with public access. Without deployed Security Rules, any authenticated or unauthenticated user can potentially read/write any document. |
+| **S6** | Firestore Security Rules written but NOT deployed | **High** | Rules exist in `firestore.rules` (pets, favorites, reviews, users, messages all secured with per-doc ownership checks + admin role). Updated 2026-05-24 with admin read access (`get()` lookup on users collection) and delete handling via `resource.data` instead of `request.resource`. Still need `firebase deploy --only firestore:rules` to take effect. |
 
 ### 6.2 Technical Debt
 
@@ -596,7 +644,7 @@ Pet-Co/
 | # | Feature | Priority | Notes |
 |---|---|---|---|
 | **F1** | Firebase Auth user deletion in cascading delete | High | Admin SDK `admin.auth().deleteUser(uid)` from a Cloud Function or secure server endpoint |
-| **F2** | Firestore Security Rules | High | Must restrict: users can only read/write their own data; providers can only update their own profile; admin role has full access |
+| **F2** | Deploy Firestore Security Rules | High | Rules exist in `firestore.rules` (written and updated 2026-05-24) but not yet deployed. Run `firebase deploy --only firestore:rules` to enforce: per-doc ownership for pets/favorites/reviews, user self-write protection, admin read/write bypass via `get()` lookup, and open contact form messages. |
 | **F3** | Email/password via Firebase Auth (not just localAuth) | Medium | Currently, email/password auth only uses `localAuth` (localStorage). In production, should use Firebase `createUserWithEmailAndPassword` / `signInWithEmailAndPassword` |
 | **F4** | Provider registration email verification | Medium | No email verification step — anyone can register as a provider. Should add verification. |
 | **F5** | Pagination for admin tables | Medium | Admin tables load all documents at once. For large datasets, this will be slow. Add server-side pagination via Firestore REST `pageToken` + `pageSize`. |
@@ -623,17 +671,21 @@ Pet-Co/
 | **Q3** | `initUser()` skipping `setLoading(false)` when `getFirestoreDb()` returns null | Fixed (added `setLoading(false)` before early return) |
 | **Q4** | `getRedirectResult` (5s timeout) runs on every `googleLogin()` call even when not returning from redirect | By design — harmless |
 | **Q5** | Provider `_firestoreId` vs numeric `id` confusion | Dual ID system; `_firestoreId` is the actual document name, `id` may be numeric from legacy data. All operations should prefer `_firestoreId`. |
+| **Q6** | **Dashboard read-write asymmetry:** REST `addPetRest` / `addFavoriteRest` succeed (writes go through with API key), but REST `:runQuery` reads return 403 because `resource.data` is unavailable for list operations in security rules. Fallback chain (`runQueryRest` → `runQuerySdk` → `runQueryLocal`) means data written via REST may not appear in dashboard if all three read sources fail. Mitigated with optimistic state updates (`handleAddPet` appends to local state immediately) and `runQueryRest` error hardening. | Partially fixed 2026-05-24 |
+| **Q7** | **`runQueryRest` propagated errors silently:** `fetchPets`/`fetchFavorites` catch blocks logged errors but never called `setPets`/`setFavorites`, leaving state as empty `[]`. The loading spinner would stop and "No pets yet" / "No favorites yet" would render, making the user think data doesn't exist when in fact the query failed. | Fixed 2026-05-24 (three-layer try-catch in `runQueryRest`) |
+| **Q8** | **Auth token race condition:** Dashboard `useEffect` could fire queries before `onAuthStateChanged` had propagated the Firebase user identity, causing requests to go out without a Bearer token. | Fixed 2026-05-24 (`isInitialized` gate in AuthContext) |
 
 ### 6.6 Immediate Next Steps (Priority Order)
 
-1. **Deploy Firestore Security Rules** (S6) — without these, the database is publicly writable
-2. **Add Firebase Auth user deletion** to cascading delete flows (S1, F1)
-3. **Remove hardcoded admin email fallback** once RBAC migration is verified (S4)
-4. **Add rate limiting** to booking/review Firestore endpoints (S3)
-5. **Consolidate to REST-only** data layer; remove legacy SDK files (D1)
-6. **Add pagination** to admin tables (F5)
-7. **Implement real payment gateway** (D6)
-8. **Add email verification** for provider registration (F4)
+1. **Deploy Firestore Security Rules** (S6) — rules exist in `firestore.rules` (updated 2026-05-24 with admin read access + delete handling). Run `firebase deploy --only firestore:rules`.
+2. **Investigate UID mismatch in dashboard reads** (Q6) — debug logging added at every read/write point. Check browser console for `🐛 FETCHING FAVORITES` and `🐛 FETCHING PETS` to compare the UID being passed vs the UID in Firestore documents.
+3. **Add Firebase Auth user deletion** to cascading delete flows (S1, F1)
+4. **Remove hardcoded admin email fallback** once RBAC migration is verified (S4)
+5. **Add rate limiting** to booking/review Firestore endpoints (S3)
+6. **Consolidate to REST-only** data layer; remove legacy SDK files (D1)
+7. **Add pagination** to admin tables (F5)
+8. **Implement real payment gateway** (D6)
+9. **Add email verification** for provider registration (F4)
 
 ---
 
