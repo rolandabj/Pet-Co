@@ -1,0 +1,25 @@
+[debug] [2026-05-24T17:10:31.872Z] ----------------------------------------------------------------------
+[debug] [2026-05-24T17:10:31.874Z] Command:       /usr/local/bin/node /workspace/project/Pet-Co/node_modules/.bin/firebase projects:list
+[debug] [2026-05-24T17:10:31.874Z] CLI Version:   15.18.0
+[debug] [2026-05-24T17:10:31.874Z] Platform:      linux
+[debug] [2026-05-24T17:10:31.874Z] Node Version:  v22.22.3
+[debug] [2026-05-24T17:10:31.874Z] Time:          Sun May 24 2026 17:10:31 GMT+0000 (Coordinated Universal Time)
+[debug] [2026-05-24T17:10:31.874Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-05-24T17:10:32.050Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-05-24T17:10:32.071Z] Running auto auth
+[debug] [2026-05-24T17:10:32.074Z] No OAuth tokens found
+[debug] [2026-05-24T17:10:32.075Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-05-24T17:10:32.216Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 401
+[debug] [2026-05-24T17:10:32.216Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[debug] [2026-05-24T17:10:32.216Z] Got a 401 Unauthenticated error for a call that required authentication. Refreshing tokens.
+[debug] [2026-05-24T17:10:32.216Z] No OAuth tokens found
+[debug] [2026-05-24T17:10:32.216Z] No OAuth tokens found
+[debug] [2026-05-24T17:10:32.217Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-05-24T17:10:32.217Z] Running auto auth
+[debug] [2026-05-24T17:10:32.219Z] TypeError: Cannot read properties of undefined (reading 'access_token')
+    at getAccessToken (/workspace/project/Pet-Co/node_modules/firebase-tools/lib/apiv2.js:53:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async RetryOperation._fn (/workspace/project/Pet-Co/node_modules/firebase-tools/lib/apiv2.js:324:40)
+[error] 
+[error] Error: An unexpected error has occurred.
