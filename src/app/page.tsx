@@ -49,6 +49,7 @@ export default function Home() {
     const fetchCategoryCounts = async () => {
       try {
         const db = getFirestoreDb();
+        if (!db) return;
         const snapshot = await getDocs(query(collection(db, 'providers')));
         const newCounts: CategoryCounts = {
           shops: 0, walkers: 0, vets: 0, hotels: 0, sitters: 0, grooming: 0,
@@ -78,6 +79,7 @@ export default function Home() {
     const fetchTopReviews = async () => {
       try {
         const db = getFirestoreDb();
+        if (!db) return;
         const reviewsRef = collection(db, 'reviews');
         const testimonialQuery = query(
           reviewsRef,

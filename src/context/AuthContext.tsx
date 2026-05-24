@@ -31,7 +31,7 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   login: (email: string, password: string) => Promise<{ user?: AppUser; error?: string }>;
   register: (email: string, password: string, name: string, role: UserRole) => Promise<{ user?: AppUser; error?: string }>;
-  googleLogin: (role?: UserRole) => Promise<{ user?: AppUser; error?: string }>;
+  googleLogin: (role?: UserRole) => Promise<{ success: boolean; error: string | null }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<AppUser>) => Promise<{ user?: AppUser; error?: string }>;
   requireAuth: () => boolean;
@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // so it can't hang if Firestore is unreachable.
       try {
         const db = getFirestoreDb();
+        if (!db) return;
         const userSnap = await timeout(
           getDoc(doc(db, 'users', appUser.id)),
           4000,
@@ -95,6 +96,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { auth } = getFirebaseAuth();
+      if (!auth) {
+        setLoading(false);
+        return;
+      }
       unsubscribe = onAuthStateChanged(auth, (fbUser) => {
         if (fbUser) {
           setFirebaseUser(fbUser);
@@ -171,6 +176,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { auth, googleProvider } = getFirebaseAuth();
 
+      // 1. Guard: Firebase configuration missing entirely
+      if (!auth || !googleProvider) {
+        return { success: false, error: 'Google Auth configuration is missing.' };
+      }
+
       // ── Try to load the user's existing role from Firestore ─────
       // This must run BEFORE any routing/creation decisions so that
       // returning users never see a role-selection screen and their
@@ -178,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const getExistingRole = async (uid: string): Promise<UserRole | null> => {
         try {
           const db = getFirestoreDb();
+          if (!db) return null;
           const snap = await timeout(
             getDoc(doc(db, 'users', uid)),
             4000,
@@ -251,7 +262,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           persistNewUser(appUser);
         }
 
-        return { user: appUser };
+        // 2. SUCCESS PATH: return object explicitly indicating no errors
+        return { success: true, error: null };
       };
 
       // Handle redirect result first (if we came back from a redirect)
@@ -281,18 +293,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
 
-      // User closed the popup — not really an error
+      // 3. CANCELLATION PATH: user closed the popup — not really an error
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        return { error: 'cancelled' };
+        return { success: false, error: 'cancelled' };
       }
       // Popup blocked — try redirect instead
       if (error.code === 'auth/popup-blocked') {
         try {
           const { auth, googleProvider } = getFirebaseAuth();
-          await signInWithRedirect(auth, googleProvider);
-          return { error: 'redirecting' };
+          if (auth && googleProvider) {
+            await signInWithRedirect(auth, googleProvider);
+          }
+          return { success: false, error: 'redirecting' };
         } catch {
-          return { error: 'Sign-in redirected. Please try again after the page reloads.' };
+          return { success: false, error: 'Sign-in redirected. Please try again after the page reloads.' };
         }
       }
       // Popup timed out — the OAuth popup opened but never returned a result
@@ -304,7 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           `in your Firebase Console (Authentication → Settings) ` +
           `or use email/password login instead.`;
         console.warn(msg);
-        return { error: msg };
+        return { success: false, error: msg };
       }
       // Unauthorized domain — tell the user exactly what to whitelist
       if (error.code === 'auth/unauthorized-domain') {
@@ -313,14 +327,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           `Please add "${origin}" to the Authorized Domains list ` +
           `in your Firebase Console (Authentication → Settings).`;
         console.warn(msg);
-        return { error: msg };
+        return { success: false, error: msg };
       }
       // Operation not supported in this environment
       if (error.code === 'auth/operation-not-supported-in-this-environment') {
-        return { error: 'Google sign-in is not available in this preview environment. Please use email/password login instead.' };
+        return { success: false, error: 'Google sign-in is not available in this preview environment. Please use email/password login instead.' };
       }
-      console.error('Google sign-in error:', error);
-      return { error: error.message || 'Google sign-in failed. Please try again.' };
+      // 4. GENERAL FAILURE PATH: Return the error message safely
+      console.error('Google login interaction failed:', err);
+      return { success: false, error: error.message || 'An unknown authentication error occurred.' };
     }
   }, []);
 
@@ -332,7 +347,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { auth } = getFirebaseAuth();
-      await firebaseSignOut(auth);
+      if (auth) {
+        await firebaseSignOut(auth);
+      }
     } catch { /* ignore */ }
 
     // 2. Wipe React state so the UI re-renders to unauthenticated immediately.

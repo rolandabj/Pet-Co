@@ -670,6 +670,7 @@ export interface UserDoc {
   email?: string;
   phone?: string;
   photoURL?: string;
+  role?: string;
 }
 
 function mapUserDoc(doc: { id: string; data: Record<string, any> }): UserDoc {
@@ -681,7 +682,12 @@ function mapUserDoc(doc: { id: string; data: Record<string, any> }): UserDoc {
     email: d.email ?? '',
     phone: d.phone ?? d.phoneNumber ?? '',
     photoURL: d.photoURL ?? '',
+    role: d.role ?? '',
   };
+}
+
+export async function getAllUsersRest(): Promise<UserDoc[]> {
+  return fetchCollection('users', undefined, mapUserDoc);
 }
 
 export async function getUserByIdRest(userId: string): Promise<UserDoc | null> {
@@ -719,11 +725,218 @@ export async function deleteUserDocRest(userId: string): Promise<void> {
   if (!res.ok) throw new Error(`Failed to delete user: ${res.status}`);
 }
 
+/**
+ * Recalculate a provider's rating and review count based on remaining reviews.
+ */
+async function recalculateProviderRating(providerId: string): Promise<void> {
+  const remaining = await fetchWhere('reviews', 'providerId', providerId, (doc) => ({
+    id: doc.id,
+    rating: doc.data.rating ?? 0,
+  }));
+  const total = remaining.length;
+  const sumStars = remaining.reduce((sum, r) => sum + r.rating, 0);
+  const avg = total > 0 ? sumStars / total : 0;
+  await updateProviderByIdRest(providerId, {
+    reviews: total,
+    rating: parseFloat(avg.toFixed(1)),
+  });
+}
+
+/**
+ * Cascading delete for a user (pet owner) account.
+ *
+ * 1. Queries all relational documents (pets, bookings, payments, reviews, favorites)
+ * 2. Deletes them all
+ * 3. Recalculates provider ratings for any reviews that were removed
+ * 4. Deletes the user document
+ * 5. Returns summary counts
+ */
+export async function deleteUserAccountRest(
+  userId: string,
+): Promise<{
+  deletedPets: number;
+  deletedBookings: number;
+  deletedPayments: number;
+  deletedReviews: number;
+  deletedFavorites: number;
+  recalculatedProviders: number;
+}> {
+  // 1. Collect all relational documents
+  const [pets, bookings, payments, reviews, favorites] = await Promise.all([
+    fetchWhere('pets', 'userId', userId, (doc) => ({ id: doc.id })),
+    fetchWhere('bookings', 'userId', userId, (doc) => ({ id: doc.id })),
+    fetchWhere('payments', 'customerId', userId, (doc) => ({ id: doc.id })),
+    fetchWhere('reviews', 'userId', userId, (doc) => ({
+      id: doc.id,
+      providerId: doc.data.providerId ?? '',
+      rating: doc.data.rating ?? 0,
+    })),
+    fetchWhere('favorites', 'userId', userId, (doc) => ({ id: doc.id })),
+  ]);
+
+  // Collect unique provider IDs affected by review deletion
+  const affectedProviderIds = [...new Set(reviews.map((r) => r.providerId))];
+
+  // 2. Delete all relational documents
+  await Promise.allSettled([
+    ...pets.map((p) =>
+      fetch(docUrl('pets', p.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+        if (!r.ok) throw new Error(`Failed to delete pet ${p.id}: ${r.status}`);
+      }),
+    ),
+    ...bookings.map((b) =>
+      fetch(docUrl('bookings', b.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+        if (!r.ok) throw new Error(`Failed to delete booking ${b.id}: ${r.status}`);
+      }),
+    ),
+    ...payments.map((p) =>
+      fetch(docUrl('payments', p.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+        if (!r.ok) throw new Error(`Failed to delete payment ${p.id}: ${r.status}`);
+      }),
+    ),
+    ...reviews.map((rev) =>
+      fetch(docUrl('reviews', rev.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+        if (!r.ok) throw new Error(`Failed to delete review ${rev.id}: ${r.status}`);
+      }),
+    ),
+    ...favorites.map((f) =>
+      fetch(docUrl('favorites', f.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+        if (!r.ok) throw new Error(`Failed to delete favorite ${f.id}: ${r.status}`);
+      }),
+    ),
+  ]);
+
+  // 3. Recalculate provider ratings for affected providers
+  await Promise.allSettled(
+    affectedProviderIds.map((pid) => recalculateProviderRating(pid)),
+  );
+
+  // 4. Delete the user document
+  try {
+    await deleteUserDocRest(userId);
+  } catch {
+    // User doc may already be gone — proceed
+  }
+
+  return {
+    deletedPets: pets.length,
+    deletedBookings: bookings.length,
+    deletedPayments: payments.length,
+    deletedReviews: reviews.length,
+    deletedFavorites: favorites.length,
+    recalculatedProviders: affectedProviderIds.length,
+  };
+}
+
 /** Delete a provider document.
  *  @param providerId — Either the numeric ID or the actual Firestore document name (string). */
 export async function deleteProviderDocRest(providerId: number | string): Promise<void> {
   const res = await fetch(docUrl('providers', String(providerId)) + `?key=${API_KEY}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to delete provider: ${res.status}`);
+}
+
+/**
+ * Cascading delete for a service provider account.
+ *
+ * 1. Queries & deletes all relational documents (bookings, payments, reviews, favorites)
+ * 2. Deletes the main provider document
+ * 3. Returns metadata (logoUrl, user email) so the caller can clean up storage & downgrade the user role
+ *
+ * Uses sequential REST DELETE calls (no SDK batch needed). Returns counts of deleted items,
+ * plus the provider email and logoUrl so the UI layer can perform Storage deletion
+ * and user role downgrade where the Firebase SDK is available.
+ */
+export async function deleteProviderAccountRest(
+  providerId: string,
+): Promise<{
+  deletedBookings: number;
+  deletedPayments: number;
+  deletedReviews: number;
+  deletedFavorites: number;
+  logoUrl: string | null;
+  userEmail: string | null;
+  userName: string | null;
+}> {
+  // 1. Collect all relational documents
+  const [bookings, payments, reviews] = await Promise.all([
+    fetchWhere('bookings', 'providerId', providerId, mapBookingDoc),
+    fetchWhere('payments', 'providerId', providerId, mapPaymentDoc),
+    fetchWhere('reviews', 'providerId', providerId, (doc) => ({
+      id: doc.id,
+      providerId: doc.data.providerId ?? '',
+      userId: doc.data.userId ?? '',
+      userName: doc.data.userName ?? '',
+      rating: doc.data.rating ?? 0,
+      comment: doc.data.comment ?? '',
+    })),
+    // Note: favorites uses a different field naming convention — some use `providerId`, some use `targetId`
+    // We'll fetch broadly and filter below.
+  ]);
+
+  const favorites = await fetchCollection<{ id: string }>(
+    'favorites',
+    (doc) => doc.data.providerId === providerId || doc.data.targetId === providerId,
+    (doc) => ({ id: doc.id }),
+  );
+
+  // 2. Delete all relational documents
+  await Promise.allSettled([
+    ...bookings.map((b) =>
+      fetch(docUrl('bookings', b.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+        if (!r.ok) throw new Error(`Failed to delete booking ${b.id}: ${r.status}`);
+      }),
+    ),
+    ...payments.map((p) =>
+      fetch(docUrl('payments', p.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+        if (!r.ok) throw new Error(`Failed to delete payment ${p.id}: ${r.status}`);
+      }),
+    ),
+    ...reviews.map((rev) =>
+      fetch(docUrl('reviews', rev.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((res) => {
+        if (!res.ok) throw new Error(`Failed to delete review ${rev.id}: ${res.status}`);
+      }),
+    ),
+    ...favorites.map((f) =>
+      fetch(docUrl('favorites', f.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+        if (!r.ok) throw new Error(`Failed to delete favorite ${f.id}: ${r.status}`);
+      }),
+    ),
+  ]);
+
+  // 3. Fetch the provider doc before deleting (to get email + logoUrl for cleanup)
+  let logoUrl: string | null = null;
+  let userEmail: string | null = null;
+  let userName: string | null = null;
+  try {
+    const providerRes = await authGet(docUrl('providers', providerId));
+    if (providerRes.ok) {
+      const json = await providerRes.json();
+      const f = json.fields || {};
+      logoUrl = f.logoUrl?.stringValue ?? null;
+      userEmail = f.email?.stringValue ?? f.contactEmail?.stringValue ?? null;
+      userName = f.name?.stringValue ?? f.businessName?.stringValue ?? null;
+    }
+  } catch {
+    // Provider doc may already be gone — proceed
+  }
+
+  // 4. Delete the main provider document
+  try {
+    const res = await fetch(docUrl('providers', providerId) + `?key=${API_KEY}`, { method: 'DELETE' });
+    if (!res.ok && res.status !== 404) throw new Error(`Failed to delete provider: ${res.status}`);
+  } catch {
+    // If it's already deleted that's fine
+  }
+
+  return {
+    deletedBookings: bookings.length,
+    deletedPayments: payments.length,
+    deletedReviews: reviews.length,
+    deletedFavorites: favorites.length,
+    logoUrl,
+    userEmail,
+    userName,
+  };
 }
 
 // ─── Provider update / lookup helpers ──────────────────────────

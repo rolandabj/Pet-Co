@@ -10,21 +10,27 @@ import {
   getAllPaymentsRest,
   getAllProvidersRest,
   getAllReviewsRest,
+  getAllUsersRest,
   deleteBookingRest,
   deletePaymentRest,
   deleteProviderDocRest,
+  deleteProviderAccountRest,
   deleteUserDocRest,
+  deleteUserAccountRest,
   deleteReviewRest,
   updateBookingRest,
   updatePaymentRest,
   updateReviewRest,
   updateProviderByIdRest,
+  updateUserDocRest,
   getReviewsByProviderRest,
   getUserByIdRest,
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc } from '@/lib/firestore-rest';
 import type { ReviewDoc } from '@/lib/firestore-rest';
 import { ServiceProvider } from '@/lib/types';
+import { ref, deleteObject } from 'firebase/storage';
+import { getStorageDb } from '@/lib/firebase';
 
 type AdminTab = 'users' | 'services' | 'bookings' | 'analytics' | 'payments' | 'reviews';
 
@@ -196,9 +202,14 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (userId: string, userName: string) => {
     try {
-      await deleteUserDocRest(userId);
+      const result = await deleteUserAccountRest(userId);
       localAuth.deleteUser(userId);
-      showToast(`✅ User "${userName}" successfully removed from database.`, 'success');
+      showToast(
+        `✅ User "${userName}" deleted: ${result.deletedPets} pet(s), ${result.deletedBookings} booking(s), ` +
+        `${result.deletedPayments} payment(s), ${result.deletedReviews} review(s), ` +
+        `${result.deletedFavorites} favorite(s). ${result.recalculatedProviders} provider(s) updated.`,
+        'success',
+      );
     } catch (err) {
       console.error('Failed to delete user:', err);
       showToast('❌ Failed to delete user.', 'error');
@@ -229,12 +240,62 @@ export default function AdminPage() {
 
   const handleDeleteProvider = async (provider: ServiceProvider) => {
     try {
-      // Use the actual Firestore document name (string) for auto-created providers,
-      // fall back to the numeric id for seeded providers whose doc names match.
       const docId = provider._firestoreId || String(provider.id);
-      await deleteProviderDocRest(docId);
+
+      // 1. Cascading delete: relational docs + provider doc
+      const result = await deleteProviderAccountRest(docId);
+
+      // 2. Delete provider logo from Firebase Storage if it exists
+      const logoUrl = result.logoUrl || provider.logoUrl;
+      if (logoUrl) {
+        try {
+          const storage = getStorageDb();
+          if (storage) {
+            // Parse the storage path from the download URL
+            // Format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encoded_path}?alt=media&token=...
+            const urlObj = new URL(logoUrl);
+            const encodedPath = urlObj.pathname.split('/o/')[1];
+            if (encodedPath) {
+              const storagePath = decodeURIComponent(encodedPath);
+              const storageRef = ref(storage, storagePath);
+              await deleteObject(storageRef);
+            }
+          }
+        } catch {
+          // Non-critical — storage cleanup failure shouldn't block account deletion
+        }
+      }
+
+      // 3. Downgrade the associated user to 'owner' role
+      const email = result.userEmail || provider.email;
+      if (email) {
+        try {
+          const users = await getAllUsersRest();
+          const userDoc = users.find(
+            (u) => u.email?.toLowerCase() === email.toLowerCase(),
+          );
+          if (userDoc) {
+            await updateUserDocRest(userDoc.id, { role: 'owner' });
+          }
+        } catch {
+          // Non-critical — user role downgrade shouldn't block account deletion
+        }
+      }
+
+      // 4. Update local state
       setProviders(prev => prev.filter(p => p.id !== provider.id));
-      showToast(`✅ Provider "${provider.name}" removed from database.`, 'success');
+
+      const summary = [
+        result.deletedBookings > 0 && `${result.deletedBookings} booking(s)`,
+        result.deletedPayments > 0 && `${result.deletedPayments} payment(s)`,
+        result.deletedReviews > 0 && `${result.deletedReviews} review(s)`,
+        result.deletedFavorites > 0 && `${result.deletedFavorites} favorite(s)`,
+      ].filter(Boolean).join(', ');
+
+      showToast(
+        `✅ Provider "${provider.name}" fully deleted. ${summary ? `Cleaned up: ${summary}.` : ''}`,
+        'success',
+      );
     } catch (err) {
       console.error('Failed to delete provider:', err);
       showToast('❌ Failed to delete provider.', 'error');

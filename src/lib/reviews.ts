@@ -21,7 +21,7 @@ export interface ReviewDoc {
 }
 
 export async function getReviewsByProvider(providerId: number): Promise<ReviewDoc[]> {
-  const db = getFirestoreDb();
+  const db = getFirestoreDb(); if (!db) throw new Error("Firebase is not configured");
   const q = query(
     collection(db, 'reviews'),
     where('providerId', '==', providerId),
@@ -32,7 +32,7 @@ export async function getReviewsByProvider(providerId: number): Promise<ReviewDo
 }
 
 export async function getUserReviews(userId: string): Promise<ReviewDoc[]> {
-  const db = getFirestoreDb();
+  const db = getFirestoreDb(); if (!db) throw new Error("Firebase is not configured");
   const q = query(
     collection(db, 'reviews'),
     where('userId', '==', userId),
@@ -43,7 +43,7 @@ export async function getUserReviews(userId: string): Promise<ReviewDoc[]> {
 }
 
 export async function addReview(data: Omit<ReviewDoc, 'id' | 'createdAt'>): Promise<string> {
-  const db = getFirestoreDb();
+  const db = getFirestoreDb(); if (!db) throw new Error("Firebase is not configured");
   const docRef = await addDoc(collection(db, 'reviews'), {
     ...data,
     createdAt: serverTimestamp(),

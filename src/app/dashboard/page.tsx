@@ -17,6 +17,7 @@ import {
   getUserReviewsRest,
   getAllProvidersRest,
   updateBookingRest,
+  deleteUserAccountRest,
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc, PetDoc, FavoriteDoc, ReviewDoc } from '@/lib/firestore-rest';
 import type { ServiceProvider } from '@/lib/types';
@@ -52,6 +53,9 @@ export default function DashboardPage() {
   const [petsLoading, setPetsLoading] = useState(true);
   // Providers list for cross-referencing IDs → business names
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState('');
   const [petBreed, setPetBreed] = useState('');
@@ -64,6 +68,10 @@ export default function DashboardPage() {
     const uid = firebaseUser?.uid || user.id;
     setBookingsLoading(true);
     const db = getFirestoreDb();
+    if (!db) {
+      setBookingsLoading(false);
+      return;
+    }
     const q = query(collection(db, 'bookings'), where('userId', '==', uid));
     const unsub = onSnapshot(
       q,
@@ -228,6 +236,29 @@ export default function DashboardPage() {
       } catch {
         showToast('❌ Failed to save profile.', 'error');
       }
+    }
+  };
+
+  // ── Delete account ──────────────────────────────────────────────
+  const handleDeleteAccount = async () => {
+    const uid = firebaseUser?.uid || user.id;
+    setDeletingAccount(true);
+    try {
+      const result = await deleteUserAccountRest(uid);
+      showToast(
+        `✅ Account deleted: ${result.deletedBookings} booking(s), ${result.deletedPayments} payment(s), ` +
+        `${result.deletedReviews} review(s), ${result.deletedFavorites} favorite(s), ` +
+        `${result.deletedPets} pet(s). ${result.recalculatedProviders} provider(s) updated.`,
+        'success',
+      );
+      // Clear local auth and redirect to home
+      const { localAuth } = await import('@/lib/localAuth');
+      localAuth.logout();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      showToast('❌ Failed to delete account. Please try again or contact support.', 'error');
+      setDeletingAccount(false);
     }
   };
 
@@ -648,6 +679,68 @@ export default function DashboardPage() {
                   </div>
                   <button type="submit" className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-6 py-3 rounded-full text-sm transition-all">Save Changes</button>
                 </form>
+
+                {/* ── Danger Zone: Delete Account ────────────────────── */}
+                <div className="mt-12 pt-8 border-t-2 border-rose-100">
+                  <h3 className="text-lg font-heading text-rose-600 mb-2">⚠️ Danger Zone</h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Permanently delete your account and all associated data. This action
+                    cannot be undone.
+                  </p>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deletingAccount}
+                    className="bg-white hover:bg-rose-50 text-rose-600 font-semibold px-6 py-3 rounded-full border-2 border-rose-200 text-sm transition-all disabled:opacity-50"
+                  >
+                    Delete My Account
+                  </button>
+                </div>
+
+                {/* ── Confirmation Modal ──────────────────────────────── */}
+                {showDeleteConfirm && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+                      <h3 className="text-xl font-heading text-rose-600 mb-3">Delete Your Account?</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        This will permanently remove your profile, pets, bookings, payments,
+                        reviews, and favorites. Your data cannot be recovered.
+                      </p>
+                      <p className="text-sm font-semibold text-[#2C3E50] mb-2">
+                        Type <span className="font-mono text-rose-600">DELETE</span> to confirm:
+                      </p>
+                      <input
+                        type="text"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder="Type DELETE"
+                        className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-rose-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 transition-all text-sm mb-4"
+                      />
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setDeleteConfirmText('');
+                          }}
+                          disabled={deletingAccount}
+                          className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-3 rounded-full text-sm transition-all disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setDeleteConfirmText('');
+                            handleDeleteAccount();
+                          }}
+                          disabled={deleteConfirmText !== 'DELETE' || deletingAccount}
+                          className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-3 rounded-full text-sm transition-all disabled:opacity-50"
+                        >
+                          {deletingAccount ? 'Deleting…' : 'Delete My Account'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

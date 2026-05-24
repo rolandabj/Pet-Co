@@ -23,6 +23,7 @@ export interface FavoriteDoc {
 
 export async function getUserFavorites(userId: string): Promise<FavoriteDoc[]> {
   const db = getFirestoreDb();
+  if (!db) return [];
   const q = query(collection(db, 'favorites'), where('userId', '==', userId));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Omit<FavoriteDoc, 'id'>) }));
@@ -30,6 +31,7 @@ export async function getUserFavorites(userId: string): Promise<FavoriteDoc[]> {
 
 export async function addFavorite(fav: Omit<FavoriteDoc, 'id' | 'createdAt'>): Promise<string> {
   const db = getFirestoreDb();
+  if (!db) throw new Error('Firebase is not configured');
   const docRef = await addDoc(collection(db, 'favorites'), {
     ...fav,
     createdAt: serverTimestamp(),
@@ -39,6 +41,7 @@ export async function addFavorite(fav: Omit<FavoriteDoc, 'id' | 'createdAt'>): P
 
 export async function removeFavorite(favoriteId: string): Promise<void> {
   const db = getFirestoreDb();
+  if (!db) return;
   await deleteDoc(doc(db, 'favorites', favoriteId));
 }
 
@@ -47,6 +50,7 @@ export async function findFavoriteId(
   providerId: number
 ): Promise<string | null> {
   const db = getFirestoreDb();
+  if (!db) return null;
   const q = query(
     collection(db, 'favorites'),
     where('userId', '==', userId),

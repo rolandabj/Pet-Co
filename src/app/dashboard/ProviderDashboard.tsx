@@ -3,13 +3,16 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { doc, updateDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
 import { getFirestoreDb } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '@/components/Toast';
 import {
   getProviderByEmailRest,
   updateProviderDocRest,
   createProviderRest,
   updateProviderByIdRest,
+  deleteProviderAccountRest,
+  getAllUsersRest,
+  updateUserDocRest,
   getUserPaymentsRest,
   getReviewsByProviderRest,
   updateBookingRest,
@@ -174,6 +177,8 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const [currencySearch, setCurrencySearch] = useState('');
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [editingProdIdx, setEditingProdIdx] = useState<number | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // ── Business profile form state ────────────────────────────────
   const [bizName, setBizName] = useState('');
@@ -244,6 +249,10 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   useEffect(() => {
     setBookingsLoading(true);
     const db = getFirestoreDb();
+    if (!db) {
+      setBookingsLoading(false);
+      return;
+    }
     const q = query(collection(db, 'bookings'), where('providerId', '==', userId));
     const unsub = onSnapshot(
       q,
@@ -435,8 +444,10 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   ): Promise<string> => {
     setProdImageUploading(true);
     try {
+      const storage = getStorageDb();
+      if (!storage) throw new Error('Firebase Storage is not configured');
       const storageRef = ref(
-        getStorageDb(),
+        storage,
         `providers/${docId}/products/${productId}_image.png`,
       );
       const snapshot = await uploadBytes(storageRef, file);
@@ -567,6 +578,11 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     try {
       setUploadingLogo(true);
       const storage = getStorageDb();
+      if (!storage) {
+        showToast('Firebase is not configured.', 'error');
+        setUploadingLogo(false);
+        return;
+      }
       const targetDocId = provider?._firestoreId || providerDocId || provider?.id || Date.now().toString();
       const storageRef = ref(storage, `provider_logos/${targetDocId}`);
       await uploadBytes(storageRef, file);
@@ -578,6 +594,77 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       showToast('❌ Logo upload failed. Check console.', 'error');
     } finally {
       setUploadingLogo(false);
+    }
+  };
+
+  /* ── Cascading account deletion ── */
+  const handleDeleteAccount = async () => {
+    const targetDocId = provider?._firestoreId || providerDocId || provider?.id;
+    if (!targetDocId) {
+      showToast('Cannot delete: Missing account profile context ID.', 'error');
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      // 1. Cascading delete: relational docs + provider doc
+      const result = await deleteProviderAccountRest(targetDocId);
+
+      // 2. Delete provider logo from Firebase Storage if it exists
+      const logoUrl = result.logoUrl || provider?.logoUrl;
+      if (logoUrl) {
+        try {
+          const storage = getStorageDb();
+          if (storage) {
+            const urlObj = new URL(logoUrl);
+            const encodedPath = urlObj.pathname.split('/o/')[1];
+            if (encodedPath) {
+              const storagePath = decodeURIComponent(encodedPath);
+              const storageRef = ref(storage, storagePath);
+              await deleteObject(storageRef);
+            }
+          }
+        } catch {
+          // Non-critical
+        }
+      }
+
+      // 3. Downgrade the associated user to 'owner' role
+      const email = result.userEmail || provider?.email;
+      if (email) {
+        try {
+          const users = await getAllUsersRest();
+          const userDoc = users.find(
+            (u) => u.email?.toLowerCase() === email.toLowerCase(),
+          );
+          if (userDoc) {
+            await updateUserDocRest(userDoc.id, { role: 'owner' });
+          }
+        } catch {
+          // Non-critical
+        }
+      }
+
+      const summary = [
+        result.deletedBookings > 0 && `${result.deletedBookings} booking(s)`,
+        result.deletedPayments > 0 && `${result.deletedPayments} payment(s)`,
+        result.deletedReviews > 0 && `${result.deletedReviews} review(s)`,
+        result.deletedFavorites > 0 && `${result.deletedFavorites} favorite(s)`,
+      ].filter(Boolean).join(', ');
+
+      showToast(
+        `✅ Account deleted. ${summary ? `Cleaned up: ${summary}.` : ''}`,
+        'success',
+      );
+
+      // 4. Redirect to home after deletion
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Failed to delete account:', err);
+      showToast('❌ Failed to delete account. Please try again or contact support.', 'error');
+    } finally {
+      setDeletingAccount(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -619,6 +706,10 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
 
     try {
       const db = getFirestoreDb();
+      if (!db) {
+        showToast('Firebase is not configured.', 'error');
+        return;
+      }
       const providerDocRef = doc(db, 'providers', targetDocId);
       await updateDoc(providerDocRef, updates);
       setProvider({ ...provider!, ...updates } as ServiceProvider);
@@ -649,6 +740,10 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       };
 
       const db = getFirestoreDb();
+      if (!db) {
+        showToast('Firebase is not configured.', 'error');
+        return;
+      }
       const docRef = doc(db, 'providers', activeId);
       await updateDoc(docRef, { availability: manualSchedulePayload });
 
@@ -1894,6 +1989,57 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                 Save Changes
               </button>
             </form>
+
+            {/* ── Danger Zone: Delete Account ── */}
+            <div className="mt-10 max-w-2xl border-t border-red-200 pt-6">
+              <h3 className="text-base font-heading text-red-600 mb-2">⚠️ Danger Zone</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Permanently delete your provider account and all associated data
+                (bookings, payments, reviews, favorites). This action cannot be undone.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={deletingAccount}
+                className="bg-white border-2 border-red-500 text-red-600 hover:bg-red-50 font-semibold px-6 py-2.5 rounded-full text-sm transition-all disabled:opacity-50"
+              >
+                {deletingAccount ? 'Deleting...' : 'Delete Account'}
+              </button>
+            </div>
+
+            {/* ── Delete Confirmation Modal ── */}
+            {showDeleteConfirm && (
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-modal-in">
+                  <h3 className="text-lg font-heading text-red-600 mb-3">Delete Provider Account?</h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    This will permanently remove your provider profile, all services, products,
+                    bookings, payments, reviews, and favorites. Your user account will be
+                    downgraded to a regular pet owner account.
+                    <br /><br />
+                    <strong>This action cannot be undone.</strong>
+                  </p>
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      disabled={deletingAccount}
+                      className="px-5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteAccount}
+                      disabled={deletingAccount}
+                      className="px-5 py-2.5 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 transition-all disabled:opacity-50"
+                    >
+                      {deletingAccount ? 'Deleting...' : 'Yes, Delete Everything'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

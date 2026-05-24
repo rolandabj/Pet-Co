@@ -22,12 +22,14 @@ function mapDoc(id: string, data: Record<string, unknown>): ServiceProvider {
 
 export async function getAllProviders(): Promise<ServiceProvider[]> {
   const db = getFirestoreDb();
+  if (!db) return [];
   const snapshot = await getDocs(collection(db, 'providers'));
   return snapshot.docs.map(d => mapDoc(d.id, d.data() as Record<string, unknown>));
 }
 
 export async function getProviderById(id: string): Promise<ServiceProvider | null> {
   const db = getFirestoreDb();
+  if (!db) return null;
   const snap = await getDoc(doc(db, 'providers', id));
   if (!snap.exists()) return null;
   return mapDoc(snap.id, snap.data() as Record<string, unknown>);
@@ -35,6 +37,7 @@ export async function getProviderById(id: string): Promise<ServiceProvider | nul
 
 export async function getProvidersByType(type: string): Promise<ServiceProvider[]> {
   const db = getFirestoreDb();
+  if (!db) return [];
   const q = query(collection(db, 'providers'), where('type', '==', type));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(d => mapDoc(d.id, d.data() as Record<string, unknown>));

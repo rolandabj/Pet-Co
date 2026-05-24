@@ -18,13 +18,13 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-[#FFF8F0] text-[#2C3E50]" suppressHydrationWarning>
-        <AuthProvider>
-          <ToastProvider>
+        <ToastProvider>
+          <AuthProvider>
             <Navbar />
             <main className="flex-1">{children}</main>
             <Footer />
-          </ToastProvider>
-        </AuthProvider>
+          </AuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );
