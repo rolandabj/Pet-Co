@@ -14,23 +14,37 @@ const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_I
 
 // ─── Auth helpers (F4: pass Firebase ID token to satisfy security rules) ─────
 
-/** Return auth headers with a Bearer token if the user is signed in. */
+/**
+ * Obtain Firebase Auth ID token and return Authorization headers.
+ * Throws if Firebase Auth is configured but no user is signed in —
+ * this prevents unauthenticated Firestore writes/reads for user-owned data
+ * (pets, favorites, reviews, payments) where the backend requires a valid
+ * Firebase token to enforce security rules.
+ */
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   try {
     const { auth } = getFirebaseAuth();
+    if (!auth) return headers; // Firebase not configured — proceed without auth
     // Retry loop: wait up to ~2 s for the Firebase Auth SDK to initialise
     // so the first dashboard query doesn't fire without a token.
     for (let i = 0; i < 10; i++) {
-      if (auth?.currentUser) break;
+      if (auth.currentUser) break;
       await new Promise(r => setTimeout(r, 200));
     }
-    if (auth?.currentUser) {
-      const token = await auth.currentUser.getIdToken();
-      headers['Authorization'] = `Bearer ${token}`;
+    if (!auth.currentUser) {
+      throw new Error('No Firebase user signed in. Cannot authenticate Firestore request.');
     }
-  } catch {
-    // Firebase not configured — proceed without auth headers
+    const token = await auth.currentUser.getIdToken(true);
+    headers['Authorization'] = `Bearer ${token}`;
+  } catch (err) {
+    // Re-throw auth errors so callers know the request will fail
+    if (err instanceof Error && err.message.includes('No Firebase user')) {
+      throw err;
+    }
+    // Firebase SDK errors (e.g., network) — log and re-throw
+    console.error('[getAuthHeaders] Failed to obtain auth token:', err);
+    throw err;
   }
   return headers;
 }
@@ -38,9 +52,13 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 /**
  * Fetch wrapper that attaches the Firebase ID token (when available)
  * and the API key, so Firestore security rules see an authenticated request.
+ * Re-throws errors from getAuthHeaders so callers can handle auth failures.
  */
 async function authFetch(url: string, options?: RequestInit): Promise<Response> {
-  const headers = await getAuthHeaders();
+  const headers = await getAuthHeaders().catch((err) => {
+    // Re-throw auth errors immediately — callers can fall back gracefully
+    throw err;
+  });
   const separator = url.includes('?') ? '&' : '?';
   return fetch(`${url}${separator}key=${API_KEY}`, { ...options, headers: { ...headers, ...options?.headers } });
 }

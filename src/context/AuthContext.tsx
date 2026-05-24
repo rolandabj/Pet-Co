@@ -30,6 +30,10 @@ interface AuthContextType {
   loading: boolean;
   isInitialized: boolean;
   firebaseUser: FirebaseUser | null;
+  /** Canonical user ID for Firestore-backed documents (pets, favorites, reviews, payments).
+   *  Prefers Firebase Auth UID; falls back to user.id only when Firebase is unavailable.
+   *  Never equals a localAuth-generated `user_` timestamp ID when Firebase is configured. */
+  effectiveUserId: string | null;
   login: (email: string, password: string) => Promise<{ user?: AppUser; error?: string }>;
   register: (email: string, password: string, name: string, role: UserRole) => Promise<{ user?: AppUser; error?: string }>;
   googleLogin: (role?: UserRole) => Promise<{ success: boolean; error: string | null }>;
@@ -126,13 +130,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }, undefined, authMethod);
           initUser(appUser);
         } else {
+          // No Firebase user — clear firebaseUser so effectiveUserId doesn't
+          // return a stale Firebase UID from a previous session.
+          setFirebaseUser(null);
           // Check local session as fallback
           const local = localAuth.getCurrentUser();
           if (local) {
             initUser(local);
           } else {
             setUser(null);
-            setFirebaseUser(null);
             setLoading(false);
           }
         }
@@ -172,14 +178,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err: unknown) {
       const fbErr = err as { code?: string };
-      // If Firebase is not configured or user not found, fall through
-      if (fbErr.code && fbErr.code !== 'auth/user-not-found' && fbErr.code !== 'auth/wrong-password'
-          && fbErr.code !== 'auth/invalid-credential' && fbErr.code !== 'auth/invalid-email') {
-        console.warn('Firebase login failed, falling back to localAuth:', fbErr.code);
+      // If Firebase is configured but login failed, return the error.
+      // Only fall through to localAuth when Firebase is completely unavailable.
+      if (fbErr.code) {
+        const msg =
+          fbErr.code === 'auth/user-not-found' ? 'No account found with this email.' :
+          fbErr.code === 'auth/wrong-password' || fbErr.code === 'auth/invalid-credential' ? 'Invalid email or password.' :
+          fbErr.code === 'auth/invalid-email' ? 'Invalid email format.' :
+          fbErr.code === 'auth/too-many-requests' ? 'Too many login attempts. Please try again later.' :
+          'Login failed. Please try again.';
+        setLoading(false);
+        return { error: msg };
       }
+      // No fbErr.code means Firebase configuration issue — fall through to localAuth
     }
 
-    // 2) Fallback to localAuth for offline / preview modes
+    // 2) Fallback to localAuth for offline / preview modes (Firebase unavailable)
     const result = await localAuth.login(email, password);
     if (result.user) {
       setUser(result.user);
@@ -189,25 +203,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(async (email: string, password: string, name: string, role: UserRole) => {
-    let userId: string;
-    let userEmail: string;
-    let userName: string;
-
     // 1) Try Firebase Auth first — persists across devices (F3)
     try {
       const { auth } = getFirebaseAuth();
       if (auth) {
         const credential = await createUserWithEmailAndPassword(auth, email, password);
         await updateFirebaseProfile(credential.user, { displayName: name });
-        userId = credential.user.uid;
-        userEmail = credential.user.email || email;
-        userName = name;
+        const userId = credential.user.uid;
+        const userEmail = credential.user.email || email;
         // onAuthStateChanged will fire synchronously and update state,
         // but we build the AppUser for the return + role persistence
         const appUser: AppUser = {
           id: userId,
           email: userEmail,
-          name: userName,
+          name,
           role,
           photoURL: null,
           createdAt: new Date().toISOString(),
@@ -224,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const { createProviderRest } = await import('@/lib/firestore-rest');
               await createProviderRest({
                 email: userEmail,
-                name: userName,
+                name,
                 businessName: `${name.split(' ')[0]}'s Pet Business`,
                 contactEmail: userEmail,
                 type: 'walkers',
@@ -245,16 +254,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err: unknown) {
       const fbErr = err as { code?: string };
-      // Only fall through for expected auth errors; log others
-      if (fbErr.code && fbErr.code !== 'auth/email-already-in-use'
-          && fbErr.code !== 'auth/weak-password' && fbErr.code !== 'auth/invalid-email') {
-        console.warn('Firebase registration not available, falling back to localAuth:', fbErr.code);
-      } else if (fbErr.code === 'auth/email-already-in-use') {
-        return { error: 'An account with this email already exists.' };
+      // Return clear error messages for known Firebase Auth failures.
+      // Only fall through to localAuth when Firebase is completely unavailable
+      // (no fbErr.code).
+      if (fbErr.code) {
+        const msg =
+          fbErr.code === 'auth/email-already-in-use' ? 'An account with this email already exists.' :
+          fbErr.code === 'auth/weak-password' ? 'Password should be at least 6 characters.' :
+          fbErr.code === 'auth/invalid-email' ? 'Invalid email format.' :
+          fbErr.code === 'auth/operation-not-allowed' ? 'Email/password signup is not enabled. Contact support.' :
+          'Registration failed. Please try again.';
+        setLoading(false);
+        return { error: msg };
       }
+      // No fbErr.code means Firebase configuration issue — fall through to localAuth
     }
 
-    // 2) Fallback to localAuth for offline / preview modes
+    // 2) Fallback to localAuth for offline / preview modes (Firebase unavailable)
     const result = await localAuth.register(email, password, name, role);
     if (result.user) {
       setUser(result.user);
@@ -506,7 +522,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isInitialized, firebaseUser, login, register, googleLogin, logout, updateProfile, requireAuth }}>
+    <AuthContext.Provider value={{
+      user, loading, isInitialized, firebaseUser,
+      login, register, googleLogin, logout, updateProfile, requireAuth,
+      // Canonical ID: always prefer Firebase Auth UID for Firestore-backed data.
+      // When Firebase is available, effectiveUserId MUST equal fbUser.uid.
+      // When Firebase is unavailable, fall back to the localAuth user id.
+      effectiveUserId: firebaseUser?.uid ?? user?.id ?? null,
+    }}>
       {children}
     </AuthContext.Provider>
   );

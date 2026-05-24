@@ -92,14 +92,17 @@ class LocalAuth {
     return { user: safeUser as AppUser };
   }
 
-  /** Store a user returned from real Firebase Google auth into local session. */
+  /** Store a user returned from real Firebase auth into local session.
+   *  The uid MUST be the Firebase Auth UID — never a generated fallback ID,
+   *  because Firestore-backed documents (pets, favorites, reviews, payments)
+   *  use this ID as the canonical owner key. */
   setSessionFromFirebase(
-    firebaseUser: { email: string; name: string; photoURL?: string | null; uid?: string },
+    firebaseUser: { email: string; name: string; photoURL?: string | null; uid: string },
     role?: UserRole,
     authMethod: 'email' | 'google' = 'google',
   ): AppUser {
     const now = new Date().toISOString();
-    const id = firebaseUser.uid || 'firebase_' + Date.now();
+    const id = firebaseUser.uid;
     const appUser: AppUser = {
       id,
       email: firebaseUser.email,

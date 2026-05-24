@@ -35,9 +35,16 @@ const statusColors: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const { user, firebaseUser, loading, isInitialized, updateProfile } = useAuth();
+  const { user, firebaseUser, loading, isInitialized, effectiveUserId, updateProfile } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+
+  // Debug: log the canonical user ID on every render
+  console.log('🐛 DASHBOARD UID DEBUG', {
+    appUserId: user?.id,
+    firebaseUid: firebaseUser?.uid,
+    effectiveUserId,
+  });
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
@@ -66,7 +73,8 @@ export default function DashboardPage() {
   // ── Real-time bookings listener ──────────────────────────────────
   useEffect(() => {
     if (!isInitialized || loading || !user) return;
-    const uid = firebaseUser?.uid || user.id;
+    const uid = effectiveUserId;
+    if (!uid) return;
     setBookingsLoading(true);
     const db = getFirestoreDb();
     if (!db) {
@@ -90,12 +98,13 @@ export default function DashboardPage() {
       },
     );
     return () => unsub();
-  }, [user, firebaseUser, loading, isInitialized]);
+  }, [user, effectiveUserId, loading, isInitialized]);
 
   const fetchFavorites = useCallback(async () => {
     if (!user || user.role === 'provider') return;
-    const uid = firebaseUser?.uid || user.id;
-    console.log('🐛 FETCHING FAVORITES — uid:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
+    const uid = effectiveUserId;
+    if (!uid) return;
+    console.log('🐛 FETCHING FAVORITES — effectiveUserId:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
     setFavoritesLoading(true);
     try {
       const list = await getUserFavoritesRest(uid);
@@ -106,11 +115,12 @@ export default function DashboardPage() {
     } finally {
       setFavoritesLoading(false);
     }
-  }, [user, firebaseUser]);
+  }, [effectiveUserId, user, firebaseUser]);
 
   const fetchReviews = useCallback(async () => {
     if (!user || user.role === 'provider') return;
-    const uid = firebaseUser?.uid || user.id;
+    const uid = effectiveUserId;
+    if (!uid) return;
     setReviewsLoading(true);
     try {
       const list = await getUserReviewsRest(uid);
@@ -120,11 +130,12 @@ export default function DashboardPage() {
     } finally {
       setReviewsLoading(false);
     }
-  }, [user, firebaseUser]);
+  }, [effectiveUserId, user, firebaseUser]);
 
   const fetchPayments = useCallback(async () => {
     if (!user) return;
-    const uid = firebaseUser?.uid || user.id;
+    const uid = effectiveUserId;
+    if (!uid) return;
     setPaymentsLoading(true);
     try {
       const role = user.role || 'owner';
@@ -135,12 +146,13 @@ export default function DashboardPage() {
     } finally {
       setPaymentsLoading(false);
     }
-  }, [user, firebaseUser]);
+  }, [effectiveUserId, user, firebaseUser]);
 
   const fetchPets = useCallback(async () => {
     if (!user || user.role === 'provider') return;
-    const uid = firebaseUser?.uid || user.id;
-    console.log('🐛 FETCHING PETS — uid:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
+    const uid = effectiveUserId;
+    if (!uid) return;
+    console.log('🐛 FETCHING PETS — effectiveUserId:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
     setPetsLoading(true);
     try {
       const list = await getUserPetsRest(uid);
@@ -151,7 +163,7 @@ export default function DashboardPage() {
     } finally {
       setPetsLoading(false);
     }
-  }, [user, firebaseUser]);
+  }, [effectiveUserId, user, firebaseUser]);
 
   const fetchProviders = useCallback(async () => {
     try {
@@ -294,8 +306,12 @@ export default function DashboardPage() {
       showToast('⚠️ Please enter a name and select a type for your pet.', 'error');
       return;
     }
-    const uid = firebaseUser?.uid || user.id;
-    console.log('🐛 ADDING PET — uid:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
+    const uid = effectiveUserId;
+    if (!uid) {
+      showToast('🚫 You must be logged in to add a pet.', 'error');
+      return;
+    }
+    console.log('🐛 ADDING PET — effectiveUserId:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
     try {
       const newPetId = await addPetRest({
         userId: uid,

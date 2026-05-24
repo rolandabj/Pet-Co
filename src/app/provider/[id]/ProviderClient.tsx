@@ -25,7 +25,7 @@ interface Props {
 }
 
 export default function ProviderClient({ provider: initialProvider, reviews: initialReviews, providerId }: Props) {
-  const { user, firebaseUser } = useAuth();
+  const { user, firebaseUser, effectiveUserId } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { showToast } = useToast();
   const router = useRouter();
@@ -66,7 +66,7 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const uid = firebaseUser?.uid || user?.id;
+  const uid = effectiveUserId;
 
   /* ── check if already favorited ── */
   const checkFavorite = useCallback(async () => {
@@ -130,7 +130,7 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
       showToast('Please select a rating.', 'error');
       return;
     }
-    if (!uid) {
+    if (!effectiveUserId) {
       showToast('⚠️ You must be logged in to leave a review', 'error');
       router.push('/login');
       return;
@@ -139,7 +139,7 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
     try {
       const reviewPayload = {
         providerId,
-        userId: uid,
+        userId: effectiveUserId,
         userName: user?.name || user?.email?.split('@')[0] || 'Anonymous',
         rating: newRating,
         comment: newComment.trim(),
