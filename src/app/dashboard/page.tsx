@@ -315,7 +315,8 @@ export default function DashboardPage() {
 
   const handleRemovePet = async (petId: string, petName: string) => {
     try {
-      await deletePetRest(petId);
+      const uid = firebaseUser?.uid || user.id;
+      await deletePetRest(petId, uid);
       setPets(prev => prev.filter(p => p.id !== petId));
       showToast(`🗑️ "${petName}" removed.`, 'success');
     } catch (err) {
@@ -563,7 +564,8 @@ export default function DashboardPage() {
                           <button
                             onClick={async () => {
                               try {
-                                await removeFavoriteRest(fav.id);
+                                const uid = firebaseUser?.uid || user.id;
+                                await removeFavoriteRest(fav.id, uid);
                                 setFavorites(prev => prev.filter(f => f.id !== fav.id));
                                 showToast('⭐ Removed from favorites.', 'success');
                               } catch (err) {

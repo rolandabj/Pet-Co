@@ -98,7 +98,7 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
     setFavToggling(true);
     try {
       if (isFavorited && favDocId) {
-        await removeFavoriteRest(favDocId);
+        await removeFavoriteRest(favDocId, uid);
         setIsFavorited(false);
         setFavDocId(null);
         showToast('Removed from favorites.', 'success');

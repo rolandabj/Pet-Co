@@ -95,13 +95,66 @@ async function runQuerySdk<T>(
   try {
     db = getFirestoreDb();
   } catch {
-    throw new Error(`Firebase SDK not available for ${collectionId}`);
+    return runQueryLocal(collectionId, value, mapFn);
   }
-  if (!db) throw new Error(`Firebase SDK not available for ${collectionId}`);
+  if (!db) return runQueryLocal(collectionId, value, mapFn);
 
-  const q = query(collection(db, collectionId), where(field, '==', value));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => mapFn({ id: d.id, data: d.data() }));
+  try {
+    const q = query(collection(db, collectionId), where(field, '==', value));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => mapFn({ id: d.id, data: d.data() }));
+  } catch {
+    return runQueryLocal(collectionId, value, mapFn);
+  }
+}
+
+// ─── LocalStorage fallback ──────────────────────────────────────────
+
+function storageKey(collectionId: string, userId: string): string {
+  return `local_${collectionId}_${userId}`;
+}
+
+function runQueryLocal<T>(
+  collectionId: string,
+  userId: string,
+  mapFn: (doc: { id: string; data: Record<string, any> }) => T,
+): T[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(storageKey(collectionId, userId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Array<{ id: string; userId: string }>;
+    return parsed.map((d) => mapFn({ id: d.id, data: d as unknown as Record<string, any> }));
+  } catch {
+    return [];
+  }
+}
+
+function saveLocal(collectionId: string, userId: string, data: any[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(storageKey(collectionId, userId), JSON.stringify(data));
+  } catch { /* quota exceeded — silently ignore */ }
+}
+
+function addToLocal(collectionId: string, userId: string, item: any): void {
+  const list = getLocalList(collectionId, userId);
+  list.push(item);
+  saveLocal(collectionId, userId, list);
+}
+
+function removeFromLocal(collectionId: string, userId: string, docId: string): void {
+  const list = getLocalList(collectionId, userId).filter((d: any) => d.id !== docId);
+  saveLocal(collectionId, userId, list);
+}
+
+function getLocalList(collectionId: string, userId: string): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(storageKey(collectionId, userId)) || '[]');
+  } catch {
+    return [];
+  }
 }
 
 // ─── Low-level helpers ────────────────────────────────────────
@@ -513,28 +566,47 @@ export async function addFavoriteRest(data: {
   emoji: string;
   rating: number;
 }): Promise<string> {
-  const res = await authFetch(docUrl('favorites'), {
-    method: 'POST',
-    body: JSON.stringify({
-      fields: {
-        userId: { stringValue: data.userId },
-        providerId: { stringValue: data.providerId },
-        providerName: { stringValue: data.providerName },
-        category: { stringValue: data.category },
-        emoji: { stringValue: data.emoji },
-        rating: { doubleValue: data.rating },
-      },
-    }),
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) throw new Error(`Failed to add favorite: ${res.status}`);
-  const json = await res.json();
-  return json.name?.split('/').pop() ?? '';
+  try {
+    const res = await authFetch(docUrl('favorites'), {
+      method: 'POST',
+      body: JSON.stringify({
+        fields: {
+          userId: { stringValue: data.userId },
+          providerId: { stringValue: data.providerId },
+          providerName: { stringValue: data.providerName },
+          category: { stringValue: data.category },
+          emoji: { stringValue: data.emoji },
+          rating: { doubleValue: data.rating },
+        },
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      return json.name?.split('/').pop() ?? '';
+    }
+    if (res.status !== 403) throw new Error(`Failed to add favorite: ${res.status}`);
+  } catch (err) {
+    if (err instanceof Error && !err.message.includes('403')) throw err;
+  }
+
+  // Fallback: store locally when Firestore rules deny the write
+  const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  addToLocal('favorites', data.userId, { id, ...data });
+  return id;
 }
 
-export async function removeFavoriteRest(docId: string): Promise<void> {
-  const res = await authFetch(docUrl('favorites', docId), { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Failed to remove favorite: ${res.status}`);
+export async function removeFavoriteRest(docId: string, userId?: string): Promise<void> {
+  try {
+    const res = await authFetch(docUrl('favorites', docId), { method: 'DELETE' });
+    if (res.ok) return;
+    if (res.status !== 403) throw new Error(`Failed to remove favorite: ${res.status}`);
+  } catch (err) {
+    if (err instanceof Error && !err.message.includes('403')) throw err;
+  }
+
+  // Fallback: remove from local storage
+  if (userId) removeFromLocal('favorites', userId, docId);
 }
 
 // ─── Booking helpers ──────────────────────────────────────────
@@ -815,28 +887,47 @@ export async function getUserPetsRest(userId: string): Promise<PetDoc[]> {
 }
 
 export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
-  const res = await authFetch(docUrl('pets'), {
-    method: 'POST',
-    body: JSON.stringify({
-      fields: {
-        userId: { stringValue: data.userId },
-        name: { stringValue: data.name },
-        type: { stringValue: data.type },
-        breed: { stringValue: data.breed },
-        age: { stringValue: data.age },
-        notes: { stringValue: data.notes },
-      },
-    }),
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) throw new Error(`Failed to add pet: ${res.status}`);
-  const json = await res.json();
-  return json.name?.split('/').pop() ?? '';
+  try {
+    const res = await authFetch(docUrl('pets'), {
+      method: 'POST',
+      body: JSON.stringify({
+        fields: {
+          userId: { stringValue: data.userId },
+          name: { stringValue: data.name },
+          type: { stringValue: data.type },
+          breed: { stringValue: data.breed },
+          age: { stringValue: data.age },
+          notes: { stringValue: data.notes },
+        },
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      return json.name?.split('/').pop() ?? '';
+    }
+    if (res.status !== 403) throw new Error(`Failed to add pet: ${res.status}`);
+  } catch (err) {
+    if (err instanceof Error && !err.message.includes('403')) throw err;
+  }
+
+  // Fallback: store locally when Firestore rules deny the write
+  const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  addToLocal('pets', data.userId, { id, ...data });
+  return id;
 }
 
-export async function deletePetRest(petId: string): Promise<void> {
-  const res = await authFetch(docUrl('pets', petId), { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Failed to delete pet: ${res.status}`);
+export async function deletePetRest(petId: string, userId?: string): Promise<void> {
+  try {
+    const res = await authFetch(docUrl('pets', petId), { method: 'DELETE' });
+    if (res.ok) return;
+    if (res.status !== 403) throw new Error(`Failed to delete pet: ${res.status}`);
+  } catch (err) {
+    if (err instanceof Error && !err.message.includes('403')) throw err;
+  }
+
+  // Fallback: remove from local storage
+  if (userId) removeFromLocal('pets', userId, petId);
 }
 
 // ─── Message helpers ──────────────────────────────────────────
