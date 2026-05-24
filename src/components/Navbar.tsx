@@ -59,7 +59,7 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
-              {user.email === 'rolandabj@gmail.com' && (
+              {(user.role === 'admin' || user.email === 'rolandabj@gmail.com') && (
                 <Link href="/admin" className="text-sm font-medium text-gray-500 hover:text-[#E86A33] px-3 py-2">
                   ⚙️ Admin
                 </Link>
@@ -114,7 +114,7 @@ export default function Navbar() {
           <div className="border-t border-gray-100 mt-3 pt-3">
             {user ? (
               <>
-                {user.email === 'rolandabj@gmail.com' && (
+                {(user.role === 'admin' || user.email === 'rolandabj@gmail.com') && (
                   <Link href="/admin" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-600">
                     ⚙️ Admin
                   </Link>

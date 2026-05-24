@@ -69,7 +69,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // so it can't hang if Firestore is unreachable.
       try {
         const db = getFirestoreDb();
-        if (!db) return;
+        if (!db) {
+          setLoading(false);
+          return;
+        }
         const userSnap = await timeout(
           getDoc(doc(db, 'users', appUser.id)),
           4000,

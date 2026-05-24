@@ -39,7 +39,16 @@ interface EditStatusState {
   value: string;
 }
 
-const ADMIN_EMAIL = 'rolandabj@gmail.com';
+/**
+ * Dual-auth safety guard: grants access if the user has the 'admin' role
+ * in their Firestore/local profile OR is the legacy admin email. This
+ * ensures zero downtime while migrating the hardcoded email check to
+ * dynamic RBAC. Once all admin users have `role: 'admin'` in the
+ * database, simplify this to `user?.role === 'admin'`.
+ */
+function isAdminUser(user: { role?: string; email?: string } | null): boolean {
+  return user?.role === 'admin' || user?.email === 'rolandabj@gmail.com';
+}
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
@@ -62,12 +71,12 @@ export default function AdminPage() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentDoc | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const admin = isAdminUser(user);
 
-  // Exclusive admin gate — only rolandabj@gmail.com may access
+  // Admin gate — dual-auth: role-based OR email-based
   useEffect(() => {
     if (loading) return;
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!user || !isAdminUser(user)) {
       if (!user) {
         router.push('/login');
       } else {
@@ -99,8 +108,8 @@ export default function AdminPage() {
 
   // Only fetch data for the admin user — no wasted API calls for others
   useEffect(() => {
-    if (!loading && isAdmin) fetchLiveData();
-  }, [loading, isAdmin, fetchLiveData]);
+    if (!loading && admin) fetchLiveData();
+  }, [loading, admin, fetchLiveData]);
 
   // ── Derived analytics ──────────────────────────────────────────
   // All computed from live Firestore data — no hardcoded values.
@@ -165,7 +174,7 @@ export default function AdminPage() {
   })();
 
   // Early returns while auth resolves or during redirect
-  if (loading || !user || !isAdmin) {
+  if (loading || !user || !admin) {
     return <div className="pt-[100px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
   }
 

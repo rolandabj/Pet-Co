@@ -528,7 +528,7 @@ function mapPaymentDoc(doc: { id: string; data: Record<string, any> }): PaymentD
   };
 }
 
-export async function getUserPaymentsRest(userId: string, role: 'owner' | 'provider'): Promise<PaymentDoc[]> {
+export async function getUserPaymentsRest(userId: string, role: string): Promise<PaymentDoc[]> {
   const field = role === 'provider' ? 'providerId' : 'customerId';
   return fetchWhere('payments', field, userId, mapPaymentDoc);
 }

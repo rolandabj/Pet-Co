@@ -362,7 +362,7 @@ export default function DashboardPage() {
                 {tab.label}
               </button>
             ))}
-            {user?.email === 'rolandabj@gmail.com' && (
+            {(user?.role === 'admin' || user?.email === 'rolandabj@gmail.com') && (
               <Link href="/admin" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-[#FFF8F0] hover:text-gray-700 mt-5">
                 <span className="w-5 text-center">⚙️</span>
                 Admin Panel
