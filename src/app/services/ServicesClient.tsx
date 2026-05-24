@@ -105,13 +105,32 @@ export default function ServicesClient({ providers, activeFilter, loadError, dbE
                 href={`/provider/${p.id}`}
                 className="bg-white rounded-2xl p-7 border border-[#F0E4D8] hover:shadow-lg hover:-translate-y-1 transition-all flex gap-5"
               >
-                <div className="w-14 h-14 rounded-full bg-[#FFF0E0] flex items-center justify-center text-xl flex-shrink-0">
-                  {p.emoji}
+                <div className="w-14 h-14 rounded-full bg-[#FFF8F0] border border-[#F0E4D8]/60 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {p.logoUrl ? (
+                    <img src={p.logoUrl} alt={`${p.name || 'Provider'} Logo`} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 bg-[#FFF3E5] rounded-full flex items-center justify-center text-lg">
+                      🛍️
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-heading text-[#2C3E50]">{p.businessName || p.name}</h3>
                   <div className="text-yellow-500 text-sm mb-2">
-                    {'★'.repeat(Math.floor(p.rating))}{p.rating % 1 >= 0.5 ? '½' : ''} {p.rating} ({p.reviews} reviews)
+                    {(() => {
+                      const currentRating = typeof (p as any).rating === 'number' ? (p as any).rating : 0;
+                      const currentReviewCount = typeof (p as any).reviewCount === 'number'
+                        ? (p as any).reviewCount
+                        : typeof p.reviews === 'number' ? p.reviews : 0;
+                      return currentReviewCount > 0 ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-amber-500">{'★'.repeat(Math.round(currentRating))}</span>
+                          <span className="text-xs text-gray-500">({currentReviewCount} {currentReviewCount === 1 ? 'review' : 'reviews'})</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">No reviews yet</span>
+                      );
+                    })()}
                   </div>
                   <p className="text-sm text-gray-500 mb-3 line-clamp-2">{p.desc}</p>
                   <div className="flex flex-wrap gap-2">

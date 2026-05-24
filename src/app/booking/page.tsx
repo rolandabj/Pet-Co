@@ -120,18 +120,18 @@ function BookingForm() {
 
   // ── Fetch already-booked time slots for double-booking prevention ──
   useEffect(() => {
-    if (!provider || !date) return;
+    if (!provider || !date || !serviceType) return;
     setBookedSlots([]); // reset while fetching
     getBookingsForProviderDateRest(provider, date)
       .then((existing) => {
         const booked = existing
-          .filter((b) => b.status !== 'cancelled' && b.status !== 'declined')
+          .filter((b) => b.status !== 'cancelled' && b.status !== 'declined' && b.serviceType === serviceType)
           .map((b) => b.timeSlot || b.time)
           .filter(Boolean);
         setBookedSlots(booked);
       })
       .catch((err) => console.error('Failed to fetch booked slots:', err));
-  }, [provider, date]);
+  }, [provider, date, serviceType]);
 
   // Handler: when the user picks a service, update the service type and pricing states
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -233,6 +233,7 @@ function BookingForm() {
       const conflict = existing.find(
         (b) =>
           (b.timeSlot || b.time) === slot &&
+          b.serviceType === serviceType &&
           b.status !== 'cancelled' &&
           b.status !== 'declined',
       );
@@ -253,6 +254,7 @@ function BookingForm() {
         providerName: selectedProvider?.name || 'Unknown Provider',
         providerBusinessName: selectedProvider?.businessName || selectedProvider?.name || '',
         customerName: user?.name || user?.email || 'Unknown Customer',
+        customerEmail: user?.email || '',
         customerPhone: profilePhone || (user as any)?.phone || '',
         date,
         time: time || '',
@@ -261,6 +263,8 @@ function BookingForm() {
         petId: selectedPet || '',
         petName: pets.find(p => p.id === selectedPet)?.name || '',
         price: serviceFee,
+        platformFee,
+        total: finalTotal,
         currency: selectedCurrency,
         status: 'pending',
       });
@@ -408,7 +412,7 @@ function BookingForm() {
               ) : (
                 <>
                   <div className="flex justify-between py-3 text-sm"><span>Service</span><span className="font-semibold text-[#2C3E50]">{selectedService?.label}</span></div>
-                  <div className="flex justify-between py-3 text-sm"><span>Date</span><span className="text-gray-500">{date ? new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Not selected'}</span></div>
+                  <div className="flex justify-between py-3 text-sm"><span>Date</span><span className="text-gray-500">{date ? new Date(date).toLocaleDateString('en-GB') : 'Not selected'}</span></div>
                   <div className="flex justify-between py-3 text-sm"><span>Time</span><span className="text-gray-500">{time ? time : 'Not selected'}</span></div>
                   <div className="flex justify-between py-3 text-sm"><span>Service Fee</span><span>{serviceFee.toFixed(2)} {selectedCurrency}</span></div>
                   <div className="flex justify-between py-3 text-sm"><span>Platform Fee</span><span>{platformFee.toFixed(2)} {selectedCurrency}</span></div>

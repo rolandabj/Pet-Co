@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ServiceProvider, ServiceItem, ProductItem } from '@/lib/types';
+import { formatProductPrice } from '@/lib/formatProductPrice';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import {
@@ -25,11 +26,13 @@ interface Props {
 
 export default function ProviderClient({ provider: initialProvider, reviews: initialReviews, providerId }: Props) {
   const { user, firebaseUser } = useAuth();
+  const isAdmin = user?.email === 'rolandabj@gmail.com';
   const { showToast } = useToast();
   const router = useRouter();
 
   // ---------- provider state (mutable for review sync) ----------
   const [provider, setProvider] = useState<ServiceProvider | null>(initialProvider);
+  const providerPhoneNumber = provider?.phone || provider?.contactPhone;
 
   // ---------- favorite state ----------
   const [isFavorited, setIsFavorited] = useState(false);
@@ -214,8 +217,14 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
         <div className="bg-white rounded-2xl p-8 sm:p-10 border border-[#F0E4D8] mb-8">
           <div className="sm:flex sm:items-start sm:gap-8">
             {/* Avatar */}
-            <div className="w-[100px] h-[100px] rounded-full bg-[#FFF0E0] flex items-center justify-center text-3xl mx-auto sm:mx-0 flex-shrink-0 mb-4 sm:mb-0">
-              {provider.emoji}
+            <div className="w-[100px] h-[100px] rounded-full bg-[#FFF8F0] border border-[#F0E4D8] flex items-center justify-center overflow-hidden mx-auto sm:mx-0 flex-shrink-0 mb-4 sm:mb-0 shadow-sm">
+              {provider.logoUrl ? (
+                <img src={provider.logoUrl} alt={`${provider.name || 'Business'} Logo`} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-12 h-12 bg-[#FFF3E5] rounded-full flex items-center justify-center text-2xl">
+                  🛍️
+                </div>
+              )}
             </div>
 
             {/* Identity & meta */}
@@ -224,16 +233,41 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
 
               {/* Rating */}
               <div className="text-yellow-500 text-sm mb-1.5">
-                {renderStars(provider.rating)}
-                <span className="text-gray-500 font-medium ml-1">{provider.rating}</span>
-                <span className="text-gray-400 ml-1">({provider.reviews} reviews)</span>
+                {provider.reviews > 0 ? (
+                  <>{renderStars(provider.rating)}
+                    <span className="text-gray-500 font-medium ml-1">{provider.rating}</span>
+                    <span className="text-gray-400 ml-1">({provider.reviews} {provider.reviews === 1 ? 'review' : 'reviews'})</span>
+                  </>
+                ) : (
+                  <span className="text-gray-400">No reviews yet</span>
+                )}
               </div>
 
               {/* Quick info row */}
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mb-3 justify-center sm:justify-start">
-                <span>💼 {provider.category}</span>
-                <span>📍 {provider.location || 'New York, NY'}</span>
-                <span>📅 Member since {new Date(provider.since || Date.now()).getFullYear()}</span>
+                <span className="flex items-center gap-1">💼 {provider.category}</span>
+
+                {/* High-Visibility Interactive Google Maps Link Wrap */}
+                {(provider?.googleMapsUrl || provider?.location) && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-sm">📍</span>
+                    <a
+                      href={provider.googleMapsUrl?.startsWith('http')
+                        ? provider.googleMapsUrl
+                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(provider.location || provider.googleMapsUrl || '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-bold text-[#E86A33] underline hover:text-[#d05928] cursor-pointer transition-all duration-150 inline-flex items-center"
+                      title="Click to navigate via Google Maps"
+                    >
+                      {provider.location && !provider.location.startsWith('http')
+                        ? `${provider.location} (Click for Maps)`
+                        : 'Open in Google Maps (Click for Maps)'}
+                    </a>
+                  </div>
+                )}
+
+                <span className="flex items-center gap-1">📅 Member since {new Date(provider.since || Date.now()).getFullYear()}</span>
               </div>
 
               <p className="text-sm text-gray-600 mb-4 max-w-[600px] mx-auto sm:mx-0">
@@ -261,7 +295,7 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
                     href={`/booking?providerId=${provider.id}`}
                     className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-6 py-3 rounded-full text-sm transition-all"
                   >
-                    Book Now — {provider.price}
+                    Book Now
                   </Link>
                   <button
                     onClick={handleFavorite}
@@ -280,52 +314,44 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
           </div>
         </div>
 
-        {/* ── Two-column layout: Contact + Services ── */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Contact info card */}
-          <div className="bg-white rounded-2xl p-7 border border-[#F0E4D8]">
-            <h3 className="text-base font-heading text-[#2C3E50] mb-4 flex items-center gap-2">
-              📞 Contact Information
-            </h3>
-            <div className="space-y-3 text-sm">
-              {provider.phone && (
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-[#FFF0E0] flex items-center justify-center text-sm flex-shrink-0">
-                    📱
-                  </span>
+        {/* ── Two-column layout: Contact (admin-only) + Services ── */}
+        <div className={`grid ${isAdmin ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6 mb-8`}>
+          {/* Conditionally reveal direct contact nodes strictly to the main administrator */}
+          {isAdmin && (
+            <div className="bg-white border border-[#F0E4D8]/60 p-6 rounded-2xl shadow-sm">
+              <h3 className="font-semibold text-[#2C3E50] text-lg mb-4 flex items-center gap-2">
+                📞 Contact Information (Admin Only)
+              </h3>
+              <div className="flex flex-col gap-3">
+                {providerPhoneNumber ? (
                   <div>
-                    <p className="text-xs text-gray-400">Phone</p>
-                    <p className="text-[#2C3E50] font-medium">{provider.phone}</p>
+                    <span className="text-xs text-gray-400 block uppercase font-semibold">Phone</span>
+                    <span className="text-sm font-medium text-gray-700">{providerPhoneNumber}</span>
                   </div>
-                </div>
-              )}
-              {provider.email && (
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-[#FFF0E0] flex items-center justify-center text-sm flex-shrink-0">
-                    ✉️
-                  </span>
+                ) : (
                   <div>
-                    <p className="text-xs text-gray-400">Email</p>
-                    <p className="text-[#2C3E50] font-medium">{provider.email}</p>
+                    <span className="text-xs text-gray-400 block uppercase font-semibold">Phone</span>
+                    <span className="text-sm italic text-gray-400">No phone number provided</span>
                   </div>
-                </div>
-              )}
-              {provider.location && (
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-[#FFF0E0] flex items-center justify-center text-sm flex-shrink-0">
-                    📍
-                  </span>
+                )}
+                {provider.email && (
                   <div>
-                    <p className="text-xs text-gray-400">Address</p>
-                    <p className="text-[#2C3E50] font-medium">{provider.location}</p>
+                    <span className="text-xs text-gray-400 block uppercase font-semibold">Email</span>
+                    <span className="text-sm font-medium text-gray-700">{provider.email}</span>
                   </div>
-                </div>
-              )}
-              {(!provider.phone && !provider.email) && (
-                <p className="text-gray-400 italic">No contact details listed.</p>
-              )}
+                )}
+                {provider.location && (
+                  <div>
+                    <span className="text-xs text-gray-400 block uppercase font-semibold">Address</span>
+                    <span className="text-sm font-medium text-gray-700">{provider.location}</span>
+                  </div>
+                )}
+                {(!providerPhoneNumber && !provider.email) && (
+                  <p className="text-gray-400 italic text-sm">No contact details listed.</p>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Services & Pricing grid */}
           <div className="bg-white rounded-2xl p-7 border border-[#F0E4D8]">
@@ -397,7 +423,7 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
                     )}
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs font-bold text-[#0D9488] bg-teal-50 px-2.5 py-1 rounded-full">
-                        ${product.price.toFixed(2)}
+                        {formatProductPrice(product.price, product.currency)}
                       </span>
                       <span
                         className={`text-[10px] px-2 py-1 rounded-full font-semibold ${

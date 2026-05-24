@@ -42,6 +42,7 @@ function mapDoc(doc: any): ServiceProvider {
         image: m.image?.stringValue || undefined,
         description: m.description?.stringValue || undefined,
         inStock: m.inStock?.booleanValue ?? true,
+        currency: m.currency?.stringValue ?? 'USD',
       };
     });
   };
@@ -73,9 +74,11 @@ function mapDoc(doc: any): ServiceProvider {
     emoji: s('emoji'),
     price: s('price'),
     location: s('location') || undefined,
+    googleMapsUrl: s('googleMapsUrl') || undefined,
     since: s('since') || undefined,
-    phone: s('phone') || undefined,
+    phone: s('phone') || s('contactPhone') || undefined,
     email: s('email') || undefined,
+    logoUrl: s('logoUrl') || undefined,
     services: svc(),
     products: products(),
     availability: avail(),
@@ -84,7 +87,7 @@ function mapDoc(doc: any): ServiceProvider {
 
 export async function getProviderByIdRest(id: string): Promise<ServiceProvider | null> {
   const url = `${FIRESTORE_BASE}/providers/${id}?key=${API_KEY}`;
-  const res = await fetch(url, { next: { revalidate: 60 } });
+  const res = await fetch(url);
   if (!res.ok) {
     if (res.status === 404) return null;
     throw new Error(`Failed to fetch provider: ${res.status}`);
@@ -138,7 +141,6 @@ export async function getReviewsByProviderRest(providerId: string): Promise<Revi
     method: 'POST',
     body: JSON.stringify(body),
     headers: { 'Content-Type': 'application/json' },
-    next: { revalidate: 30 },
   });
   if (!res.ok) throw new Error(`Failed to query reviews: ${res.status}`);
   const results = await res.json();

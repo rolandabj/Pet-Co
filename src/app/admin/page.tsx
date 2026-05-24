@@ -20,6 +20,7 @@ import {
   updateReviewRest,
   updateProviderByIdRest,
   getReviewsByProviderRest,
+  getUserByIdRest,
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc } from '@/lib/firestore-rest';
 import type { ReviewDoc } from '@/lib/firestore-rest';
@@ -51,6 +52,9 @@ export default function AdminPage() {
   const [editReviewComment, setEditReviewComment] = useState('');
   const [editReviewRating, setEditReviewRating] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState<BookingDoc | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentDoc | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -438,7 +442,7 @@ export default function AdminPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-sm text-gray-400">{u.authMethod || 'email'}</td>
-                    <td className="px-5 py-4 text-sm text-gray-400">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}</td>
+                    <td className="px-5 py-4 text-sm text-gray-400">{u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-GB') : 'N/A'}</td>
                     <td className="px-5 py-4">
                       <button
                         onClick={() => handleDeleteUser(u.id, u.name || u.email)}
@@ -515,74 +519,146 @@ export default function AdminPage() {
 
         {/* Bookings tab */}
         {activeTab === 'bookings' && (
-          <div className="bg-white border border-[#F0E4D8] rounded-2xl overflow-hidden">
-            <div className="p-5 border-b border-[#F0E4D8]">
-              <h4 className="text-sm font-semibold text-[#2C3E50]">All Bookings ({bookings.length})</h4>
-            </div>
-            {dataLoading ? (
-              <div className="animate-pulse">
-                <div className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
-                  {[1, 2, 3, 4, 5, 6].map(i => (
-                    <div key={i} className="h-3 w-24 bg-gray-200 rounded-lg" />
-                  ))}
+          <>
+            {selectedBooking ? (
+              /* ── Booking Detail View ───────────────────────────── */
+              <div className="bg-white border border-[#F0E4D8] rounded-2xl overflow-hidden">
+                <div className="p-5 border-b border-[#F0E4D8] flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-[#2C3E50]">📋 Booking Details</h4>
+                  <button onClick={() => setSelectedBooking(null)} className="text-xs text-gray-400 hover:text-gray-600">← Back to all bookings</button>
                 </div>
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
-                    <div className="h-4 w-20 bg-gray-200 rounded-lg" />
-                    <div className="h-4 w-28 bg-gray-100 rounded-lg" />
-                    <div className="h-4 w-24 bg-gray-100 rounded-lg" />
-                    <div className="h-4 w-28 bg-gray-100 rounded-lg" />
-                    <div className="h-4 w-16 bg-gray-100 rounded-lg" />
-                    <div className="h-6 w-20 bg-gray-200 rounded-full" />
-                    <div className="h-4 w-16 bg-gray-100 rounded-lg" />
+                <div className="p-6 space-y-5">
+                  {/* Booking number & status */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-gray-400 uppercase tracking-wider font-semibold">Booking #</span>
+                      <p className="text-sm font-mono text-[#2C3E50] mt-0.5">{selectedBooking.id}</p>
+                    </div>
+                    <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColors[selectedBooking.status] || 'bg-gray-500/10 text-gray-500'}`}>
+                      {selectedBooking.status.charAt(0).toUpperCase() + selectedBooking.status.slice(1)}
+                    </span>
                   </div>
-                ))}
+
+                  {/* Client info */}
+                  <div className="bg-[#FFF8F0] rounded-xl p-4">
+                    <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">👤 Client Information</h5>
+                    <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                      <div><span className="text-gray-400">Name:</span> <span className="text-[#2C3E50] font-medium">{(() => { const u = allUsers.find(u2 => u2.id === selectedBooking.userId || (u2 as any).uid === selectedBooking.userId); return u ? (u.name || u.email) : selectedBooking.customerName; })()}</span></div>
+                      {selectedBooking.customerEmail && <div><span className="text-gray-400">Email:</span> <span className="text-[#2C3E50]">{selectedBooking.customerEmail}</span></div>}
+                      {selectedBooking.customerPhone && <div><span className="text-gray-400">Phone:</span> <span className="text-[#2C3E50]">{selectedBooking.customerPhone}</span></div>}
+                      {selectedBooking.petName && <div><span className="text-gray-400">Pet:</span> <span className="text-[#2C3E50]">{selectedBooking.petName}</span></div>}
+                    </div>
+                  </div>
+
+                  {/* Service & Provider */}
+                  <div className="bg-[#FFF8F0] rounded-xl p-4">
+                    <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">📦 Service &amp; Provider</h5>
+                    <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                      <div><span className="text-gray-400">Service:</span> <span className="text-[#2C3E50] font-medium">{serviceIcons[selectedBooking.serviceType] || '🐾'} {serviceLabels[selectedBooking.serviceType] || selectedBooking.serviceType}</span></div>
+                      <div><span className="text-gray-400">Provider:</span> <span className="text-[#2C3E50] font-medium">{(() => { const mp = providers.find(p2 => p2.id === selectedBooking.providerId); return mp ? (mp.businessName || mp.name) : selectedBooking.providerName; })()}</span></div>
+                      {(() => { const mp = providers.find(p2 => p2.id === selectedBooking.providerId); return mp?.phone ? <div className="sm:col-span-2"><span className="text-xs text-gray-400 block uppercase font-semibold">Provider Phone:</span><span className="text-sm text-gray-700 font-medium">{mp.phone}</span></div> : null; })()}
+                      {(() => { const mp = providers.find(p2 => p2.id === selectedBooking.providerId); return mp?.location ? <div className="sm:col-span-2"><span className="text-gray-400">Location:</span> <span className="text-[#2C3E50]">{mp.location}</span></div> : null; })()}
+                      <div><span className="text-gray-400">Booking Date:</span> <span className="text-[#2C3E50]">{selectedBooking.date?.split("-").reverse().join("/")}</span></div>
+                      <div><span className="text-gray-400">Booking Time:</span> <span className="text-[#2C3E50]">{selectedBooking.time || selectedBooking.timeSlot || '—'}</span></div>
+                      <div className="sm:col-span-2 pt-2 border-t border-[#F0E4D8]/60">
+                        <span className="text-gray-400 text-xs">Order placed:</span>
+                        <span className="text-[#2C3E50] text-xs ml-2">{selectedBooking.createdAt ? new Date(selectedBooking.createdAt).toLocaleString('en-GB') : 'N/A'}</span>
+                      </div>
+                      {selectedBooking.instructions && <div className="sm:col-span-2"><span className="text-gray-400">Instructions:</span> <span className="text-[#2C3E50]">{selectedBooking.instructions}</span></div>}
+                    </div>
+                  </div>
+
+                  {/* Payment breakdown */}
+                  <div className="bg-[#FFF8F0] rounded-xl p-4">
+                    <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">💳 Payment Information</h5>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-gray-400">Service Fee</span><span className="text-[#2C3E50]">${(selectedBooking.price || 0).toFixed(2)} {selectedBooking.currency || 'USD'}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-400">Platform Fee</span><span className="text-[#2C3E50]">${(selectedBooking.platformFee || 0).toFixed(2)} {selectedBooking.currency || 'USD'}</span></div>
+                      <div className="flex justify-between pt-3 mt-2 border-t border-[#F0E4D8] font-semibold"><span className="text-[#2C3E50]">Total Paid</span><span className="text-[#E86A33]">${(selectedBooking.total || selectedBooking.price || 0).toFixed(2)} {selectedBooking.currency || 'USD'}</span></div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  {selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
+                    <div className="flex gap-3 pt-2">
+                      <button onClick={() => { handleCancelBooking(selectedBooking.id); setSelectedBooking(null); }} className="text-sm bg-yellow-50 text-yellow-700 border border-yellow-200 px-4 py-2 rounded-xl hover:bg-yellow-100 transition-all">⏸️ Cancel Booking</button>
+                      <button onClick={() => { handleDeleteBooking(selectedBooking.id); setSelectedBooking(null); }} className="text-sm bg-red-50 text-red-700 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-100 transition-all">🗑️ Delete Booking</button>
+                    </div>
+                  )}
+                </div>
               </div>
-            ) : bookings.length === 0 ? (
-              <div className="text-center py-10 text-gray-400 text-sm">No bookings found.</div>
             ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#F0E4D8]">
-                    {['Customer', 'Service', 'Provider', 'Date', 'Amount', 'Status', ''].map(h => (
-                      <th key={h} className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
+              <div className="bg-white border border-[#F0E4D8] rounded-2xl overflow-hidden">
+                <div className="p-5 border-b border-[#F0E4D8]">
+                  <h4 className="text-sm font-semibold text-[#2C3E50]">All Bookings ({bookings.length})</h4>
+                </div>
+                {dataLoading ? (
+                  <div className="animate-pulse">
+                    <div className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
+                      {[1, 2, 3, 4, 5, 6].map(i => (
+                        <div key={i} className="h-3 w-24 bg-gray-200 rounded-lg" />
+                      ))}
+                    </div>
+                    {[1, 2, 3, 4].map(i => (
+                      <div key={i} className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
+                        <div className="h-4 w-20 bg-gray-200 rounded-lg" />
+                        <div className="h-4 w-28 bg-gray-100 rounded-lg" />
+                        <div className="h-4 w-24 bg-gray-100 rounded-lg" />
+                        <div className="h-4 w-28 bg-gray-100 rounded-lg" />
+                        <div className="h-4 w-16 bg-gray-100 rounded-lg" />
+                        <div className="h-6 w-20 bg-gray-200 rounded-full" />
+                        <div className="h-4 w-16 bg-gray-100 rounded-lg" />
+                      </div>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {bookings.map(b => {
-                    const matchingUser = allUsers.find(u => u.id === b.userId || (u as any).uid === b.userId);
-                    const displayCustomerName = matchingUser ? (matchingUser.name || matchingUser.email) : (b.customerName || b.userId);
-                    const matchingProvider = providers.find(p => p.id === b.providerId);
-                    const displayBusinessName = matchingProvider ? (matchingProvider.businessName || matchingProvider.name) : (b.providerBusinessName || b.providerName);
-                    return (
-                    <tr key={b.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
-                      <td className="px-5 py-4 text-sm text-gray-500">{displayCustomerName}</td>
-                      <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">
-                        {serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType}
-                      </td>
-                      <td className="px-5 py-4 text-sm text-gray-500">{displayBusinessName}</td>
-                      <td className="px-5 py-4 text-sm text-gray-500">{b.date}{b.time ? `, ${b.time}` : ''}</td>
-                      <td className="px-5 py-4 text-sm text-gray-500">${b.price || 0}</td>
-                      <td className="px-5 py-4">
-                        <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColors[b.status] || 'bg-gray-500/10 text-gray-500'}`}>
-                          {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex gap-2">
-                          {b.status !== 'cancelled' && b.status !== 'completed' && (
-                            <button onClick={() => handleCancelBooking(b.id)} className="text-xs text-yellow-600 hover:text-yellow-800">⏸️ Cancel</button>
-                          )}
-                          <button onClick={() => handleDeleteBooking(b.id)} className="text-xs text-red-500 hover:text-red-700">🗑️ Delete</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );})}
-                </tbody>
-              </table>
+                  </div>
+                ) : bookings.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 text-sm">No bookings found.</div>
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-[#F0E4D8]">
+                        {['Customer', 'Service', 'Provider', 'Date', 'Amount', 'Status', ''].map(h => (
+                          <th key={h} className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bookings.map(b => {
+                        const matchingUser = allUsers.find(u => u.id === b.userId || (u as any).uid === b.userId);
+                        const displayCustomerName = matchingUser ? (matchingUser.name || matchingUser.email) : (b.customerName || b.userId);
+                        const matchingProvider = providers.find(p => p.id === b.providerId);
+                        const displayBusinessName = matchingProvider ? (matchingProvider.businessName || matchingProvider.name) : (b.providerBusinessName || b.providerName);
+                        const displayAmount = b.total || b.price || 0;
+                        return (
+                        <tr key={b.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0] cursor-pointer" onClick={() => setSelectedBooking(b)}>
+                          <td className="px-5 py-4 text-sm text-gray-500">{displayCustomerName}</td>
+                          <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">
+                            {serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType}
+                          </td>
+                          <td className="px-5 py-4 text-sm text-gray-500">{displayBusinessName}</td>
+                          <td className="px-5 py-4 text-sm text-gray-500">{b.date?.split("-").reverse().join("/")}{b.time ? `, ${b.time}` : ''}</td>
+                          <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">${displayAmount.toFixed(2)} {b.currency || 'USD'}</td>
+                          <td className="px-5 py-4">
+                            <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColors[b.status] || 'bg-gray-500/10 text-gray-500'}`}>
+                              {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                              {b.status !== 'cancelled' && b.status !== 'completed' && (
+                                <button onClick={() => handleCancelBooking(b.id)} className="text-xs text-yellow-600 hover:text-yellow-800">⏸️ Cancel</button>
+                              )}
+                              <button onClick={() => handleDeleteBooking(b.id)} className="text-xs text-red-500 hover:text-red-700">🗑️ Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );})}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
 
         {/* Payments Ledger tab */}
@@ -624,15 +700,16 @@ export default function AdminPage() {
                   <tbody>
                     {payments.map(p => (
                       <tr key={p.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
-                        <td className="px-5 py-4 text-sm text-gray-500 font-mono">{p.bookingId.slice(0, 8)}...</td>
-                        <td className="px-5 py-4 text-sm text-gray-500">{p.customerName}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">{(m => m ? (m.businessName || m.name) : p.providerName)(providers.find(pr => pr.id === p.providerId))}</td>
-                        <td className="px-5 py-4 text-sm text-gray-500">{p.category}</td>
-                        <td className="px-5 py-4 text-sm text-gray-500">${p.amount.toFixed(2)}</td>
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4 text-sm text-gray-500 font-mono cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{p.bookingId.slice(0, 8)}...</td>
+                        <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{p.customerName}</td>
+                        <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50] cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{(m => m ? (m.businessName || m.name) : p.providerName)(providers.find(pr => pr.id === p.providerId))}</td>
+                        <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{p.category}</td>
+                        <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>${p.amount.toFixed(2)}</td>
+                        <td className="px-5 py-4 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>
                           {editStatus?.id === p.id ? (
                             <div className="flex gap-1">
                               <select
+                                onClick={(e) => e.stopPropagation()}
                                 value={editStatus.value}
                                 onChange={e => setEditStatus({ id: p.id, value: e.target.value })}
                                 className="text-xs px-2 py-1 border border-[#F0E4D8] rounded-lg bg-white"
@@ -641,8 +718,8 @@ export default function AdminPage() {
                                   <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                                 ))}
                               </select>
-                              <button onClick={() => handlePaymentStatusEdit(p.id, editStatus.value)} className="text-xs text-emerald-600 hover:text-emerald-800">Save</button>
-                              <button onClick={() => setEditStatus(null)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                              <button onClick={(e) => { e.stopPropagation(); handlePaymentStatusEdit(p.id, editStatus.value); }} className="text-xs text-emerald-600 hover:text-emerald-800">Save</button>
+                              <button onClick={(e) => { e.stopPropagation(); setEditStatus(null); }} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
                             </div>
                           ) : (
                             <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${p.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600' : p.status === 'refunded' ? 'bg-red-500/10 text-red-500' : 'bg-gray-500/10 text-gray-500'}`}>
@@ -663,6 +740,14 @@ export default function AdminPage() {
               )}
             </div>
           )}
+
+          {/* ── Payment Detail Modal ── */}
+          {showPaymentModal && selectedPayment && <PaymentDetailModal
+            payment={selectedPayment}
+            providers={providers}
+            bookings={bookings}
+            onClose={() => { setShowPaymentModal(false); setSelectedPayment(null); }}
+          />}
 
           {/* Reviews management tab */}
           {activeTab === 'reviews' && (
@@ -746,7 +831,7 @@ export default function AdminPage() {
                                 <>
                                   <span className="text-[10px] text-gray-400">·</span>
                                   <span className="text-[10px] text-gray-400">
-                                    {new Date(r.createdAt).toLocaleDateString()}
+                                    {new Date(r.createdAt).toLocaleDateString('en-GB')}
                                   </span>
                                 </>
                               )}
@@ -818,6 +903,229 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Payment Detail Modal ──────────────────────────────────────────── */
+
+function PaymentDetailModal({
+  payment,
+  providers,
+  bookings,
+  onClose,
+}: {
+  payment: PaymentDoc;
+  providers: ServiceProvider[];
+  bookings: BookingDoc[];
+  onClose: () => void;
+}) {
+  const [fetchedUser, setFetchedUser] = useState<{ name?: string; email?: string; phone?: string; location?: string } | null>(null);
+  const [fetchingUser, setFetchingUser] = useState(true);
+
+  useEffect(() => {
+    if (!payment.customerId) { setFetchingUser(false); return; }
+    getUserByIdRest(payment.customerId)
+      .then((u) => {
+        if (u) setFetchedUser({ name: u.name, email: u.email, phone: u.phone });
+        setFetchingUser(false);
+      })
+      .catch(() => setFetchingUser(false));
+  }, [payment.customerId]);
+
+  // Lookup relational data from already-loaded arrays
+  const linkedBooking = bookings.find(b => b.id === payment.bookingId);
+  const linkedProvider = providers.find(p => p.id === payment.providerId);
+
+  const customerEmail = payment.customerName.includes('@') ? payment.customerName : (fetchedUser?.email || '—');
+  const customerPhone = fetchedUser?.phone || '—';
+  const bookingStatus = linkedBooking?.status || 'Unknown';
+
+  /* ── Status pill styling ── */
+  const statusStyle = (status: string) => {
+    const s = status.toLowerCase();
+    if (s === 'confirmed' || s === 'paid')    return 'bg-emerald-500/10 text-emerald-600 border-emerald-200';
+    if (s === 'pending')                       return 'bg-amber-50 text-amber-600 border-amber-200';
+    if (s === 'cancelled' || s === 'deleted' || s === 'refunded') return 'bg-red-500/10 text-red-500 border-red-200';
+    return 'bg-gray-100 text-gray-500 border-gray-200';
+  };
+
+  const formatDate = (ts?: string) => {
+    if (!ts) return '—';
+    try { return new Date(ts).toLocaleString('en-GB'); } catch { return ts; }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#FFF8F0] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-[#F0E4D8]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ── Header ── */}
+        <div className="sticky top-0 bg-[#FFF8F0] z-10 flex items-center justify-between px-6 py-5 border-b border-[#F0E4D8]">
+          <h2 className="text-lg font-bold text-[#2C3E50]">💳 Payment Details</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-[#F0E4D8] text-gray-400 hover:text-[#E86A33] hover:border-[#E86A33] transition-all text-lg"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+
+          {/* ── Section A: Payment Metadata ── */}
+          <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">📋 Payment Metadata</h3>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Transaction ID</span>
+                <span className="text-[#2C3E50] font-mono text-xs break-all">{payment.id}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Booking ID</span>
+                <span className="text-[#2C3E50] font-mono text-xs break-all">{payment.bookingId}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Total Amount</span>
+                <span className="text-lg font-bold text-[#E86A33]">${payment.amount.toFixed(2)} USD</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Payment Date</span>
+                <span className="text-[#2C3E50]">{formatDate(payment.createdAt)}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Category</span>
+                <span className="text-[#2C3E50]">{payment.category}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Status</span>
+                <span className={`inline-block text-xs px-3 py-1 rounded-full font-semibold border ${statusStyle(payment.status)}`}>
+                  {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section B: Customer Identity Card ── */}
+          <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">👤 Customer Profile</h3>
+            {fetchingUser ? (
+              <div className="animate-pulse space-y-2">
+                <div className="h-3 w-32 bg-gray-200 rounded" />
+                <div className="h-3 w-48 bg-gray-100 rounded" />
+                <div className="h-3 w-40 bg-gray-100 rounded" />
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Full Name</span>
+                  <span className="text-[#2C3E50] font-medium">{payment.customerName || fetchedUser?.name || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Email</span>
+                  {customerEmail && customerEmail !== '—' ? (
+                    <a href={`mailto:${customerEmail}`} className="text-[#E86A33] hover:underline">{customerEmail}</a>
+                  ) : (
+                    <span className="text-gray-400 italic">N/A</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Phone</span>
+                  {customerPhone && customerPhone !== '—' ? (
+                    <a href={`tel:${customerPhone}`} className="text-[#2C3E50] hover:text-[#E86A33]">{customerPhone}</a>
+                  ) : (
+                    <span className="text-gray-400 italic">N/A</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Customer ID</span>
+                  <span className="text-[#2C3E50] font-mono text-xs">{payment.customerId}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Section C: Service Provider Context ── */}
+          <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">🏪 Service Provider</h3>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+              <div className="sm:col-span-2">
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Business Name</span>
+                <span className="text-[#2C3E50] font-semibold text-base">{linkedProvider?.businessName || linkedProvider?.name || payment.providerName}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Category</span>
+                <span className="inline-block text-xs px-3 py-1 rounded-full bg-[#FFF0E0] text-[#E86A33] font-semibold">{payment.category}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Provider ID</span>
+                <span className="text-[#2C3E50] font-mono text-xs">{payment.providerId}</span>
+              </div>
+              {linkedProvider?.email && (
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Provider Email</span>
+                  <a href={`mailto:${linkedProvider.email}`} className="text-[#E86A33] hover:underline">{linkedProvider.email}</a>
+                </div>
+              )}
+              {linkedProvider?.phone && (
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Provider Phone</span>
+                  <a href={`tel:${linkedProvider.phone}`} className="text-[#2C3E50] hover:text-[#E86A33]">{linkedProvider.phone}</a>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Section D: Linked Booking Lifecycle ── */}
+          <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">🔗 Linked Booking</h3>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Booking Status</span>
+                <span className={`inline-block mt-1 text-xs px-3 py-1.5 rounded-full font-semibold border ${statusStyle(bookingStatus)}`}>
+                  {bookingStatus.charAt(0).toUpperCase() + bookingStatus.slice(1)}
+                </span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Service Type</span>
+                <span className="text-[#2C3E50]">{linkedBooking?.serviceType || '—'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Scheduled Date</span>
+                <span className="text-[#2C3E50]">{linkedBooking?.date ? linkedBooking.date.split('-').reverse().join('/') : '—'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Scheduled Time</span>
+                <span className="text-[#2C3E50]">{linkedBooking?.time || linkedBooking?.timeSlot || '—'}</span>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Customer Instructions</span>
+                <span className="text-[#2C3E50]">{linkedBooking?.instructions || <span className="italic text-gray-400">None</span>}</span>
+              </div>
+            </div>
+            {!linkedBooking && (
+              <p className="mt-3 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                ⚠️ The booking document associated with this payment (ID: {payment.bookingId}) was not found in the current dataset. It may have been deleted.
+              </p>
+            )}
+          </div>
+
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="sticky bottom-0 bg-[#FFF8F0] border-t border-[#F0E4D8] px-6 py-4 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 bg-[#E86A33] text-white text-sm font-semibold rounded-xl hover:bg-[#d55a24] transition-all"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

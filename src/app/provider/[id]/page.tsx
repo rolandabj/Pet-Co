@@ -1,7 +1,10 @@
 /**
  * Provider detail page – server component.
  * Fetches provider + reviews server-side via Firestore REST API.
+ * force-dynamic bypasses Next.js route cache so profile updates appear instantly.
  */
+export const dynamic = 'force-dynamic';
+
 import { getProviderByIdRest, getReviewsByProviderRest } from '@/lib/provider-rest';
 import ProviderClient from './ProviderClient';
 

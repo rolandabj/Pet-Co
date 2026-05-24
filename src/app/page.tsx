@@ -1,16 +1,37 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { getFirestoreDb } from '@/lib/firebase';
+
+interface CategoryCounts {
+  shops: number;
+  walkers: number;
+  vets: number;
+  hotels: number;
+  sitters: number;
+  grooming: number;
+}
 
 const services = [
-  { emoji: '🛍️', title: 'Pet Shops', slug: 'shops', desc: 'Premium food, toys, accessories, and supplies delivered to your door.', count: '120+ shops available' },
-  { emoji: '🐕', title: 'Dog Walkers', slug: 'walkers', desc: 'Trusted walkers who\'ll give your pup the exercise and attention they deserve.', count: '200+ walkers near you' },
-  { emoji: '🏥', title: 'Veterinarians', slug: 'vets', desc: 'Experienced vets for checkups, vaccinations, and emergency care.', count: '80+ vet clinics' },
-  { emoji: '🏨', title: 'Dog Hotels', slug: 'hotels', desc: 'Luxury accommodations and daycare for when you\'re away from home.', count: '50+ pet hotels' },
-  { emoji: '🛋️', title: 'Pet Sitters', slug: 'sitters', desc: 'In-home sitters who\'ll treat your pets like family while you\'re gone.', count: '160+ sitters' },
-  { emoji: '✂️', title: 'Grooming', slug: 'grooming', desc: 'Professional grooming, bathing, nail trimming, and styling services.', count: '90+ groomers' },
+  { emoji: '🛍️', title: 'Pet Shops', slug: 'shops', desc: 'Premium food, toys, accessories, and supplies delivered to your door.' },
+  { emoji: '🐕', title: 'Dog Walkers', slug: 'walkers', desc: 'Trusted walkers who\'ll give your pup the exercise and attention they deserve.' },
+  { emoji: '🏥', title: 'Veterinarians', slug: 'vets', desc: 'Experienced vets for checkups, vaccinations, and emergency care.' },
+  { emoji: '🏨', title: 'Dog Hotels', slug: 'hotels', desc: 'Luxury accommodations and daycare for when you\'re away from home.' },
+  { emoji: '🛋️', title: 'Pet Sitters', slug: 'sitters', desc: 'In-home sitters who\'ll treat your pets like family while you\'re gone.' },
+  { emoji: '✂️', title: 'Grooming', slug: 'grooming', desc: 'Professional grooming, bathing, nail trimming, and styling services.' },
 ];
+
+const countLabels: Record<string, (n: number) => string> = {
+  shops: (n) => `${n} ${n === 1 ? 'shop' : 'shops'} available`,
+  walkers: (n) => `${n} ${n === 1 ? 'walker' : 'walkers'} near you`,
+  vets: (n) => `${n} ${n === 1 ? 'clinic' : 'clinics'} available`,
+  hotels: (n) => `${n} ${n === 1 ? 'hotel' : 'hotels'} available`,
+  sitters: (n) => `${n} ${n === 1 ? 'sitter' : 'sitters'} available`,
+  grooming: (n) => `${n} ${n === 1 ? 'groomer' : 'groomers'} available`,
+};
 
 const steps = [
   { num: '1', title: 'Create Your Profile', desc: 'Sign up as a pet owner or service provider. It takes less than 2 minutes.' },
@@ -18,14 +39,65 @@ const steps = [
   { num: '3', title: 'Enjoy Peace of Mind', desc: 'Relax knowing your pet is in good hands. Rate and review after each visit.' },
 ];
 
-const testimonials = [
-  { stars: '★★★★★', text: 'Paws & Co. made finding a reliable dog walker so easy. Bella absolutely loves her walks with Sarah. Highly recommend!', avatar: '🐱', name: 'Emily R.', role: 'Pet Owner · 2 dogs' },
-  { stars: '★★★★★', text: 'As a pet sitter, Paws & Co. has helped me grow my business tremendously. The platform is intuitive and brings me quality clients.', avatar: '🐶', name: 'Marcus J.', role: 'Pet Sitter · 3 years' },
-  { stars: '★★★★★', text: 'Found an amazing vet through Paws & Co. The booking was seamless and the prices were transparent. No hidden fees!', avatar: '🐰', name: 'Sophia K.', role: 'Pet Owner · 1 rabbit' },
-];
-
 export default function Home() {
   const { user } = useAuth();
+  const [counts, setCounts] = useState<CategoryCounts>({
+    shops: 0, walkers: 0, vets: 0, hotels: 0, sitters: 0, grooming: 0,
+  });
+
+  useEffect(() => {
+    const fetchCategoryCounts = async () => {
+      try {
+        const db = getFirestoreDb();
+        const snapshot = await getDocs(query(collection(db, 'providers')));
+        const newCounts: CategoryCounts = {
+          shops: 0, walkers: 0, vets: 0, hotels: 0, sitters: 0, grooming: 0,
+        };
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const type = (data.type as string)?.toLowerCase() || '';
+          if (type in newCounts) {
+            newCounts[type as keyof CategoryCounts]++;
+          }
+        });
+        setCounts(newCounts);
+      } catch (err) {
+        console.error('Error fetching category counts:', err);
+      }
+    };
+    fetchCategoryCounts();
+  }, []);
+
+  const getCount = (slug: string) =>
+    countLabels[slug]?.(counts[slug as keyof CategoryCounts] ?? 0) ?? '';
+
+  const [realTestimonials, setRealTestimonials] = useState<any[]>([]);
+  const [testimonialsLoading, setTestimonialsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTopReviews = async () => {
+      try {
+        const db = getFirestoreDb();
+        const reviewsRef = collection(db, 'reviews');
+        const testimonialQuery = query(
+          reviewsRef,
+          where('rating', '>=', 4),
+          limit(3)
+        );
+        const snapshot = await getDocs(testimonialQuery);
+        const dynamicList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setRealTestimonials(dynamicList);
+      } catch (error) {
+        console.error('Failed to compile homepage testimonials pipeline:', error);
+      } finally {
+        setTestimonialsLoading(false);
+      }
+    };
+    fetchTopReviews();
+  }, []);
 
   return (
     <>
@@ -46,7 +118,7 @@ export default function Home() {
               Find trusted pet shops, dog walkers, vets, dog hotels, and sitters — all in one place. Because your furry family member deserves nothing less.
             </p>
             <div className="flex gap-4 flex-wrap">
-              <Link href="/login" className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-8 py-4 rounded-full text-base transition-all hover:shadow-lg hover:shadow-orange-500/30">
+              <Link href="/services" className="bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold px-8 py-4 rounded-full text-base transition-all hover:shadow-lg hover:shadow-orange-500/30">
                 Find a Service
               </Link>
               <Link href="/services" className="border-2 border-[#2C3E50] text-[#2C3E50] font-semibold px-8 py-4 rounded-full text-base hover:bg-[#2C3E50] hover:text-white transition-all">
@@ -108,7 +180,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-lg font-heading text-[#2C3E50] mb-2">{s.title}</h3>
                 <p className="text-sm text-gray-500 mb-4">{s.desc}</p>
-                <span className="text-xs text-gray-400 font-medium">{s.count}</span>
+                <span className="text-xs text-gray-400 font-medium">{getCount(s.slug)}</span>
               </Link>
             ))}
           </div>
@@ -151,19 +223,31 @@ export default function Home() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <div key={i} className="bg-white rounded-2xl p-8 border border-[#F0E4D8] hover:shadow-md hover:-translate-y-1 transition-all animate-fade-in-up" style={{ animationDelay: `${(i + 1) * 0.1}s` }}>
-                <div className="text-yellow-500 text-sm mb-4">{t.stars}</div>
-                <p className="text-sm italic text-[#2C3E50] mb-5 leading-relaxed">&ldquo;{t.text}&rdquo;</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-[#FFF0E0] flex items-center justify-center text-lg">{t.avatar}</div>
-                  <div>
-                    <div className="text-sm font-semibold text-[#2C3E50]">{t.name}</div>
-                    <div className="text-xs text-gray-400">{t.role}</div>
+            {realTestimonials.length > 0 ? (
+              realTestimonials.map((review: any) => (
+                <div key={review.id} className="bg-white border border-[#F0E4D8]/60 p-6 rounded-2xl flex flex-col gap-4 shadow-sm">
+                  <div className="flex text-amber-500 text-sm">
+                    {"★".repeat(review.rating || 5)}
+                  </div>
+                  <p className="text-gray-600 italic text-sm leading-relaxed flex-grow">
+                    &ldquo;{review.text || review.comment || 'Wonderful service provided on the application!'}&rdquo;
+                  </p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="w-10 h-10 rounded-full bg-[#F0E4D8] flex items-center justify-center font-bold text-[#E86A33] text-sm uppercase">
+                      {(review.userName || 'U')[0]}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-[#2C3E50] text-sm">{review.userName || 'Valued Client'}</h4>
+                      <span className="text-xs text-gray-400 block">Verified Pet Owner</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-gray-400 italic col-span-3 text-center">
+                New client success stories are currently loading from the pipeline!
+              </p>
+            )}
           </div>
         </div>
       </section>

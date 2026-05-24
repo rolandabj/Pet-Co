@@ -157,6 +157,7 @@ function mapServiceProvider(doc: any): ServiceProvider {
         image: m.image?.stringValue || undefined,
         description: m.description?.stringValue || undefined,
         inStock: m.inStock?.booleanValue ?? true,
+        currency: m.currency?.stringValue ?? 'USD',
       };
     });
   };
@@ -191,9 +192,11 @@ function mapServiceProvider(doc: any): ServiceProvider {
     emoji: s('emoji'),
     price: s('price'),
     location: s('location') || undefined,
+    googleMapsUrl: s('googleMapsUrl') || undefined,
     since: s('since') || undefined,
-    phone: s('phone') || undefined,
+    phone: s('phone') || s('contactPhone') || undefined,
     email: s('email') || undefined,
+    logoUrl: s('logoUrl') || undefined,
     services: svc(),
     products: products(),
     availability: avail(),
@@ -360,7 +363,7 @@ export async function addFavoriteRest(data: {
     body: JSON.stringify({
       fields: {
         userId: { stringValue: data.userId },
-        providerId: { integerValue: data.providerId },
+        providerId: { stringValue: data.providerId },
         providerName: { stringValue: data.providerName },
         category: { stringValue: data.category },
         emoji: { stringValue: data.emoji },
@@ -390,6 +393,7 @@ export interface BookingDoc {
   providerBusinessName?: string;
   customerName?: string;
   customerPhone?: string;
+  customerEmail?: string;
   currency?: string;
   date: string;
   time: string;
@@ -398,6 +402,8 @@ export interface BookingDoc {
   petId?: string;
   petName?: string;
   price: number;
+  platformFee: number;
+  total: number;
   status: string;
   createdAt?: string;
 }
@@ -412,6 +418,7 @@ function mapBookingDoc(doc: { id: string; data: Record<string, any> }): BookingD
     providerBusinessName: doc.data.providerBusinessName ?? undefined,
     customerName: doc.data.customerName ?? undefined,
     customerPhone: doc.data.customerPhone ?? undefined,
+    customerEmail: doc.data.customerEmail ?? undefined,
     currency: doc.data.currency ?? undefined,
     date: doc.data.date ?? '',
     time: doc.data.time ?? '',
@@ -420,6 +427,8 @@ function mapBookingDoc(doc: { id: string; data: Record<string, any> }): BookingD
     petId: doc.data.petId ?? undefined,
     petName: doc.data.petName ?? undefined,
     price: doc.data.price ?? 0,
+    platformFee: doc.data.platformFee ?? 0,
+    total: doc.data.total ?? 0,
     status: doc.data.status ?? 'pending',
     createdAt: doc.data.createdAt ?? undefined,
   };
@@ -447,10 +456,14 @@ export async function addBookingRest(data: Omit<BookingDoc, 'id' | 'createdAt'>)
     providerName: { stringValue: data.providerName },
     providerBusinessName: { stringValue: data.providerBusinessName ?? '' },
     customerName: { stringValue: data.customerName ?? '' },
+    customerEmail: { stringValue: data.customerEmail ?? '' },
     date: { stringValue: data.date },
     time: { stringValue: data.time },
-    price: { integerValue: data.price },
+    price: { doubleValue: data.price },
+    platformFee: { doubleValue: data.platformFee },
+    total: { doubleValue: data.total },
     status: { stringValue: data.status },
+    createdAt: { stringValue: new Date().toISOString() },
   };
   if (data.instructions) fields.instructions = { stringValue: data.instructions };
   if (data.petId) fields.petId = { stringValue: data.petId };
@@ -730,13 +743,15 @@ function mapProviderFromDoc(doc: { id: string; data: Record<string, any> }): Ser
     emoji: d.emoji ?? '',
     price: d.price ?? '',
     location: d.location ?? undefined,
+    googleMapsUrl: d.googleMapsUrl ?? undefined,
     since: d.since ?? undefined,
-    phone: d.phone ?? undefined,
+    phone: d.phone ?? d.contactPhone ?? undefined,
     email: d.email ?? undefined,
     services: d.services ?? undefined,
     businessName: d.businessName ?? undefined,
     contactEmail: d.contactEmail ?? undefined,
     contactPhone: d.contactPhone ?? undefined,
+    logoUrl: d.logoUrl ?? undefined,
     socialMedia: d.socialMedia ?? undefined,
     products: d.products ?? undefined,
   };

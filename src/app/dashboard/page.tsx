@@ -314,10 +314,12 @@ export default function DashboardPage() {
                 {tab.label}
               </button>
             ))}
-            <Link href="/admin" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-[#FFF8F0] hover:text-gray-700 mt-5">
-              <span className="w-5 text-center">⚙️</span>
-              Admin Panel
-            </Link>
+            {user?.email === 'rolandabj@gmail.com' && (
+              <Link href="/admin" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-[#FFF8F0] hover:text-gray-700 mt-5">
+                <span className="w-5 text-center">⚙️</span>
+                Admin Panel
+              </Link>
+            )}
           </nav>
         </aside>
 
@@ -382,7 +384,7 @@ export default function DashboardPage() {
                     {upcomingBookings.map(b => (
                       <div key={b.id} className="flex justify-between items-center p-4 bg-[#FFF8F0] rounded-xl">
                         <span className="text-sm font-semibold text-[#2C3E50]">{serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType} with {getProviderDisplayName(b.providerId, b.providerBusinessName || b.providerName)}</span>
-                        <span className="text-sm text-gray-500">{b.date}{b.time ? `, ${b.time}` : ''}</span>
+                        <span className="text-sm text-gray-500">{b.date?.split("-").reverse().join("/")}{b.time ? `, ${b.time}` : ''}</span>
                         <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColors[b.status] || 'bg-gray-500/10 text-gray-500'}`}>{b.status.charAt(0).toUpperCase() + b.status.slice(1)}</span>
                       </div>
                     ))}
@@ -435,13 +437,16 @@ export default function DashboardPage() {
                         <tr key={b.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
                           <td className="px-5 py-4 text-sm"><strong className="text-[#2C3E50]">{serviceIcons[b.serviceType] || '🐾'} {serviceLabels[b.serviceType] || b.serviceType}</strong></td>
                           <td className="px-5 py-4 text-sm text-gray-500">{getProviderDisplayName(b.providerId, b.providerBusinessName || b.providerName)}</td>
-                          <td className="px-5 py-4 text-sm text-gray-500">{b.date}{b.time ? `, ${b.time}` : ''}</td>
+                          <td className="px-5 py-4 text-sm text-gray-500">
+                            <div>{b.date?.split("-").reverse().join("/")}{b.time ? `, ${b.time}` : ''}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">Ordered: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB') : 'N/A'}</div>
+                          </td>
                           <td className="px-5 py-4 text-sm">
                             <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColors[b.status] || 'bg-gray-500/10 text-gray-500'}`}>
                               {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
                             </span>
                           </td>
-                          <td className="px-5 py-4 text-sm text-gray-500">${b.price || 0}</td>
+                          <td className="px-5 py-4 text-sm text-gray-500">${b.total || b.price || 0}</td>
                           <td className="px-5 py-4 text-sm">
                             {(b.status === 'pending' || b.status === 'confirmed') && (
                               <button onClick={() => handleCancelBooking(b.id)} className="text-xs px-3 py-1.5 rounded-full font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-all">

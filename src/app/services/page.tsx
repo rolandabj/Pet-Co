@@ -18,12 +18,14 @@ function docToProvider(doc: any): ServiceProvider {
     type: s('type'),
     category: s('category'),
     rating: n('rating'),
-    reviews: n('reviews'),
+    reviews: n('reviews') || n('reviewCount'),
     desc: s('desc'),
     tags: a('tags'),
     emoji: s('emoji'),
     price: s('price'),
+    logoUrl: s('logoUrl') || undefined,
     location: s('location') || undefined,
+    googleMapsUrl: s('googleMapsUrl') || undefined,
     since: s('since') || undefined,
   };
 }

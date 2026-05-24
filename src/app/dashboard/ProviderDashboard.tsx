@@ -17,6 +17,7 @@ import {
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc, ReviewDoc, UserDoc } from '@/lib/firestore-rest';
 import type { ServiceProvider, ServiceItem, ProductItem } from '@/lib/types';
+import { formatProductPrice } from '@/lib/formatProductPrice';
 import { getStorageDb } from '@/lib/firebase';
 
 type ProviderTab =
@@ -74,6 +75,22 @@ function StarRating({ rating }: { rating: number }) {
     </span>
   );
 }
+
+const CURRENCIES = [
+  { code: 'USD', name: 'US Dollar ($)' },
+  { code: 'EUR', name: 'Euro (€)' },
+  { code: 'AED', name: 'UAE Dirham (AED)' },
+  { code: 'LBP', name: 'Lebanese Pound (LBP)' },
+  { code: 'GBP', name: 'British Pound (£)' },
+  { code: 'SAR', name: 'Saudi Riyal (SAR)' },
+  { code: 'EGP', name: 'Egyptian Pound (EGP)' },
+  { code: 'JPY', name: 'Japanese Yen (¥)' },
+  { code: 'CNY', name: 'Chinese Yuan (¥)' },
+  { code: 'AUD', name: 'Australian Dollar (A$)' },
+  { code: 'CAD', name: 'Canadian Dollar (C$)' },
+  { code: 'CHF', name: 'Swiss Franc (CHF)' },
+  { code: 'INR', name: 'Indian Rupee (₹)' },
+];
 
 interface Props {
   userEmail: string;
@@ -150,9 +167,12 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const [prodPrice, setProdPrice] = useState('');
   const [prodDesc, setProdDesc] = useState('');
   const [prodInStock, setProdInStock] = useState(true);
+  const [prodCurrency, setProdCurrency] = useState('USD');
   const [prodImageFile, setProdImageFile] = useState<File | null>(null);
   const [prodImagePreview, setProdImagePreview] = useState<string | null>(null);
   const [prodImageUploading, setProdImageUploading] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
+  const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [editingProdIdx, setEditingProdIdx] = useState<number | null>(null);
 
   // ── Business profile form state ────────────────────────────────
@@ -160,9 +180,11 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   const [bizEmail, setBizEmail] = useState('');
   const [bizPhone, setBizPhone] = useState('');
   const [bizLocation, setBizLocation] = useState('');
+  const [bizGoogleMapsUrl, setBizGoogleMapsUrl] = useState('');
   const [bizInsta, setBizInsta] = useState('');
   const [bizFacebook, setBizFacebook] = useState('');
   const [bizWebsite, setBizWebsite] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // ── Availability / Operational Hours state ──────────────────────
   const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -193,6 +215,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
         setBizEmail(p.contactEmail ?? p.email ?? '');
         setBizPhone(p.contactPhone ?? p.phone ?? '');
         setBizLocation(p.location ?? '');
+        setBizGoogleMapsUrl(p.googleMapsUrl ?? '');
         setBizInsta(p.socialMedia?.instagram ?? '');
         setBizFacebook(p.socialMedia?.facebook ?? '');
         setBizWebsite(p.socialMedia?.website ?? '');
@@ -427,6 +450,14 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     }
   };
 
+  // ── Outside-click to close currency dropdown ───────────────────
+  useEffect(() => {
+    if (!isCurrencyDropdownOpen) return;
+    const handler = () => setIsCurrencyDropdownOpen(false);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isCurrencyDropdownOpen]);
+
   // ── Product CRUD ───────────────────────────────────────────────
   const saveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -468,6 +499,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       description: prodDesc.trim() || undefined,
       inStock: prodInStock,
       image: imageUrl,
+      currency: prodCurrency || 'USD',
     };
     let updated: ProductItem[];
     if (editingProdIdx !== null) {
@@ -493,6 +525,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     if (!p) return;
     setProdName(p.name);
     setProdPrice(String(p.price));
+    setProdCurrency(p.currency ?? 'USD');
     setProdDesc(p.description ?? '');
     setProdInStock(p.inStock);
     setProdImagePreview(p.image ?? null);
@@ -518,6 +551,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     setProdPrice('');
     setProdDesc('');
     setProdInStock(true);
+    setProdCurrency('USD');
     setProdImageFile(null);
     setProdImagePreview(null);
     setProdImageUploading(false);
@@ -526,6 +560,27 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
   };
 
   // ── Save business profile ──────────────────────────────────────
+  /* ── Business logo upload to Firebase Storage ── */
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingLogo(true);
+      const storage = getStorageDb();
+      const targetDocId = provider?._firestoreId || providerDocId || provider?.id || Date.now().toString();
+      const storageRef = ref(storage, `provider_logos/${targetDocId}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      setProvider((prev) => prev ? { ...prev, logoUrl: downloadURL } : prev);
+      showToast('✅ Logo uploaded successfully! Save the profile to persist.', 'success');
+    } catch (error) {
+      console.error('Logo upload failed:', error);
+      showToast('❌ Logo upload failed. Check console.', 'error');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     // 1. Resolve target provider ID safely
@@ -552,6 +607,8 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       contactEmail: bizEmail.trim(),
       contactPhone: bizPhone.trim(),
       location: bizLocation.trim(),
+      googleMapsUrl: bizGoogleMapsUrl.trim(),
+      logoUrl: provider?.logoUrl || '',
       socialMedia: {
         instagram: bizInsta.trim(),
         facebook: bizFacebook.trim(),
@@ -563,7 +620,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     try {
       const db = getFirestoreDb();
       const providerDocRef = doc(db, 'providers', targetDocId);
-      await updateDoc(providerDocRef, { availability: freshAvailabilityMap });
+      await updateDoc(providerDocRef, updates);
       setProvider({ ...provider!, ...updates } as ServiceProvider);
       showToast('✅ Business profile updated!', 'success');
     } catch (error) {
@@ -892,7 +949,10 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                               {b.serviceType}
                             </p>
                             <p className="text-xs text-gray-400">
-                              {b.date} &middot; {b.time}
+                              {b.date?.split("-").reverse().join("/")} &middot; {b.time}
+                            </p>
+                            <p className="text-[10px] text-gray-400/70 mt-0.5">
+                              Ordered: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB') : 'N/A'}
                             </p>
                           </div>
                           <span
@@ -1070,12 +1130,13 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                         <div className="w-1/3 relative" ref={currencyRef}>
                           <input
                             type="text"
-                            value={svcCurrencySearch}
+                            value={showCurrencyDropdown ? svcCurrencySearch : svcCurrency}
                             onChange={(e) => {
                               setSvcCurrencySearch(e.target.value);
                               setShowCurrencyDropdown(true);
                             }}
-                            onFocus={() => setShowCurrencyDropdown(true)}
+                            onFocus={() => { setSvcCurrencySearch(''); setShowCurrencyDropdown(true); }}
+                            onClick={(e) => { e.stopPropagation(); setSvcCurrencySearch(''); setShowCurrencyDropdown(true); }}
                             placeholder="Currency"
                             required
                             className="w-full px-3 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm cursor-pointer"
@@ -1092,7 +1153,9 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                                   <button
                                     key={c.code}
                                     type="button"
-                                    onClick={() => {
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       setSvcCurrency(c.code);
                                       setSvcCurrencySearch(c.code);
                                       setShowCurrencyDropdown(false);
@@ -1229,7 +1292,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                           {p.description || '—'}
                         </td>
                         <td className="px-5 py-4 text-right font-medium text-accent">
-                          ${p.price.toFixed(2)}
+                          {formatProductPrice(p.price, p.currency)}
                         </td>
                         <td className="px-5 py-4 text-center">
                           <span
@@ -1286,20 +1349,86 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                         className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-secondary mb-1.5">
-                        Price *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={prodPrice}
-                        onChange={(e) => setProdPrice(e.target.value)}
-                        placeholder="0.00"
-                        required
-                        className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
-                      />
+                    {/* Price + Currency side-by-side */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-[#2C3E50]">Price *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={prodPrice}
+                          onChange={(e) => setProdPrice(e.target.value)}
+                          placeholder="e.g. 30"
+                          required
+                          className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+                        />
+                      </div>
+                      {/* Perfected Searchable Currency Selector Dropdown */}
+                      <div className="flex flex-col gap-1.5 relative">
+                        <label className="text-sm font-semibold text-[#2C3E50]">Currency *</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm placeholder-gray-400 cursor-pointer"
+                            placeholder="Search Currency (e.g. USD, EUR, LBP)..."
+                            value={isCurrencyDropdownOpen ? currencySearch : prodCurrency}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrencySearch('');
+                              setIsCurrencyDropdownOpen(true);
+                            }}
+                            onFocus={() => {
+                              setCurrencySearch('');
+                              setIsCurrencyDropdownOpen(true);
+                            }}
+                            onChange={(e) => setCurrencySearch(e.target.value)}
+                          />
+                          {isCurrencyDropdownOpen && (
+                            <button
+                              type="button"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs hover:text-gray-600"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setIsCurrencyDropdownOpen(false);
+                              }}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                        {isCurrencyDropdownOpen && (
+                          <div className="absolute z-50 left-0 right-0 top-[105%] max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg mt-1">
+                            {(() => {
+                              const filtered = CURRENCIES.filter(c =>
+                                c.code.toLowerCase().includes(currencySearch.toLowerCase()) ||
+                                c.name.toLowerCase().includes(currencySearch.toLowerCase())
+                              );
+                              return filtered.length > 0 ? (
+                                filtered.map((curr) => (
+                                  <button
+                                    key={curr.code}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setProdCurrency(curr.code);
+                                      setCurrencySearch('');
+                                      setIsCurrencyDropdownOpen(false);
+                                    }}
+                                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#FFF8F0] transition-colors text-[#2C3E50] font-medium flex justify-between items-center"
+                                  >
+                                    <span>{curr.name}</span>
+                                    <span className="text-[#E86A33] font-bold bg-[#FFF3E5] px-2 py-0.5 rounded text-xs">{curr.code}</span>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="p-3 text-xs text-gray-400 italic text-center">No matching currency found</div>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-secondary mb-1.5">
@@ -1461,8 +1590,11 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                         </div>
 
                         <p className="text-sm text-gray-500">
-                          {b.date} &middot; {b.time}
-                          {b.price ? ` · ${b.price.toFixed(2)} ${b.currency || 'USD'}` : ''}
+                          {b.date?.split("-").reverse().join("/")} &middot; {b.time}
+                          {b.total || b.price ? ` · $${(b.total || b.price || 0).toFixed(2)} ${b.currency || 'USD'}` : ''}
+                        </p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          Order placed: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB') : 'N/A'}
                         </p>
                         <p className="text-xs text-gray-400">
                           Booking #{b.id.slice(0, 8)}
@@ -1533,7 +1665,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                       </div>
                       {r.createdAt && (
                         <span className="text-xs text-gray-400">
-                          {new Date(r.createdAt).toLocaleDateString()}
+                          {new Date(r.createdAt).toLocaleDateString('en-GB')}
                         </span>
                       )}
                     </div>
@@ -1556,6 +1688,27 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
               onSubmit={saveProfile}
               className="bg-white border border-[#F0E4D8] rounded-2xl p-8 max-w-2xl"
             >
+              {/* ── Logo Upload ── */}
+              <div className="flex items-center gap-4 mb-6 p-4 bg-[#FFFDFB] border border-[#F0E4D8] rounded-2xl">
+                <div className="w-20 h-20 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden relative group">
+                  {provider?.logoUrl ? (
+                    <img src={provider.logoUrl} alt="Store Logo Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl">🏪</span>
+                  )}
+                  {uploadingLogo && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-xs text-white font-medium">Uploading...</div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[#E86A33] uppercase tracking-wider cursor-pointer bg-white border border-[#E86A33]/40 hover:bg-[#FFF8F0] px-3 py-1.5 rounded-lg transition-colors">
+                    Upload Business Logo
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} disabled={uploadingLogo} />
+                  </label>
+                  <span className="text-[11px] text-gray-400">Recommended: Square format PNG or JPG (Max 2MB)</span>
+                </div>
+              </div>
+
               <div className="grid sm:grid-cols-2 gap-5 mb-5">
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-semibold text-secondary mb-1.5">
@@ -1618,6 +1771,17 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
                   placeholder="City, State"
                   className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
                 />
+                <div className="flex flex-col gap-1 mt-3">
+                  <label className="text-xs font-semibold text-gray-500 uppercase">Google Maps Navigation Target</label>
+                  <input
+                    type="text"
+                    value={bizGoogleMapsUrl}
+                    onChange={(e) => setBizGoogleMapsUrl(e.target.value)}
+                    placeholder="Paste Google Maps URL, share link, or specific coordinates"
+                    className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+                  />
+                  <p className="text-[11px] text-gray-400 italic">Paste your business share map string link to provide immediate customer GPS navigation routing.</p>
+                </div>
               </div>
 
               {/* ── Operational Hours ─────────────────────────── */}

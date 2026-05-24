@@ -28,6 +28,7 @@ export interface ServiceProvider {
   emoji: string;
   price: string;
   location?: string;
+  googleMapsUrl?: string;
   since?: string;
   phone?: string;
   email?: string;
@@ -35,6 +36,7 @@ export interface ServiceProvider {
   businessName?: string;
   contactEmail?: string;
   contactPhone?: string;
+  logoUrl?: string;
   socialMedia?: {
     instagram?: string;
     facebook?: string;
@@ -60,6 +62,7 @@ export interface ProductItem {
   image?: string;
   description?: string;
   inStock: boolean;
+  currency?: string;
 }
 
 /** Per-day operational hours */
