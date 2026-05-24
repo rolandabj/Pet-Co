@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { onSnapshot, collection, query, where } from 'firebase/firestore';
-import { getFirestoreDb } from '@/lib/firebase';
+import { deleteUser } from 'firebase/auth';
+import { getFirestoreDb, getFirebaseAuth } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -245,15 +246,31 @@ export default function DashboardPage() {
     setDeletingAccount(true);
     try {
       const result = await deleteUserAccountRest(uid);
+
+      // 1. Destroy Firebase Auth user record (if signed in via Firebase)
+      if (firebaseUser) {
+        try {
+          const { auth } = getFirebaseAuth();
+          if (auth && auth.currentUser) {
+            await deleteUser(auth.currentUser);
+          }
+        } catch {
+          // Auth token may be stale or user already deleted — proceed with local cleanup
+        }
+      }
+
+      // 2. Clear local auth session
+      const { localAuth } = await import('@/lib/localAuth');
+      localAuth.logout();
+
       showToast(
         `✅ Account deleted: ${result.deletedBookings} booking(s), ${result.deletedPayments} payment(s), ` +
         `${result.deletedReviews} review(s), ${result.deletedFavorites} favorite(s), ` +
         `${result.deletedPets} pet(s). ${result.recalculatedProviders} provider(s) updated.`,
         'success',
       );
-      // Clear local auth and redirect to home
-      const { localAuth } = await import('@/lib/localAuth');
-      localAuth.logout();
+
+      // 3. Redirect to home
       window.location.href = '/';
     } catch (error) {
       console.error('Failed to delete account:', error);
