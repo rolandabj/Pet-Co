@@ -585,12 +585,11 @@ export async function addFavoriteRest(data: {
       const json = await res.json();
       return json.name?.split('/').pop() ?? '';
     }
-    if (res.status !== 403) throw new Error(`Failed to add favorite: ${res.status}`);
+    console.warn(`addFavoriteRest got ${res.status} — falling back to localStorage`);
   } catch (err) {
-    if (err instanceof Error && !err.message.includes('403')) throw err;
+    console.warn('addFavoriteRest network error — falling back to localStorage:', err);
   }
 
-  // Fallback: store locally when Firestore rules deny the write
   const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   addToLocal('favorites', data.userId, { id, ...data });
   return id;
@@ -600,12 +599,11 @@ export async function removeFavoriteRest(docId: string, userId?: string): Promis
   try {
     const res = await authFetch(docUrl('favorites', docId), { method: 'DELETE' });
     if (res.ok) return;
-    if (res.status !== 403) throw new Error(`Failed to remove favorite: ${res.status}`);
+    console.warn(`removeFavoriteRest got ${res.status} — falling back to localStorage`);
   } catch (err) {
-    if (err instanceof Error && !err.message.includes('403')) throw err;
+    console.warn('removeFavoriteRest network error — falling back to localStorage:', err);
   }
 
-  // Fallback: remove from local storage
   if (userId) removeFromLocal('favorites', userId, docId);
 }
 
@@ -906,12 +904,11 @@ export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
       const json = await res.json();
       return json.name?.split('/').pop() ?? '';
     }
-    if (res.status !== 403) throw new Error(`Failed to add pet: ${res.status}`);
+    console.warn(`addPetRest got ${res.status} — falling back to localStorage`);
   } catch (err) {
-    if (err instanceof Error && !err.message.includes('403')) throw err;
+    console.warn('addPetRest network error — falling back to localStorage:', err);
   }
 
-  // Fallback: store locally when Firestore rules deny the write
   const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   addToLocal('pets', data.userId, { id, ...data });
   return id;
@@ -921,12 +918,11 @@ export async function deletePetRest(petId: string, userId?: string): Promise<voi
   try {
     const res = await authFetch(docUrl('pets', petId), { method: 'DELETE' });
     if (res.ok) return;
-    if (res.status !== 403) throw new Error(`Failed to delete pet: ${res.status}`);
+    console.warn(`deletePetRest got ${res.status} — falling back to localStorage`);
   } catch (err) {
-    if (err instanceof Error && !err.message.includes('403')) throw err;
+    console.warn('deletePetRest network error — falling back to localStorage:', err);
   }
 
-  // Fallback: remove from local storage
   if (userId) removeFromLocal('pets', userId, petId);
 }
 
