@@ -134,7 +134,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await localAuth.login(email, password);
-    if (result.user) setUser(result.user);
+    if (result.user) {
+      setUser(result.user);
+      setLoading(false);
+    }
     return result;
   }, []);
 
@@ -142,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await localAuth.register(email, password, name, role);
     if (result.user) {
       setUser(result.user);
+      setLoading(false);
       try {
         // Persist role to Firestore users collection
         await updateUserDocRest(result.user.id, { role, name });
@@ -256,6 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const appUser = buildAppUser(credential, resolvedRole);
         setFirebaseUser(credential);
         setUser(appUser);
+        setLoading(false);
 
         // 3) Only persist for NEW users (no existing doc in Firestore)
         if (!existingRole) {
