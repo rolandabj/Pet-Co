@@ -566,28 +566,35 @@ export async function addFavoriteRest(data: {
   emoji: string;
   rating: number;
 }): Promise<string> {
+  const body = {
+    fields: {
+      userId: { stringValue: data.userId },
+      providerId: { stringValue: data.providerId },
+      providerName: { stringValue: data.providerName },
+      category: { stringValue: data.category },
+      emoji: { stringValue: data.emoji },
+      rating: { doubleValue: data.rating },
+    },
+  };
+  console.log('OUTGOING PAYLOAD (addFavoriteRest):', JSON.stringify(body, null, 2));
+  console.log('data.userId:', data.userId);
+
   try {
     const res = await authFetch(docUrl('favorites'), {
       method: 'POST',
-      body: JSON.stringify({
-        fields: {
-          userId: { stringValue: data.userId },
-          providerId: { stringValue: data.providerId },
-          providerName: { stringValue: data.providerName },
-          category: { stringValue: data.category },
-          emoji: { stringValue: data.emoji },
-          rating: { doubleValue: data.rating },
-        },
-      }),
+      body: JSON.stringify(body),
       headers: { 'Content-Type': 'application/json' },
     });
     if (res.ok) {
       const json = await res.json();
       return json.name?.split('/').pop() ?? '';
     }
+    const errorText = await res.text();
+    console.error('FIRESTORE WRITE ERROR (addFavoriteRest):', errorText);
     console.warn(`addFavoriteRest got ${res.status} — falling back to localStorage`);
   } catch (err) {
-    console.warn('addFavoriteRest network error — falling back to localStorage:', err);
+    console.error('addFavoriteRest network error:', err);
+    console.warn('addFavoriteRest — falling back to localStorage');
   }
 
   const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -885,28 +892,35 @@ export async function getUserPetsRest(userId: string): Promise<PetDoc[]> {
 }
 
 export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
+  const body = {
+    fields: {
+      userId: { stringValue: data.userId },
+      name: { stringValue: data.name },
+      type: { stringValue: data.type },
+      breed: { stringValue: data.breed },
+      age: { stringValue: data.age },
+      notes: { stringValue: data.notes },
+    },
+  };
+  console.log('OUTGOING PAYLOAD (addPetRest):', JSON.stringify(body, null, 2));
+  console.log('data.userId:', data.userId);
+
   try {
     const res = await authFetch(docUrl('pets'), {
       method: 'POST',
-      body: JSON.stringify({
-        fields: {
-          userId: { stringValue: data.userId },
-          name: { stringValue: data.name },
-          type: { stringValue: data.type },
-          breed: { stringValue: data.breed },
-          age: { stringValue: data.age },
-          notes: { stringValue: data.notes },
-        },
-      }),
+      body: JSON.stringify(body),
       headers: { 'Content-Type': 'application/json' },
     });
     if (res.ok) {
       const json = await res.json();
       return json.name?.split('/').pop() ?? '';
     }
+    const errorText = await res.text();
+    console.error('FIRESTORE WRITE ERROR (addPetRest):', errorText);
     console.warn(`addPetRest got ${res.status} — falling back to localStorage`);
   } catch (err) {
-    console.warn('addPetRest network error — falling back to localStorage:', err);
+    console.error('addPetRest network error:', err);
+    console.warn('addPetRest — falling back to localStorage');
   }
 
   const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
