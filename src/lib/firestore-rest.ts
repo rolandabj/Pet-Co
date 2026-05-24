@@ -76,6 +76,18 @@ async function runQueryRest<T>(
   value: string,
   mapFn: (doc: { id: string; data: Record<string, any> }) => T,
 ): Promise<T[]> {
+  console.log('🐛 runQueryRest start', { collection: collectionId, field, value });
+
+  try {
+    const { auth } = getFirebaseAuth();
+    console.log('🐛 Firebase currentUser', {
+      uid: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+    });
+  } catch {
+    console.warn('🐛 runQueryRest: getFirebaseAuth threw');
+  }
+
   try {
     // Retry once on 403: the Firebase Auth token may not have been ready
     // when the first request was dispatched (transient init lag).
@@ -107,9 +119,12 @@ async function runQueryRest<T>(
         break;
       }
 
+      console.log('🐛 REST response status', res.status);
+
       if (res.ok) {
         try {
           const json = await res.json();
+          console.log('🐛 REST raw result', json);
           const documents: Array<{ id: string; data: Record<string, any> }> = (json as Array<{ document?: any }> | undefined)
             ?.map((item) => (item?.document ? docFromJson(item.document) : null))
             .filter((d): d is NonNullable<typeof d> => d != null) ?? [];
@@ -122,13 +137,19 @@ async function runQueryRest<T>(
       }
 
       if (res.status === 403 && attempt === 0) {
+        const body = await res.text().catch(() => '(no body)');
+        console.warn(`🐛 runQueryRest got 403 (attempt ${attempt}) for ${collectionId}:`, body);
         // Transient 403 — wait, re-fetch the token, and retry once.
         // If the retry also 403s, fall through to the SDK fallback below.
         await new Promise(r => setTimeout(r, 500));
         continue;
       }
 
-      // Non-403 failure or second 403 — break to fallback
+      // Non-403 failure or second 403 — log and break to fallback
+      if (!res.ok) {
+        const body = await res.text().catch(() => '(no body)');
+        console.error(`🐛 runQueryRest HTTP ${res.status} for ${collectionId}:`, body);
+      }
       break;
     }
   } catch (outerErr) {
@@ -611,7 +632,59 @@ function mapFavoriteDoc(doc: { id: string; data: Record<string, any> }): Favorit
 
 export async function getUserFavoritesRest(userId: string): Promise<FavoriteDoc[]> {
   console.log('🐛 [firestore-rest] getUserFavoritesRest called with userId:', userId);
-  return runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
+
+  // Priority: Firebase SDK → REST → localStorage
+  try {
+    const { auth } = getFirebaseAuth();
+    if (!auth?.currentUser) {
+      console.warn('getUserFavoritesRest: No Firebase currentUser — cannot authenticate SDK query');
+      throw new Error('No Firebase user');
+    }
+
+    const db = getFirestoreDb();
+    if (!db) {
+      console.warn('getUserFavoritesRest: getFirestoreDb returned null');
+      throw new Error('No Firestore DB');
+    }
+
+    // Verify the userId matches the authenticated user
+    if (auth.currentUser.uid !== userId) {
+      console.error('🐛 USERID MISMATCH: auth.currentUser.uid !== userId', {
+        authUid: auth.currentUser.uid,
+        requestedUid: userId,
+        authEmail: auth.currentUser.email,
+      });
+      // Still proceed with the requested userId for the query
+    }
+
+    console.log('🐛 SDK query favorites WHERE userId ==', userId);
+    console.log('🐛 SDK currentUser:', { uid: auth.currentUser.uid, email: auth.currentUser.email });
+
+    const q = query(collection(db, 'favorites'), where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+
+    const results = snapshot.docs.map((d) => mapFavoriteDoc({ id: d.id, data: d.data() }));
+    console.log('🐛 SDK favorites result count:', results.length);
+    return results;
+  } catch (sdkErr) {
+    console.warn('🐛 SDK favorites query failed, falling back to REST:', sdkErr);
+    // Fall through to REST
+  }
+
+  // REST fallback
+  try {
+    const { auth } = getFirebaseAuth();
+    console.log('🐛 REST Firebase currentUser:', {
+      uid: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+    });
+    const list = await runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
+    console.log('🐛 REST favorites result count:', list.length);
+    return list;
+  } catch (restErr) {
+    console.error('🐛 REST favorites query also failed:', restErr);
+    return [];
+  }
 }
 
 export async function findFavoriteIdRest(userId: string, providerId: string): Promise<string | null> {
@@ -951,7 +1024,58 @@ function mapPetDoc(doc: { id: string; data: Record<string, any> }): PetDoc {
 
 export async function getUserPetsRest(userId: string): Promise<PetDoc[]> {
   console.log('🐛 [firestore-rest] getUserPetsRest called with userId:', userId);
-  return runQueryRest('pets', 'userId', userId, mapPetDoc);
+
+  // Priority: Firebase SDK → REST → localStorage
+  try {
+    const { auth } = getFirebaseAuth();
+    if (!auth?.currentUser) {
+      console.warn('getUserPetsRest: No Firebase currentUser — cannot authenticate SDK query');
+      throw new Error('No Firebase user');
+    }
+
+    const db = getFirestoreDb();
+    if (!db) {
+      console.warn('getUserPetsRest: getFirestoreDb returned null');
+      throw new Error('No Firestore DB');
+    }
+
+    // Verify the userId matches the authenticated user
+    if (auth.currentUser.uid !== userId) {
+      console.error('🐛 USERID MISMATCH: auth.currentUser.uid !== userId', {
+        authUid: auth.currentUser.uid,
+        requestedUid: userId,
+        authEmail: auth.currentUser.email,
+      });
+    }
+
+    console.log('🐛 SDK query pets WHERE userId ==', userId);
+    console.log('🐛 SDK currentUser:', { uid: auth.currentUser.uid, email: auth.currentUser.email });
+
+    const q = query(collection(db, 'pets'), where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+
+    const results = snapshot.docs.map((d) => mapPetDoc({ id: d.id, data: d.data() }));
+    console.log('🐛 SDK pets result count:', results.length);
+    return results;
+  } catch (sdkErr) {
+    console.warn('🐛 SDK pets query failed, falling back to REST:', sdkErr);
+    // Fall through to REST
+  }
+
+  // REST fallback
+  try {
+    const { auth } = getFirebaseAuth();
+    console.log('🐛 REST Firebase currentUser:', {
+      uid: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+    });
+    const list = await runQueryRest('pets', 'userId', userId, mapPetDoc);
+    console.log('🐛 REST pets result count:', list.length);
+    return list;
+  } catch (restErr) {
+    console.error('🐛 REST pets query also failed:', restErr);
+    return [];
+  }
 }
 
 export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {

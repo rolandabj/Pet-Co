@@ -640,3 +640,195 @@ Incoming: [[object Object], false, true, async ()=>{
 [browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
 [browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
 [browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET /services 200 in 117ms (next.js: 1908µs, application-code: 116ms)
+ GET /provider/wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 108ms (next.js: 43ms, application-code: 65ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET /dashboard 200 in 17ms (next.js: 2ms, application-code: 15ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET /dashboard 200 in 45ms (next.js: 1789µs, application-code: 43ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET /services 200 in 76ms (next.js: 3ms, application-code: 74ms)
+ GET /provider/wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 125ms (next.js: 39ms, application-code: 86ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET / 200 in 15ms (next.js: 2ms, application-code: 13ms)
+ GET /login 200 in 14ms (next.js: 1954µs, application-code: 12ms)
+ GET /dashboard 200 in 42ms (next.js: 1953µs, application-code: 40ms)
+ GET /dashboard 200 in 21ms (next.js: 1802µs, application-code: 20ms)
+ GET / 200 in 31ms (next.js: 15ms, application-code: 16ms)
+ GET /login 200 in 32ms (next.js: 2ms, application-code: 30ms)
+ GET /dashboard 200 in 40ms (next.js: 2ms, application-code: 37ms)
+ GET /services 200 in 94ms (next.js: 2ms, application-code: 92ms)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET /provider/wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 108ms (next.js: 38ms, application-code: 69ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET /dashboard 200 in 15ms (next.js: 1824µs, application-code: 13ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 63ms
+ GET /dashboard 200 in 98ms (next.js: 3ms, application-code: 94ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 44ms (next.js: 1966µs, application-code: 42ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET /dashboard 200 in 54ms (next.js: 2ms, application-code: 52ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 66ms
+ GET /dashboard 200 in 59ms (next.js: 5ms, application-code: 54ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 90ms (next.js: 1784µs, application-code: 88ms)
+ GET /dashboard 200 in 61ms (next.js: 5ms, application-code: 56ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 61ms
+ GET /dashboard 200 in 66ms (next.js: 8ms, application-code: 58ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 134ms (next.js: 3ms, application-code: 131ms)
+ GET /dashboard 200 in 81ms (next.js: 5ms, application-code: 76ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 51ms (next.js: 2ms, application-code: 48ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+ GET /dashboard 200 in 53ms (next.js: 2ms, application-code: 51ms)
+✓ Compiled in 82ms
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+✓ Compiled in 72ms
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+✓ Compiled in 81ms
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+✓ Compiled in 388ms
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 66ms
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 67ms (next.js: 6ms, application-code: 61ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 41ms (next.js: 2000µs, application-code: 39ms)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 54ms (next.js: 2ms, application-code: 52ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 70ms
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 48ms (next.js: 3ms, application-code: 44ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 34ms (next.js: 2ms, application-code: 31ms)
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 40ms (next.js: 2ms, application-code: 38ms)
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 43ms (next.js: 1751µs, application-code: 41ms)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/localAuth.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/lib/localAuth.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+✓ Compiled in 68ms
+ GET /dashboard 200 in 50ms (next.js: 3ms, application-code: 47ms)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/localAuth.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+⚠ Fast Refresh had to perform a full reload when ./src/lib/localAuth.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 121ms (next.js: 2ms, application-code: 118ms)
+ GET /dashboard 200 in 61ms (next.js: 5ms, application-code: 56ms)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/localAuth.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+⚠ Fast Refresh had to perform a full reload when ./src/lib/localAuth.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 55ms (next.js: 2ms, application-code: 52ms)
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 35ms (next.js: 1874µs, application-code: 33ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 83ms
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 66ms (next.js: 6ms, application-code: 60ms)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 62ms (next.js: 2ms, application-code: 60ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:141:11)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:141:11)
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 50ms (next.js: 1563µs, application-code: 48ms)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 88ms
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 68ms (next.js: 4ms, application-code: 64ms)
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 52ms (next.js: 1789µs, application-code: 50ms)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 47ms (next.js: 2ms, application-code: 45ms)
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 55ms (next.js: 1889µs, application-code: 53ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:141:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:141:11)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 75ms
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 45ms (next.js: 4ms, application-code: 41ms)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 49ms (next.js: 1937µs, application-code: 47ms)
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 96ms (next.js: 3ms, application-code: 94ms)
+ GET /dashboard 200 in 96ms (next.js: 22ms, application-code: 75ms)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:144:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:144:11)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 78ms (next.js: 1919µs, application-code: 76ms)
+ GET /dashboard 200 in 49ms (next.js: 4ms, application-code: 44ms)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:144:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:144:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:144:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:144:11)
+ GET /login 200 in 58ms (next.js: 8ms, application-code: 50ms)
+ GET / 200 in 61ms (next.js: 38ms, application-code: 23ms)
+🐛 DASHBOARD UID DEBUG { appUserId: undefined, firebaseUid: undefined, effectiveUserId: null }
+ GET /dashboard 200 in 124ms (next.js: 3ms, application-code: 121ms)
+ GET /admin 200 in 22ms (next.js: 4ms, application-code: 18ms)
+ POST /api/auth/delete-user 500 in 11ms (next.js: 1638µs, application-code: 10ms)

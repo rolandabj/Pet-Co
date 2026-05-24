@@ -104,7 +104,14 @@ export default function DashboardPage() {
     if (!user || user.role === 'provider') return;
     const uid = effectiveUserId;
     if (!uid) return;
-    console.log('🐛 FETCHING FAVORITES — effectiveUserId:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
+    console.log('🐛 DASHBOARD AUTH DEBUG', {
+      appUserId: user?.id,
+      userEmail: user?.email,
+      firebaseUid: firebaseUser?.uid,
+      isInitialized,
+      loading,
+    });
+    console.log('🐛 FETCH FAVORITES WITH', uid);
     setFavoritesLoading(true);
     try {
       const list = await getUserFavoritesRest(uid);
@@ -115,7 +122,7 @@ export default function DashboardPage() {
     } finally {
       setFavoritesLoading(false);
     }
-  }, [effectiveUserId, user, firebaseUser]);
+  }, [effectiveUserId, user, firebaseUser, isInitialized, loading]);
 
   const fetchReviews = useCallback(async () => {
     if (!user || user.role === 'provider') return;
@@ -152,7 +159,14 @@ export default function DashboardPage() {
     if (!user || user.role === 'provider') return;
     const uid = effectiveUserId;
     if (!uid) return;
-    console.log('🐛 FETCHING PETS — effectiveUserId:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
+    console.log('🐛 DASHBOARD AUTH DEBUG', {
+      appUserId: user?.id,
+      userEmail: user?.email,
+      firebaseUid: firebaseUser?.uid,
+      isInitialized,
+      loading,
+    });
+    console.log('🐛 FETCH PETS WITH', uid);
     setPetsLoading(true);
     try {
       const list = await getUserPetsRest(uid);
@@ -163,7 +177,7 @@ export default function DashboardPage() {
     } finally {
       setPetsLoading(false);
     }
-  }, [effectiveUserId, user, firebaseUser]);
+  }, [effectiveUserId, user, firebaseUser, isInitialized, loading]);
 
   const fetchProviders = useCallback(async () => {
     try {
