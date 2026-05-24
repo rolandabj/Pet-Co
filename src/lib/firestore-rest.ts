@@ -19,6 +19,12 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   try {
     const { auth } = getFirebaseAuth();
+    // Retry loop: wait up to ~2 s for the Firebase Auth SDK to initialise
+    // so the first dashboard query doesn't fire without a token.
+    for (let i = 0; i < 10; i++) {
+      if (auth?.currentUser) break;
+      await new Promise(r => setTimeout(r, 200));
+    }
     if (auth?.currentUser) {
       const token = await auth.currentUser.getIdToken();
       headers['Authorization'] = `Bearer ${token}`;
@@ -52,36 +58,49 @@ async function runQueryRest<T>(
   value: string,
   mapFn: (doc: { id: string; data: Record<string, any> }) => T,
 ): Promise<T[]> {
-  const res = await authFetch(`${FIRESTORE_BASE}:runQuery`, {
-    method: 'POST',
-    body: JSON.stringify({
-      structuredQuery: {
-        from: [{ collectionId }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: field },
-            op: 'EQUAL',
-            value: { stringValue: value },
+  // Retry once on 403: the Firebase Auth token may not have been ready
+  // when the first request was dispatched (transient init lag).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await authFetch(`${FIRESTORE_BASE}:runQuery`, {
+      method: 'POST',
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: field },
+              op: 'EQUAL',
+              value: { stringValue: value },
+            },
           },
         },
-      },
-    }),
-  });
+      }),
+    });
 
-  if (res.status === 403) {
-    // Fallback: the REST :runQuery endpoint is treated as a list operation
-    // by security rules, where `resource.data` is unavailable. Use the
-    // Firebase SDK instead, which handles query-based reads properly.
-    console.warn(`runQueryRest got 403 for ${collectionId} — falling back to Firebase SDK`);
-    return runQuerySdk(collectionId, field, value, mapFn);
+    if (res.ok) {
+      const json = await res.json();
+      const documents: Array<{ id: string; data: Record<string, any> }> = (json as Array<{ document?: any }> | undefined)
+        ?.map((item) => (item?.document ? docFromJson(item.document) : null))
+        .filter((d): d is NonNullable<typeof d> => d != null) ?? [];
+      return documents.map(mapFn);
+    }
+
+    if (res.status === 403 && attempt === 0) {
+      // Transient 403 — wait, re-fetch the token, and retry once.
+      // If the retry also 403s, fall through to the SDK fallback below.
+      await new Promise(r => setTimeout(r, 500));
+      continue;
+    }
+
+    // Non-403 failure or second 403 — break to fallback
+    break;
   }
 
-  if (!res.ok) throw new Error(`Failed to query ${collectionId}: ${res.status}`);
-  const json = await res.json();
-  const documents: Array<{ id: string; data: Record<string, any> }> = (json as Array<{ document?: any }> | undefined)
-    ?.map((item) => (item?.document ? docFromJson(item.document) : null))
-    .filter((d): d is NonNullable<typeof d> => d != null) ?? [];
-  return documents.map(mapFn);
+  // Fallback: the REST :runQuery endpoint is treated as a list operation
+  // by security rules, where `resource.data` is unavailable. Use the
+  // Firebase SDK instead, which handles query-based reads properly.
+  console.warn(`runQueryRest got persistent 403 for ${collectionId} — falling back to Firebase SDK`);
+  return runQuerySdk(collectionId, field, value, mapFn);
 }
 
 /** Fallback query using the Firebase SDK when the REST :runQuery gets a 403. */
