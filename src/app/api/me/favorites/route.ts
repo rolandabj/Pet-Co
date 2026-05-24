@@ -32,9 +32,17 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ favorites });
   } catch (error) {
-    console.error('GET /api/me/favorites failed', error);
+    console.error('GET /api/me/favorites failed', {
+      message: (error as any)?.message,
+      code: (error as any)?.code,
+      stack: (error as any)?.stack,
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch favorites' },
+      {
+        error: 'Failed to fetch favorites',
+        message: (error as any)?.message,
+        code: (error as any)?.code,
+      },
       { status: 401 },
     );
   }
@@ -89,9 +97,17 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error('POST /api/me/favorites failed', error);
+    console.error('POST /api/me/favorites failed', {
+      message: (error as any)?.message,
+      code: (error as any)?.code,
+      stack: (error as any)?.stack,
+    });
     return NextResponse.json(
-      { error: 'Failed to add favorite' },
+      {
+        error: 'Failed to add favorite',
+        message: (error as any)?.message,
+        code: (error as any)?.code,
+      },
       { status: 401 },
     );
   }
@@ -144,9 +160,17 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('DELETE /api/me/favorites failed', error);
+    console.error('DELETE /api/me/favorites failed', {
+      message: (error as any)?.message,
+      code: (error as any)?.code,
+      stack: (error as any)?.stack,
+    });
     return NextResponse.json(
-      { error: 'Failed to remove favorite' },
+      {
+        error: 'Failed to remove favorite',
+        message: (error as any)?.message,
+        code: (error as any)?.code,
+      },
       { status: 401 },
     );
   }

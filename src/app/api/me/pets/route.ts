@@ -26,9 +26,17 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ pets });
   } catch (error) {
-    console.error('GET /api/me/pets failed', error);
+    console.error('GET /api/me/pets failed', {
+      message: (error as any)?.message,
+      code: (error as any)?.code,
+      stack: (error as any)?.stack,
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch pets' },
+      {
+        error: 'Failed to fetch pets',
+        message: (error as any)?.message,
+        code: (error as any)?.code,
+      },
       { status: 401 },
     );
   }
@@ -66,9 +74,17 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error('POST /api/me/pets failed', error);
+    console.error('POST /api/me/pets failed', {
+      message: (error as any)?.message,
+      code: (error as any)?.code,
+      stack: (error as any)?.stack,
+    });
     return NextResponse.json(
-      { error: 'Failed to add pet' },
+      {
+        error: 'Failed to add pet',
+        message: (error as any)?.message,
+        code: (error as any)?.code,
+      },
       { status: 401 },
     );
   }

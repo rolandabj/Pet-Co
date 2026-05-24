@@ -3,11 +3,25 @@ import { getFirebaseAuth } from './firebase';
 async function getAuthHeaders() {
   const { auth } = getFirebaseAuth();
 
+  console.log('🐛 CLIENT AUTH DEBUG', {
+    hasAuth: Boolean(auth),
+    hasCurrentUser: Boolean(auth?.currentUser),
+    uid: auth?.currentUser?.uid,
+    email: auth?.currentUser?.email,
+  });
+
   if (!auth?.currentUser) {
-    throw new Error('No Firebase user is currently signed in');
+    throw new Error(
+      'No Firebase currentUser. User is probably logged in through localAuth only, not Firebase Auth.',
+    );
   }
 
   const token = await auth.currentUser.getIdToken(true);
+
+  console.log('🐛 CLIENT TOKEN DEBUG', {
+    tokenExists: Boolean(token),
+    tokenStart: token ? token.slice(0, 20) : null,
+  });
 
   return {
     Authorization: `Bearer ${token}`,
