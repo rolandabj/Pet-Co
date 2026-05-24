@@ -604,3 +604,24 @@ Incoming: [[object Object], false, true, async ()=>{
  GET / 200 in 27ms (next.js: 14ms, application-code: 12ms)
  GET /login 200 in 18ms (next.js: 3ms, application-code: 14ms)
  GET /dashboard 200 in 42ms (next.js: 3ms, application-code: 39ms)
+ GET /admin 200 in 22ms (next.js: 3ms, application-code: 19ms)
+✓ Compiled in 65ms
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 106ms
+ GET /dashboard 200 in 124ms (next.js: 5ms, application-code: 120ms)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin 200 in 49ms (next.js: 3ms, application-code: 46ms)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+✓ Compiled in 104ms
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /dashboard 200 in 74ms (next.js: 5ms, application-code: 68ms)
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore-rest.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admin 200 in 59ms (next.js: 5ms, application-code: 54ms)
+✓ Compiled in 76ms
+[browser] runQueryRest got persistent 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)
+[browser] runQueryRest got persistent 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:126:11)

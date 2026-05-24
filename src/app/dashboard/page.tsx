@@ -95,9 +95,11 @@ export default function DashboardPage() {
   const fetchFavorites = useCallback(async () => {
     if (!user || user.role === 'provider') return;
     const uid = firebaseUser?.uid || user.id;
+    console.log('🐛 FETCHING FAVORITES — uid:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
     setFavoritesLoading(true);
     try {
       const list = await getUserFavoritesRest(uid);
+      console.log('🐛 FAVORITES RESULT — count:', list.length, '| uid:', uid);
       setFavorites(list);
     } catch (err) {
       console.error('Failed to fetch favorites:', err);
@@ -138,9 +140,11 @@ export default function DashboardPage() {
   const fetchPets = useCallback(async () => {
     if (!user || user.role === 'provider') return;
     const uid = firebaseUser?.uid || user.id;
+    console.log('🐛 FETCHING PETS — uid:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
     setPetsLoading(true);
     try {
       const list = await getUserPetsRest(uid);
+      console.log('🐛 PETS RESULT — count:', list.length, '| uid:', uid);
       setPets(list);
     } catch (err) {
       console.error('Failed to fetch pets:', err);
@@ -291,6 +295,7 @@ export default function DashboardPage() {
       return;
     }
     const uid = firebaseUser?.uid || user.id;
+    console.log('🐛 ADDING PET — uid:', uid, '| firebaseUser?.uid:', firebaseUser?.uid, '| user.id:', user.id, '| user.email:', user.email);
     try {
       const newPetId = await addPetRest({
         userId: uid,

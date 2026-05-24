@@ -592,6 +592,7 @@ function mapFavoriteDoc(doc: { id: string; data: Record<string, any> }): Favorit
 }
 
 export async function getUserFavoritesRest(userId: string): Promise<FavoriteDoc[]> {
+  console.log('🐛 [firestore-rest] getUserFavoritesRest called with userId:', userId);
   return runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
 }
 
@@ -931,6 +932,7 @@ function mapPetDoc(doc: { id: string; data: Record<string, any> }): PetDoc {
 }
 
 export async function getUserPetsRest(userId: string): Promise<PetDoc[]> {
+  console.log('🐛 [firestore-rest] getUserPetsRest called with userId:', userId);
   return runQueryRest('pets', 'userId', userId, mapPetDoc);
 }
 
