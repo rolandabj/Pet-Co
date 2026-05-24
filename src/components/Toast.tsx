@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface Toast {
   id: number;
@@ -37,12 +37,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     success: '✅',
     error: '❌',
     info: 'ℹ️',
+    warning: '⚠️',
   };
 
   const borderColors: Record<ToastType, string> = {
     success: 'border-l-green-500',
     error: 'border-l-red-500',
     info: 'border-l-orange-500',
+    warning: 'border-l-amber-500',
   };
 
   return (

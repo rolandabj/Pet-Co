@@ -65,7 +65,7 @@ export default function DashboardPage() {
 
   // ── Real-time bookings listener ──────────────────────────────────
   useEffect(() => {
-    if (!user) return;
+    if (loading || !user) return;
     const uid = firebaseUser?.uid || user.id;
     setBookingsLoading(true);
     const db = getFirestoreDb();
@@ -90,10 +90,10 @@ export default function DashboardPage() {
       },
     );
     return () => unsub();
-  }, [user, firebaseUser]);
+  }, [user, firebaseUser, loading]);
 
   const fetchFavorites = useCallback(async () => {
-    if (!user) return;
+    if (!user || user.role === 'provider') return;
     const uid = firebaseUser?.uid || user.id;
     setFavoritesLoading(true);
     try {
@@ -107,7 +107,7 @@ export default function DashboardPage() {
   }, [user, firebaseUser]);
 
   const fetchReviews = useCallback(async () => {
-    if (!user) return;
+    if (!user || user.role === 'provider') return;
     const uid = firebaseUser?.uid || user.id;
     setReviewsLoading(true);
     try {
@@ -136,7 +136,7 @@ export default function DashboardPage() {
   }, [user, firebaseUser]);
 
   const fetchPets = useCallback(async () => {
-    if (!user) return;
+    if (!user || user.role === 'provider') return;
     const uid = firebaseUser?.uid || user.id;
     setPetsLoading(true);
     try {
@@ -187,14 +187,19 @@ export default function DashboardPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user) {
-      fetchFavorites();
-      fetchReviews();
+    if (loading || !user) return;
+    if (user.role === 'provider') {
+      // Providers only need their payments and the full provider listing
       fetchPayments();
-      fetchPets();
       fetchProviders();
+      return;
     }
-  }, [user, fetchFavorites, fetchReviews, fetchPayments, fetchPets, fetchProviders]);
+    fetchFavorites();
+    fetchReviews();
+    fetchPayments();
+    fetchPets();
+    fetchProviders();
+  }, [user, loading, fetchFavorites, fetchReviews, fetchPayments, fetchPets, fetchProviders]);
 
   if (loading || !user) {
     return (
@@ -209,7 +214,7 @@ export default function DashboardPage() {
     return (
       <div className="pt-[76px] min-h-screen bg-[#FFF8F0]">
         <div className="max-w-[1200px] mx-auto px-6 py-8">
-          <ProviderDashboard userEmail={user.email} userId={user.id} />
+          <ProviderDashboard userEmail={user.email} userId={user.id} userRole={user.role} />
         </div>
       </div>
     );
@@ -245,7 +250,7 @@ export default function DashboardPage() {
     const uid = firebaseUser?.uid || user.id;
     setDeletingAccount(true);
     try {
-      const result = await deleteUserAccountRest(uid);
+      const result = await deleteUserAccountRest(uid, user.id, user.role);
 
       // 1. Destroy Firebase Auth user record (if signed in via Firebase)
       if (firebaseUser) {
@@ -362,7 +367,7 @@ export default function DashboardPage() {
                 {tab.label}
               </button>
             ))}
-            {(user?.role === 'admin' || user?.email === 'rolandabj@gmail.com') && (
+            {user?.role === 'admin' && (
               <Link href="/admin" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-[#FFF8F0] hover:text-gray-700 mt-5">
                 <span className="w-5 text-center">⚙️</span>
                 Admin Panel

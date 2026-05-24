@@ -4,39 +4,25 @@
  * ========================================
  *
  * Promotes a user to the 'admin' role in the Firestore `users` collection.
+ * Authenticates via Firebase Auth REST API (email + password) so the
+ * resulting ID token satisfies Firestore security rules.
  *
  * Usage
  * -----
- *   npx ts-node --esm scripts/make-admin.ts <email>
+ *   npx tsx --env-file=.env.local scripts/make-admin.ts <email> [password]
  *
- * Example
- * -------
- *   npx ts-node --esm scripts/make-admin.ts rolandabj@gmail.com
+ * Examples
+ * --------
+ *   npx tsx --env-file=.env.local scripts/make-admin.ts rolandabj@gmail.com
+ *   (will prompt you to enter the password securely)
  *
- * Requirements
- * ------------
- * - Your Firebase Web API key must be set in `NEXT_PUBLIC_FIREBASE_API_KEY`
- *   (loaded from .env.local via dotenv).
- * - The target user must already exist in the `users` collection.
+ *   npx tsx --env-file=.env.local scripts/make-admin.ts rolandabj@gmail.com MyPassword123
  *
  * What it does
  * ------------
- * 1. Queries the Firestore REST API for a user document whose `email` field
- *    matches the provided email address.
- * 2. Updates that document's `role` field to `'admin'`.
- * 3. Prints the result — look for a 200 status.
- *
- * After running
- * -------------
- * The user's next page reload (or re-login) will pick up `role: 'admin'`
- * from Firestore, and the RBAC checks in the UI will grant admin access
- * without relying on the hardcoded email fallback.
- *
- * Environment variables are loaded from .env.local via ts-node's --env-file
- * flag (Node 20+):
- *   npx ts-node --esm --env-file=.env.local scripts/make-admin.ts <email>
- * Or with dotenv preloaded:
- *   node -r dotenv/config -r ts-node/register scripts/make-admin.ts <email>
+ * 1. Signs in with the provided email + password via the Firebase Auth REST API.
+ * 2. Uses the returned ID token to find or create the user's Firestore document.
+ * 3. Sets the `role` field to `'admin'`.
  */
 
 const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -46,113 +32,125 @@ if (!API_KEY || !PROJECT_ID) {
   console.error(
     '❌ Missing Firebase configuration. Ensure NEXT_PUBLIC_FIREBASE_API_KEY\n' +
       '   and NEXT_PUBLIC_FIREBASE_PROJECT_ID are set in .env.local\n\n' +
-      '   npx ts-node --esm --env-file=.env.local scripts/make-admin.ts <email>',
+      '   npx tsx --env-file=.env.local scripts/make-admin.ts <email> [password]',
   );
   process.exit(1);
 }
 
-const query = process.argv[2];
-if (!query) {
-  console.error('❌ Usage: npx ts-node --esm scripts/make-admin.ts <email-or-name>');
+const email = process.argv[2];
+let password = process.argv[3];
+
+if (!email) {
+  console.error('❌ Usage: npx tsx --env-file=.env.local scripts/make-admin.ts <email> [password]');
   process.exit(1);
 }
 
-const FB_DOCS = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
-const FB_V1 = `https://firestore.googleapis.com/v1`;
+const FB_AUTH = `https://identitytoolkit.googleapis.com/v1`;
+const FB_FIRESTORE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
-async function findUserByEmail(email: string) {
-  const res = await fetch(`${FB_DOCS}:runQuery?key=${API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      structuredQuery: {
-        from: [{ collectionId: 'users' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'email' },
-            op: 'EQUAL',
-            value: { stringValue: email },
-          },
-        },
-        limit: 1,
-      },
-    }),
-  });
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json?.[0]?.document ?? null;
-}
-
-async function findUserByName(name: string) {
-  const res = await fetch(`${FB_DOCS}:runQuery?key=${API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      structuredQuery: {
-        from: [{ collectionId: 'users' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'name' },
-            op: 'EQUAL',
-            value: { stringValue: name },
-          },
-        },
-        limit: 1,
-      },
-    }),
-  });
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json?.[0]?.document ?? null;
-}
-
-async function listAllUsers() {
-  const res = await fetch(`${FB_DOCS}/users?key=${API_KEY}`);
-  if (!res.ok) return [];
-  const json = await res.json();
-  return (json.documents || []).map((d: any) => ({
-    id: d.name.split('/').pop(),
-    name: d.fields?.name?.stringValue ?? '(no name)',
-    role: d.fields?.role?.stringValue ?? '(no role)',
-  }));
-}
-
-async function run() {
-  // Try email first, then name
-  let doc = await findUserByEmail(query);
-
-  if (!doc) {
-    console.log(`⚠️  No user found with email "${query}". Trying name lookup…`);
-    doc = await findUserByName(query);
+async function getIdToken(): Promise<string> {
+  if (!password) {
+    const readline = await import('readline');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    password = await new Promise<string>((resolve) => {
+      rl.question('🔑 Enter password: ', (answer) => {
+        rl.close();
+        resolve(answer);
+      });
+    });
   }
 
-  if (!doc) {
-    console.log(`❌ No user found with email or name "${query}".`);
-    console.log('\nExisting users in Firestore:');
-    const users = await listAllUsers();
-    if (users.length === 0) {
-      console.log('  (no users in Firestore collection)');
+  const res = await fetch(`${FB_AUTH}/accounts:signInWithPassword?key=${API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, returnSecureToken: true }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    const msg = err?.error?.message ?? res.statusText;
+
+    if (msg === 'EMAIL_NOT_FOUND') {
+      console.error(`❌ No Firebase Auth account found for "${email}".`);
+      console.error('   Have you registered via the app yet?');
+    } else if (msg === 'INVALID_LOGIN_CREDENTIALS' || msg === 'INVALID_PASSWORD') {
+      console.error(`❌ Wrong password for "${email}".`);
+      console.error('   Use the password reset link sent to your email, or pass the password as an argument:');
+      console.error(`   npx tsx scripts/make-admin.ts ${email} <your-password>`);
     } else {
-      for (const u of users) {
-        console.log(`  • ${u.name} — role: ${u.role} — id: ${u.id}`);
-      }
-      console.log('\nRun again with a name from the list above, or with the exact email if stored.');
+      console.error(`❌ Auth failed: ${msg}`);
     }
     process.exit(1);
   }
 
-  const docName = doc.name; // e.g. projects/.../documents/users/ABC123
-  const docId = docName.split('/').pop();
-  const docEmail = doc.fields?.email?.stringValue ?? '(not stored)';
-  const docNameField = doc.fields?.name?.stringValue ?? '(not stored)';
-  console.log(`✅ Found user: ${docNameField} (email: ${docEmail}, id: ${docId})`);
+  const data = await res.json();
+  return data.idToken as string;
+}
 
-  // 2. Update the role to 'admin'
+async function findOrCreateUserDoc(uid: string, idToken: string) {
+  // 1. Try to fetch the existing user doc
+  const getRes = await fetch(`${FB_FIRESTORE}/users/${uid}`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+
+  if (getRes.ok) {
+    const json = await getRes.json();
+    return json; // existing doc
+  }
+
+  // 2. Not found — create a minimal user document
+  console.log(`📝 User doc not found in Firestore — creating it now...`);
+  const createRes = await fetch(`${FB_FIRESTORE}/users/${uid}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fields: {
+        email: { stringValue: email },
+        name: { stringValue: email.split('@')[0] },
+        role: { stringValue: 'admin' },
+        authMethod: { stringValue: 'email' },
+        createdAt: { stringValue: new Date().toISOString() },
+      },
+    }),
+  });
+
+  if (!createRes.ok) {
+    const body = await createRes.text();
+    console.error(`❌ Failed to create user doc (${createRes.status}): ${body}`);
+    process.exit(1);
+  }
+
+  console.log('✅ User document created with admin role.');
+  return createRes.json();
+}
+
+async function run() {
+  console.log(`🔑 Signing in as "${email}"...`);
+  const idToken = await getIdToken();
+
+  // Decode the ID token (JWT) to extract the UID without verification
+  const payload = JSON.parse(atob(idToken.split('.')[1]));
+  const uid = payload.user_id || payload.sub;
+  console.log(`✅ Signed in — UID: ${uid}`);
+
+  // Find or create the Firestore user document
+  const doc = await findOrCreateUserDoc(uid, idToken);
+
+  // Update the role to 'admin'
+  const docName = doc.name; // e.g. projects/.../documents/users/ABC123
+  console.log(`📝 Updating role to "admin"...`);
+
   const updateRes = await fetch(
-    `${FB_V1}/${docName}?key=${API_KEY}&updateMask.fieldPaths=role`,
+    `${FB_FIRESTORE}/users/${uid}?updateMask.fieldPaths=role`,
     {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         fields: {
           role: { stringValue: 'admin' },
@@ -167,9 +165,7 @@ async function run() {
     process.exit(1);
   }
 
-  const updated = await updateRes.json();
-  const newRole = updated?.fields?.role?.stringValue;
-  console.log(`✅ Role updated to "${newRole}" for ${docNameField}`);
+  console.log(`✅ Role set to "admin" for ${email}`);
   console.log('🔐 The user will have admin access on next page reload.');
 }
 

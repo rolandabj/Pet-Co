@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { AppUser, UserRole } from '@/lib/types';
 import { localAuth } from '@/lib/localAuth';
-import { getFirebaseAuth } from '@/lib/firebase';
+import { getFirebaseAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateFirebaseProfile } from '@/lib/firebase';
 import {
   signInWithPopup,
   signInWithRedirect,
@@ -106,12 +106,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubscribe = onAuthStateChanged(auth, (fbUser) => {
         if (fbUser) {
           setFirebaseUser(fbUser);
+          // Determine the auth method from Firebase provider data (F3)
+          const authMethod = fbUser.providerData?.some(p => p?.providerId === 'google.com')
+            ? 'google'
+            : 'email';
           const appUser = localAuth.setSessionFromFirebase({
             uid: fbUser.uid,
             email: fbUser.email || '',
             name: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
             photoURL: fbUser.photoURL,
-          });
+          }, undefined, authMethod);
           initUser(appUser);
         } else {
           // Check local session as fallback
@@ -136,6 +140,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    // 1) Try Firebase Auth first — persists across devices (F3)
+    try {
+      const { auth } = getFirebaseAuth();
+      if (auth) {
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        // onAuthStateChanged listener will fire synchronously and set the user,
+        // but we build the AppUser here for the return value.
+        const appUser: AppUser = {
+          id: credential.user.uid,
+          email: credential.user.email || email,
+          name: credential.user.displayName || email.split('@')[0],
+          role: 'owner',
+          photoURL: credential.user.photoURL || null,
+          createdAt: credential.user.metadata.creationTime || new Date().toISOString(),
+          authMethod: 'email',
+        };
+        setUser(appUser);
+        setFirebaseUser(credential.user);
+        setLoading(false);
+        return { user: appUser };
+      }
+    } catch (err: unknown) {
+      const fbErr = err as { code?: string };
+      // If Firebase is not configured or user not found, fall through
+      if (fbErr.code && fbErr.code !== 'auth/user-not-found' && fbErr.code !== 'auth/wrong-password'
+          && fbErr.code !== 'auth/invalid-credential' && fbErr.code !== 'auth/invalid-email') {
+        console.warn('Firebase login failed, falling back to localAuth:', fbErr.code);
+      }
+    }
+
+    // 2) Fallback to localAuth for offline / preview modes
     const result = await localAuth.login(email, password);
     if (result.user) {
       setUser(result.user);
@@ -145,6 +180,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(async (email: string, password: string, name: string, role: UserRole) => {
+    let userId: string;
+    let userEmail: string;
+    let userName: string;
+
+    // 1) Try Firebase Auth first — persists across devices (F3)
+    try {
+      const { auth } = getFirebaseAuth();
+      if (auth) {
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateFirebaseProfile(credential.user, { displayName: name });
+        userId = credential.user.uid;
+        userEmail = credential.user.email || email;
+        userName = name;
+        // onAuthStateChanged will fire synchronously and update state,
+        // but we build the AppUser for the return + role persistence
+        const appUser: AppUser = {
+          id: userId,
+          email: userEmail,
+          name: userName,
+          role,
+          photoURL: null,
+          createdAt: new Date().toISOString(),
+          authMethod: 'email',
+        };
+        setUser(appUser);
+        setFirebaseUser(credential.user);
+        setLoading(false);
+        // Persist role to Firestore
+        try {
+          await updateUserDocRest(userId, { role, name });
+          if (role === 'provider') {
+            try {
+              const { createProviderRest } = await import('@/lib/firestore-rest');
+              await createProviderRest({
+                email: userEmail,
+                name: userName,
+                businessName: `${name.split(' ')[0]}'s Pet Business`,
+                contactEmail: userEmail,
+                type: 'walkers',
+                category: 'Dog Walker',
+                emoji: '🏪',
+                desc: 'New pet service provider',
+                location: '',
+                documentId: userId,
+              });
+            } catch {
+              // Non-critical — ProviderDashboard onboarding form is the fallback
+            }
+          }
+        } catch {
+          /* Firestore may not be available */
+        }
+        return { user: appUser };
+      }
+    } catch (err: unknown) {
+      const fbErr = err as { code?: string };
+      // Only fall through for expected auth errors; log others
+      if (fbErr.code && fbErr.code !== 'auth/email-already-in-use'
+          && fbErr.code !== 'auth/weak-password' && fbErr.code !== 'auth/invalid-email') {
+        console.warn('Firebase registration not available, falling back to localAuth:', fbErr.code);
+      } else if (fbErr.code === 'auth/email-already-in-use') {
+        return { error: 'An account with this email already exists.' };
+      }
+    }
+
+    // 2) Fallback to localAuth for offline / preview modes
     const result = await localAuth.register(email, password, name, role);
     if (result.user) {
       setUser(result.user);

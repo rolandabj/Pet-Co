@@ -11,6 +11,11 @@ import {
   getAllProvidersRest,
   getAllReviewsRest,
   getAllUsersRest,
+  getBookingsPaginated,
+  getPaymentsPaginated,
+  getProvidersPaginated,
+  getReviewsPaginated,
+  getMonthlyAnalyticsDataRest,
   deleteBookingRest,
   deletePaymentRest,
   deleteProviderDocRest,
@@ -25,10 +30,12 @@ import {
   updateUserDocRest,
   getReviewsByProviderRest,
   getUserByIdRest,
+  type PaginatedResult,
+  type MonthlyAnalyticsData,
 } from '@/lib/firestore-rest';
 import type { BookingDoc, PaymentDoc } from '@/lib/firestore-rest';
 import type { ReviewDoc } from '@/lib/firestore-rest';
-import { ServiceProvider } from '@/lib/types';
+import { ServiceProvider, AppUser } from '@/lib/types';
 import { ref, deleteObject } from 'firebase/storage';
 import { getStorageDb } from '@/lib/firebase';
 
@@ -39,15 +46,9 @@ interface EditStatusState {
   value: string;
 }
 
-/**
- * Dual-auth safety guard: grants access if the user has the 'admin' role
- * in their Firestore/local profile OR is the legacy admin email. This
- * ensures zero downtime while migrating the hardcoded email check to
- * dynamic RBAC. Once all admin users have `role: 'admin'` in the
- * database, simplify this to `user?.role === 'admin'`.
- */
+/** Strict role-based admin check — relies on Firestore `role` field. */
 function isAdminUser(user: { role?: string; email?: string } | null): boolean {
-  return user?.role === 'admin' || user?.email === 'rolandabj@gmail.com';
+  return user?.role === 'admin';
 }
 
 export default function AdminPage() {
@@ -57,16 +58,29 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [userSearch, setUserSearch] = useState('');
 
-  // Live data states
+  // Live data states (F5: cursor-based pagination per tab)
   const [bookings, setBookings] = useState<BookingDoc[]>([]);
+  const [bookingsToken, setBookingsToken] = useState<string | null>(null);
+  const [bookingsHistory, setBookingsHistory] = useState<string[]>([]);
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
+  const [providersToken, setProvidersToken] = useState<string | null>(null);
+  const [providersHistory, setProvidersHistory] = useState<string[]>([]);
   const [payments, setPayments] = useState<PaymentDoc[]>([]);
+  const [paymentsToken, setPaymentsToken] = useState<string | null>(null);
+  const [paymentsHistory, setPaymentsHistory] = useState<string[]>([]);
   const [allReviews, setAllReviews] = useState<ReviewDoc[]>([]);
+  const [reviewsToken, setReviewsToken] = useState<string | null>(null);
+  const [reviewsHistory, setReviewsHistory] = useState<string[]>([]);
   const [editStatus, setEditStatus] = useState<EditStatusState | null>(null);
   const [editReviewId, setEditReviewId] = useState<string | null>(null);
   const [editReviewComment, setEditReviewComment] = useState('');
   const [editReviewRating, setEditReviewRating] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // ── Analytics data (fetched independently of paginated tables) ──
+  const [analyticsData, setAnalyticsData] = useState<MonthlyAnalyticsData>({ bookings: [], payments: [] });
+  // ── Merged user list (Firestore + local, deduplicated) ──────────
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<BookingDoc | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<PaymentDoc | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -86,19 +100,29 @@ export default function AdminPage() {
     }
   }, [user, loading, router, showToast]);
 
+  /** Fetch first page of each collection on mount (F5). */
   const fetchLiveData = useCallback(async () => {
     setDataLoading(true);
     try {
-      const [bList, pList, paymentList, rList] = await Promise.all([
-        getAllBookingsRest(),
-        getAllProvidersRest(),
-        getAllPaymentsRest(),
-        getAllReviewsRest(),
+      const PAGE_SIZE = 20;
+      const [bPage, pPage, payPage, rPage] = await Promise.all([
+        getBookingsPaginated(PAGE_SIZE),
+        getProvidersPaginated(PAGE_SIZE),
+        getPaymentsPaginated(PAGE_SIZE),
+        getReviewsPaginated(PAGE_SIZE),
       ]);
-      setBookings(bList);
-      setProviders(pList);
-      setPayments(paymentList);
-      setAllReviews(rList);
+      setBookings(bPage.data);
+      setBookingsToken(bPage.nextPageToken);
+      setBookingsHistory([]);
+      setProviders(pPage.data);
+      setProvidersToken(pPage.nextPageToken);
+      setProvidersHistory([]);
+      setPayments(payPage.data);
+      setPaymentsToken(payPage.nextPageToken);
+      setPaymentsHistory([]);
+      setAllReviews(rPage.data);
+      setReviewsToken(rPage.nextPageToken);
+      setReviewsHistory([]);
     } catch (err) {
       console.error('Failed to fetch admin data:', err);
     } finally {
@@ -106,29 +130,158 @@ export default function AdminPage() {
     }
   }, []);
 
-  // Only fetch data for the admin user — no wasted API calls for others
-  useEffect(() => {
-    if (!loading && admin) fetchLiveData();
-  }, [loading, admin, fetchLiveData]);
+  /** Fetch all users (Firestore + local, deduplicated strictly by id). */
+  const fetchAllUsers = useCallback(async () => {
+    try {
+      const [firestoreUsers] = await Promise.all([getAllUsersRest()]);
+      const localUsers = localAuth.getAllUsers();
 
-  // ── Derived analytics ──────────────────────────────────────────
-  // All computed from live Firestore data — no hardcoded values.
+      const combined = [...firestoreUsers, ...localUsers];
+
+      // Deduplicate strictly by user.id using a Map
+      const uniqueUsersMap = new Map<string, AppUser>();
+      for (const u of combined) {
+        if (u.id) {
+          uniqueUsersMap.set(u.id, {
+            id: u.id,
+            email: u.email || '',
+            name: u.name || '',
+            role: (u.role as AppUser['role']) || 'owner',
+            photoURL: u.photoURL || null,
+            phone: u.phone,
+            createdAt: 'createdAt' in u ? (u as AppUser).createdAt : '',
+            authMethod: 'authMethod' in u ? (u as AppUser).authMethod : 'email',
+          });
+        }
+      }
+
+      setAllUsers(Array.from(uniqueUsersMap.values()));
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
+    }
+  }, []);
+
+  // ── Pagination helpers (F5) ────────────────────────────────────
+  const goNextPage = useCallback(async (
+    collection: 'bookings' | 'providers' | 'payments' | 'reviews',
+  ) => {
+    let token: string | null = null;
+    let setPage: (items: any[]) => void;
+    let setToken: (t: string | null) => void;
+    let setHistory: (h: string[] | ((prev: string[]) => string[])) => void;
+    let history: string[];
+    let fetchFn: (pageSize: number, pageToken?: string | null) => Promise<PaginatedResult<any>>;
+
+    switch (collection) {
+      case 'bookings':
+        token = bookingsToken; setPage = setBookings; setToken = setBookingsToken;
+        setHistory = setBookingsHistory; history = bookingsHistory;
+        fetchFn = getBookingsPaginated; break;
+      case 'providers':
+        token = providersToken; setPage = setProviders; setToken = setProvidersToken;
+        setHistory = setProvidersHistory; history = providersHistory;
+        fetchFn = getProvidersPaginated; break;
+      case 'payments':
+        token = paymentsToken; setPage = setPayments; setToken = setPaymentsToken;
+        setHistory = setPaymentsHistory; history = paymentsHistory;
+        fetchFn = getPaymentsPaginated; break;
+      case 'reviews':
+        token = reviewsToken; setPage = setAllReviews; setToken = setReviewsToken;
+        setHistory = setReviewsHistory; history = reviewsHistory;
+        fetchFn = getReviewsPaginated; break;
+    }
+
+    if (!token) return;
+    setDataLoading(true);
+    try {
+      const result = await fetchFn(20, token);
+      setPage(result.data);
+      setToken(result.nextPageToken);
+      setHistory(prev => [...prev, token]);
+    } catch (err) {
+      console.error(`Failed to fetch next ${collection} page:`, err);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [bookingsToken, providersToken, paymentsToken, reviewsToken,
+      bookingsHistory, providersHistory, paymentsHistory, reviewsHistory]);
+
+  const goPrevPage = useCallback(async (
+    collection: 'bookings' | 'providers' | 'payments' | 'reviews',
+  ) => {
+    let prevToken: string | undefined;
+    let setPage: (items: any[]) => void;
+    let setToken: (t: string | null) => void;
+    let setHistory: (h: string[] | ((prev: string[]) => string[])) => void;
+    let history: string[];
+    let fetchFn: (pageSize: number, pageToken?: string | null) => Promise<PaginatedResult<any>>;
+
+    switch (collection) {
+      case 'bookings':
+        history = bookingsHistory; setPage = setBookings; setToken = setBookingsToken;
+        setHistory = setBookingsHistory; fetchFn = getBookingsPaginated; break;
+      case 'providers':
+        history = providersHistory; setPage = setProviders; setToken = setProvidersToken;
+        setHistory = setProvidersHistory; fetchFn = getProvidersPaginated; break;
+      case 'payments':
+        history = paymentsHistory; setPage = setPayments; setToken = setPaymentsToken;
+        setHistory = setPaymentsHistory; fetchFn = getPaymentsPaginated; break;
+      case 'reviews':
+        history = reviewsHistory; setPage = setAllReviews; setToken = setReviewsToken;
+        setHistory = setReviewsHistory; fetchFn = getReviewsPaginated; break;
+    }
+
+    if (history.length === 0) return;
+    prevToken = history[history.length - 1];
+
+    setDataLoading(true);
+    try {
+      const result = await fetchFn(20, prevToken);
+      setPage(result.data);
+      setToken(result.nextPageToken);
+      setHistory(prev => prev.slice(0, -1));
+    } catch (err) {
+      console.error(`Failed to fetch previous ${collection} page:`, err);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [bookingsHistory, providersHistory, paymentsHistory, reviewsHistory]);
+
+  // Only fetch data for the admin user — no wasted API calls for others.
+  // Guard: user must be fully loaded and authenticated to avoid a 403 race
+  // where the Firebase Auth token hasn't been issued yet (D2).
+  useEffect(() => {
+    if (loading || !user || !admin) return;
+    fetchLiveData();
+    fetchAllUsers();
+  }, [loading, user, admin, fetchLiveData, fetchAllUsers]);
+
+  // Fetch analytics data independently of paginated table state (F5 fix)
+  useEffect(() => {
+    if (loading || !user || !admin) return;
+    getMonthlyAnalyticsDataRest()
+      .then(setAnalyticsData)
+      .catch((err) => console.error('Failed to fetch analytics data:', err));
+  }, [loading, user, admin]);
+
+  // ── Derived analytics (from independent analyticsData) ─────────
+  const aBookings = analyticsData.bookings;
+  const aPayments = analyticsData.payments;
 
   /** Revenue MTD — sum of all payments with status === 'paid'. */
-  const revenueMtd = payments
+  const revenueMtd = aPayments
     .filter((p) => p.status === 'paid')
     .reduce((sum, p) => sum + (p.amount ?? 0), 0);
 
   /** Monthly booking counts — index 0 = January. */
   const monthlyBookings = (() => {
     const counts = new Array(12).fill(0);
-    for (const b of bookings) {
-      // Try createdAt first, fall back to the date field
+    for (const b of aBookings) {
       const raw = b.createdAt || b.date;
       if (!raw) continue;
       const d = new Date(raw);
       if (!isNaN(d.getTime())) {
-        counts[d.getMonth()] += 1; // getMonth() is 0-based
+        counts[d.getMonth()] += 1;
       }
     }
     return counts;
@@ -148,15 +301,13 @@ export default function AdminPage() {
       shops: { label: 'Pet Shops', color: '#E67E22' },
     };
     const tally: Record<string, number> = {};
-    for (const b of bookings) {
+    for (const b of aBookings) {
       const key = b.serviceType;
       tally[key] = (tally[key] ?? 0) + 1;
     }
-    const total = bookings.length || 1; // avoid division by zero
+    const total = aBookings.length || 1;
     const labels = Object.keys(tally);
-    // Sort by count descending, take top 5
     const sorted = labels.sort((a, b) => (tally[b] ?? 0) - (tally[a] ?? 0)).slice(0, 5);
-    // If nothing found, show all-zero entries for the main categories
     if (sorted.length === 0) {
       return [
         { label: 'Dog Walking', pct: 0, color: '#E86A33' },
@@ -177,8 +328,6 @@ export default function AdminPage() {
   if (loading || !user || !admin) {
     return <div className="pt-[100px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
   }
-
-  const allUsers = localAuth.getAllUsers();
 
   const filteredUsers = allUsers.filter(u =>
     !userSearch || u.name?.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase())
@@ -211,7 +360,7 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (userId: string, userName: string) => {
     try {
-      const result = await deleteUserAccountRest(userId);
+      const result = await deleteUserAccountRest(userId, user?.id, user?.role);
       localAuth.deleteUser(userId);
       showToast(
         `✅ User "${userName}" deleted: ${result.deletedPets} pet(s), ${result.deletedBookings} booking(s), ` +
@@ -219,6 +368,7 @@ export default function AdminPage() {
         `${result.deletedFavorites} favorite(s). ${result.recalculatedProviders} provider(s) updated.`,
         'success',
       );
+      fetchAllUsers(); // Refresh the merged list
     } catch (err) {
       console.error('Failed to delete user:', err);
       showToast('❌ Failed to delete user.', 'error');
@@ -252,7 +402,7 @@ export default function AdminPage() {
       const docId = provider._firestoreId || String(provider.id);
 
       // 1. Cascading delete: relational docs + provider doc
-      const result = await deleteProviderAccountRest(docId);
+      const result = await deleteProviderAccountRest(docId, user?.id, user?.role);
 
       // 2. Delete provider logo from Firebase Storage if it exists
       const logoUrl = result.logoUrl || provider.logoUrl;
@@ -584,6 +734,24 @@ export default function AdminPage() {
                 </tbody>
               </table>
             )}
+            {/* ── Providers pagination ── */}
+            <div className="flex items-center justify-between px-5 py-4 border-t border-[#F0E4D8]">
+              <button
+                onClick={() => goPrevPage('providers')}
+                disabled={providersHistory.length === 0}
+                className="text-sm px-4 py-2 rounded-xl border border-[#F0E4D8] hover:bg-[#FFF8F0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                ← Previous
+              </button>
+              <span className="text-xs text-gray-400">Page {providersHistory.length + 1}</span>
+              <button
+                onClick={() => goNextPage('providers')}
+                disabled={!providersToken}
+                className="text-sm px-4 py-2 rounded-xl border border-[#F0E4D8] hover:bg-[#FFF8F0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Next →
+              </button>
+            </div>
           </div>
         )}
 
@@ -726,7 +894,25 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 )}
+              {/* ── Bookings pagination ── */}
+              <div className="flex items-center justify-between px-5 py-4 border-t border-[#F0E4D8]">
+                <button
+                  onClick={() => goPrevPage('bookings')}
+                  disabled={bookingsHistory.length === 0}
+                  className="text-sm px-4 py-2 rounded-xl border border-[#F0E4D8] hover:bg-[#FFF8F0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  ← Previous
+                </button>
+                <span className="text-xs text-gray-400">Page {bookingsHistory.length + 1}</span>
+                <button
+                  onClick={() => goNextPage('bookings')}
+                  disabled={!bookingsToken}
+                  className="text-sm px-4 py-2 rounded-xl border border-[#F0E4D8] hover:bg-[#FFF8F0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  Next →
+                </button>
               </div>
+            </div>
             )}
           </>
         )}
@@ -808,6 +994,24 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               )}
+              {/* ── Payments pagination ── */}
+              <div className="flex items-center justify-between px-5 py-4 border-t border-[#F0E4D8]">
+                <button
+                  onClick={() => goPrevPage('payments')}
+                  disabled={paymentsHistory.length === 0}
+                  className="text-sm px-4 py-2 rounded-xl border border-[#F0E4D8] hover:bg-[#FFF8F0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  ← Previous
+                </button>
+                <span className="text-xs text-gray-400">Page {paymentsHistory.length + 1}</span>
+                <button
+                  onClick={() => goNextPage('payments')}
+                  disabled={!paymentsToken}
+                  className="text-sm px-4 py-2 rounded-xl border border-[#F0E4D8] hover:bg-[#FFF8F0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  Next →
+                </button>
+              </div>
             </div>
           )}
 
@@ -927,6 +1131,24 @@ export default function AdminPage() {
                   ))}
                 </div>
               )}
+              {/* ── Reviews pagination ── */}
+              <div className="flex items-center justify-between px-5 py-4 border-t border-[#F0E4D8]">
+                <button
+                  onClick={() => goPrevPage('reviews')}
+                  disabled={reviewsHistory.length === 0}
+                  className="text-sm px-4 py-2 rounded-xl border border-[#F0E4D8] hover:bg-[#FFF8F0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  ← Previous
+                </button>
+                <span className="text-xs text-gray-400">Page {reviewsHistory.length + 1}</span>
+                <button
+                  onClick={() => goNextPage('reviews')}
+                  disabled={!reviewsToken}
+                  className="text-sm px-4 py-2 rounded-xl border border-[#F0E4D8] hover:bg-[#FFF8F0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  Next →
+                </button>
+              </div>
             </div>
           )}
 

@@ -96,9 +96,10 @@ class LocalAuth {
   setSessionFromFirebase(
     firebaseUser: { email: string; name: string; photoURL?: string | null; uid?: string },
     role?: UserRole,
+    authMethod: 'email' | 'google' = 'google',
   ): AppUser {
     const now = new Date().toISOString();
-    const id = firebaseUser.uid || 'google_' + Date.now();
+    const id = firebaseUser.uid || 'firebase_' + Date.now();
     const appUser: AppUser = {
       id,
       email: firebaseUser.email,
@@ -106,7 +107,7 @@ class LocalAuth {
       role: role || 'owner',
       photoURL: firebaseUser.photoURL || null,
       createdAt: now,
-      authMethod: 'google',
+      authMethod,
     };
 
     // Persist to the local user store so the admin panel sees them

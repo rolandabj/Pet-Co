@@ -6,7 +6,7 @@ import { ServiceProvider } from '@/lib/types';
 import ServicesClient from './ServicesClient';
 
 /** Convert a Firestore document (REST API shape) to our ServiceProvider type. */
-function docToProvider(doc: any): ServiceProvider {
+function docToProvider(doc: any): ServiceProvider | null {
   const f = doc.fields || {};
   const s = (n: string) => f[n]?.stringValue ?? '';
   const n = (n: string) => Number(f[n]?.integerValue ?? f[n]?.doubleValue ?? 0);
@@ -48,7 +48,7 @@ export default async function ServicesPage({ searchParams }: Props) {
       const res = await fetch(url, { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
-        providers = (json.documents || []).map(docToProvider);
+        providers = (json.documents || []).map(docToProvider).filter(Boolean) as ServiceProvider[];
       } else {
         loadError = `Failed to load providers (${res.status})`;
       }

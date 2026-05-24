@@ -3,8 +3,7 @@ import { NextResponse } from 'next/server';
 /**
  * GET /api/providers
  *
- * Proxies the Firestore REST API to avoid browser-level connectivity
- * issues with firestore.googleapis.com.
+ * Proxies the Firestore REST API to return all providers.
  */
 export async function GET() {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;

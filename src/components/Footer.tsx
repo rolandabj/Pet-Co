@@ -50,8 +50,8 @@ export default function Footer() {
             <div className="flex flex-col gap-3">
               <span className="text-white/60 text-sm cursor-default">Help Center</span>
               <span className="text-white/60 text-sm cursor-default">Safety</span>
-              <span className="text-white/60 text-sm cursor-default">Terms of Service</span>
-              <span className="text-white/60 text-sm cursor-default">Privacy Policy</span>
+              <Link href="/terms" className="text-white/60 text-sm hover:text-[#E86A33] transition-all">Terms of Service</Link>
+              <Link href="/privacy" className="text-white/60 text-sm hover:text-[#E86A33] transition-all">Privacy Policy</Link>
               <span className="text-white/60 text-sm cursor-default">FAQs</span>
             </div>
           </div>

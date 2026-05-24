@@ -5,10 +5,75 @@
  * via plain `fetch`, so they respect standard HTTP timeouts.
  */
 import type { ServiceProvider, ServiceItem, ProductItem } from './types';
+import { getFirebaseAuth } from './firebase';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!;
 const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY!;
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+
+// ─── Auth helpers (F4: pass Firebase ID token to satisfy security rules) ─────
+
+/** Return auth headers with a Bearer token if the user is signed in. */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  try {
+    const { auth } = getFirebaseAuth();
+    if (auth?.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch {
+    // Firebase not configured — proceed without auth headers
+  }
+  return headers;
+}
+
+/**
+ * Fetch wrapper that attaches the Firebase ID token (when available)
+ * and the API key, so Firestore security rules see an authenticated request.
+ */
+async function authFetch(url: string, options?: RequestInit): Promise<Response> {
+  const headers = await getAuthHeaders();
+  const separator = url.includes('?') ? '&' : '?';
+  return fetch(`${url}${separator}key=${API_KEY}`, { ...options, headers: { ...headers, ...options?.headers } });
+}
+
+// ─── Structured query helper (F4: server-side filter) ────────────
+
+/**
+ * Execute a Firestore structured query via the `:runQuery` REST endpoint.
+ * Results are filtered server-side so the security rules don't reject
+ * collection-wide reads.
+ */
+async function runQueryRest<T>(
+  collectionId: string,
+  field: string,
+  value: string,
+  mapFn: (doc: { id: string; data: Record<string, any> }) => T,
+): Promise<T[]> {
+  const res = await authFetch(`${FIRESTORE_BASE}:runQuery`, {
+    method: 'POST',
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: field },
+            op: 'EQUAL',
+            value: { stringValue: value },
+          },
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Failed to query ${collectionId}: ${res.status}`);
+  const json = await res.json();
+  const documents: Array<{ id: string; data: Record<string, any> }> = (json as Array<{ document?: any }> | undefined)
+    ?.map((item) => (item?.document ? docFromJson(item.document) : null))
+    .filter((d): d is NonNullable<typeof d> => d != null) ?? [];
+  return documents.map(mapFn);
+}
 
 // ─── Low-level helpers ────────────────────────────────────────
 
@@ -18,7 +83,7 @@ function docUrl(collection: string, docId?: string) {
 }
 
 function authGet(url: string) {
-  return fetch(`${url}?key=${API_KEY}`);
+  return authFetch(url);
 }
 
 async function fetchOne<T>(
@@ -48,6 +113,42 @@ async function fetchCollection<T>(
   if (filterFn) docs = docs.filter(filterFn);
   if (mapFn) return docs.map(mapFn);
   return docs as unknown as T[];
+}
+
+/** Analytics data for the current month (F5 fix). */
+export interface MonthlyAnalyticsData {
+  bookings: BookingDoc[];
+  payments: PaymentDoc[];
+}
+
+/** Result from a paginated Firestore REST query (F5). */
+export interface PaginatedResult<T> {
+  data: T[];
+  nextPageToken: string | null;
+}
+
+/**
+ * Fetch a single page of documents from a collection using cursor-based
+ * pagination.  The returned `nextPageToken` can be passed as `pageToken`
+ * to get the subsequent page.
+ */
+async function fetchPaginatedCollection<T>(
+  collection: string,
+  pageSize: number,
+  pageToken?: string | null,
+  mapFn?: (doc: { id: string; data: Record<string, any> }) => T,
+): Promise<PaginatedResult<T>> {
+  let url = docUrl(collection) + `?pageSize=${pageSize}`;
+  if (pageToken) url += `&pageToken=${pageToken}`;
+
+  const res = await authGet(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${collection}: ${res.status}`);
+  const json = await res.json();
+
+  const docs = (json.documents || []).map((d: any) => docFromJson(d)).filter(Boolean);
+  const data = mapFn ? docs.map(mapFn) : docs as unknown as T[];
+
+  return { data, nextPageToken: json.nextPageToken ?? null };
 }
 
 /**
@@ -210,6 +311,23 @@ export async function getAllProvidersRest(): Promise<ServiceProvider[]> {
   return (json.documents || []).map((d: any) => mapServiceProvider(d));
 }
 
+/** Paginated providers for admin tables (F5). */
+export async function getProvidersPaginated(
+  pageSize = 20,
+  pageToken?: string | null,
+): Promise<PaginatedResult<ServiceProvider>> {
+  // Use mapServiceProvider via the raw Firestore JSON endpoint
+  let url = docUrl('providers') + `?pageSize=${pageSize}`;
+  if (pageToken) url += `&pageToken=${pageToken}`;
+  const res = await authGet(url);
+  if (!res.ok) throw new Error(`Failed to fetch providers: ${res.status}`);
+  const json = await res.json();
+  return {
+    data: (json.documents || []).map((d: any) => mapServiceProvider(d)),
+    nextPageToken: json.nextPageToken ?? null,
+  };
+}
+
 // ─── Review helpers ───────────────────────────────────────────
 
 export interface ReviewDoc {
@@ -235,7 +353,7 @@ function mapReviewDoc(doc: { id: string; data: Record<string, any> }): ReviewDoc
 }
 
 export async function getReviewsByProviderRest(providerId: string): Promise<ReviewDoc[]> {
-  const docs = await fetchWhere('reviews', 'providerId', providerId, mapReviewDoc);
+  const docs = await runQueryRest('reviews', 'providerId', providerId, mapReviewDoc);
   return docs.sort((a, b) => {
     if (!a.createdAt && !b.createdAt) return 0;
     if (!a.createdAt) return 1;
@@ -251,7 +369,7 @@ export async function addReviewRest(
   if (data.userRole === 'provider') {
     throw new Error('Service providers cannot write reviews');
   }
-  const res = await fetch(docUrl('reviews') + `?key=${API_KEY}`, {
+  const res = await authFetch(docUrl('reviews'), {
     method: 'POST',
     body: JSON.stringify({
       fields: {
@@ -267,16 +385,28 @@ export async function addReviewRest(
   });
   if (!res.ok) throw new Error(`Failed to add review: ${res.status}`);
   const json = await res.json();
+
+  // Touch the user's cooldown timestamp for S3 rate limiting
+  touchCooldown(data.userId, 'lastReviewAt');
+
   return json.name?.split('/').pop() ?? '';
 }
 
 export async function getUserReviewsRest(userId: string): Promise<ReviewDoc[]> {
-  return fetchWhere('reviews', 'userId', userId, mapReviewDoc);
+  return runQueryRest('reviews', 'userId', userId, mapReviewDoc);
 }
 
 /** Fetch all reviews across the platform (admin use). */
 export async function getAllReviewsRest(): Promise<ReviewDoc[]> {
   return fetchCollection('reviews', undefined, mapReviewDoc);
+}
+
+/** Paginated reviews for admin tables (F5). */
+export async function getReviewsPaginated(
+  pageSize = 20,
+  pageToken?: string | null,
+): Promise<PaginatedResult<ReviewDoc>> {
+  return fetchPaginatedCollection('reviews', pageSize, pageToken, mapReviewDoc);
 }
 
 /** Update a review document (admin use). */
@@ -296,18 +426,17 @@ export async function updateReviewRest(
   }
   if (masks.length === 0) return;
   const url = docUrl('reviews', reviewId)
-    + `?key=${API_KEY}&updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`;
-  const res = await fetch(url, {
+    + `?updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`;
+  const res = await authFetch(url, {
     method: 'PATCH',
     body: JSON.stringify({ fields }),
-    headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok) throw new Error(`Failed to update review: ${res.status}`);
 }
 
 /** Delete a review document (admin use). */
 export async function deleteReviewRest(reviewId: string): Promise<void> {
-  const res = await fetch(docUrl('reviews', reviewId) + `?key=${API_KEY}`, { method: 'DELETE' });
+  const res = await authFetch(docUrl('reviews', reviewId), { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to delete review: ${res.status}`);
 }
 
@@ -338,16 +467,13 @@ function mapFavoriteDoc(doc: { id: string; data: Record<string, any> }): Favorit
 }
 
 export async function getUserFavoritesRest(userId: string): Promise<FavoriteDoc[]> {
-  return fetchWhere('favorites', 'userId', userId, mapFavoriteDoc);
+  return runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
 }
 
 export async function findFavoriteIdRest(userId: string, providerId: string): Promise<string | null> {
-  const docs = await fetchCollection<FavoriteDoc>(
-    'favorites',
-    (doc) => doc.data.userId === userId && (doc.data.providerId === providerId || doc.data.providerId == providerId),
-    mapFavoriteDoc,
-  );
-  return docs.length > 0 ? docs[0].id : null;
+  const docs = await runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
+  const match = docs.find((d) => d.providerId === providerId || d.providerId == providerId);
+  return match?.id ?? null;
 }
 
 export async function addFavoriteRest(data: {
@@ -358,7 +484,7 @@ export async function addFavoriteRest(data: {
   emoji: string;
   rating: number;
 }): Promise<string> {
-  const res = await fetch(docUrl('favorites') + `?key=${API_KEY}`, {
+  const res = await authFetch(docUrl('favorites'), {
     method: 'POST',
     body: JSON.stringify({
       fields: {
@@ -378,7 +504,7 @@ export async function addFavoriteRest(data: {
 }
 
 export async function removeFavoriteRest(docId: string): Promise<void> {
-  const res = await fetch(docUrl('favorites', docId) + `?key=${API_KEY}`, { method: 'DELETE' });
+  const res = await authFetch(docUrl('favorites', docId), { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to remove favorite: ${res.status}`);
 }
 
@@ -435,7 +561,7 @@ function mapBookingDoc(doc: { id: string; data: Record<string, any> }): BookingD
 }
 
 export async function getUserBookingsRest(userId: string): Promise<BookingDoc[]> {
-  return fetchWhere('bookings', 'userId', userId, mapBookingDoc);
+  return runQueryRest('bookings', 'userId', userId, mapBookingDoc);
 }
 
 export async function getAllBookingsRest(): Promise<BookingDoc[]> {
@@ -446,6 +572,14 @@ export async function getAllBookingsRest(): Promise<BookingDoc[]> {
     .map((d: any) => docFromJson(d))
     .filter(Boolean)
     .map((d: any) => mapBookingDoc(d));
+}
+
+/** Paginated bookings for admin tables (F5). */
+export async function getBookingsPaginated(
+  pageSize = 20,
+  pageToken?: string | null,
+): Promise<PaginatedResult<BookingDoc>> {
+  return fetchPaginatedCollection('bookings', pageSize, pageToken, mapBookingDoc);
 }
 
 export async function addBookingRest(data: Omit<BookingDoc, 'id' | 'createdAt'>): Promise<string> {
@@ -472,20 +606,24 @@ export async function addBookingRest(data: Omit<BookingDoc, 'id' | 'createdAt'>)
   if (data.customerPhone) fields.customerPhone = { stringValue: data.customerPhone };
   if (data.currency) fields.currency = { stringValue: data.currency };
 
-  const res = await fetch(docUrl('bookings') + `?key=${API_KEY}`, {
+  const res = await authFetch(docUrl('bookings'), {
     method: 'POST',
     body: JSON.stringify({ fields }),
     headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok) throw new Error(`Failed to add booking: ${res.status}`);
   const json = await res.json();
+
+  // Touch the user's cooldown timestamp for S3 rate limiting
+  touchCooldown(data.userId, 'lastBookingAt');
+
   return json.name?.split('/').pop() ?? '';
 }
 
 export async function updateBookingRest(bookingId: string, updates: Partial<BookingDoc>): Promise<void> {
   const fields: Record<string, unknown> = {};
   if (updates.status) fields.status = { stringValue: updates.status };
-  const res = await fetch(docUrl('bookings', bookingId) + `?key=${API_KEY}&updateMask.fieldPaths=status`, {
+  const res = await authFetch(docUrl('bookings', bookingId) + `?updateMask.fieldPaths=status`, {
     method: 'PATCH',
     body: JSON.stringify({ fields }),
     headers: { 'Content-Type': 'application/json' },
@@ -494,7 +632,7 @@ export async function updateBookingRest(bookingId: string, updates: Partial<Book
 }
 
 export async function deleteBookingRest(bookingId: string): Promise<void> {
-  const res = await fetch(docUrl('bookings', bookingId) + `?key=${API_KEY}`, { method: 'DELETE' });
+  const res = await authFetch(docUrl('bookings', bookingId), { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to delete booking: ${res.status}`);
 }
 
@@ -530,7 +668,7 @@ function mapPaymentDoc(doc: { id: string; data: Record<string, any> }): PaymentD
 
 export async function getUserPaymentsRest(userId: string, role: string): Promise<PaymentDoc[]> {
   const field = role === 'provider' ? 'providerId' : 'customerId';
-  return fetchWhere('payments', field, userId, mapPaymentDoc);
+  return runQueryRest('payments', field, userId, mapPaymentDoc);
 }
 
 export async function getAllPaymentsRest(): Promise<PaymentDoc[]> {
@@ -543,8 +681,46 @@ export async function getAllPaymentsRest(): Promise<PaymentDoc[]> {
     .map((d: any) => mapPaymentDoc(d));
 }
 
+/** Paginated payments for admin tables (F5). */
+export async function getPaymentsPaginated(
+  pageSize = 20,
+  pageToken?: string | null,
+): Promise<PaginatedResult<PaymentDoc>> {
+  return fetchPaginatedCollection('payments', pageSize, pageToken, mapPaymentDoc);
+}
+
+/**
+ * Fetch all bookings & payments for the current month (used by admin
+ * analytics, independent of paginated table state).  Filters client-side
+ * so no composite index is needed.
+ */
+export async function getMonthlyAnalyticsDataRest(): Promise<MonthlyAnalyticsData> {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+  const bookUrl = docUrl('bookings');
+  const payUrl = docUrl('payments');
+  const [bRes, pRes] = await Promise.all([authGet(bookUrl), authGet(payUrl)]);
+
+  const parse = (json: any) => (json.documents || []).map((d: any) => docFromJson(d)).filter(Boolean);
+
+  const allBookings: BookingDoc[] = parse(await bRes.json()).map(mapBookingDoc);
+  const allPayments: PaymentDoc[] = parse(await pRes.json()).map(mapPaymentDoc);
+
+  const inRange = (iso?: string) => {
+    if (!iso) return false;
+    return iso >= monthStart && iso <= monthEnd;
+  };
+
+  return {
+    bookings: allBookings.filter((b) => inRange(b.createdAt || b.date)),
+    payments: allPayments.filter((p) => inRange(p.createdAt)),
+  };
+}
+
 export async function addPaymentRest(data: Omit<PaymentDoc, 'id' | 'createdAt'>): Promise<string> {
-  const res = await fetch(docUrl('payments') + `?key=${API_KEY}`, {
+  const res = await authFetch(docUrl('payments'), {
     method: 'POST',
     body: JSON.stringify({
       fields: {
@@ -566,7 +742,7 @@ export async function addPaymentRest(data: Omit<PaymentDoc, 'id' | 'createdAt'>)
 }
 
 export async function updatePaymentRest(paymentId: string, status: string): Promise<void> {
-  const res = await fetch(docUrl('payments', paymentId) + `?key=${API_KEY}&updateMask.fieldPaths=status`, {
+  const res = await authFetch(docUrl('payments', paymentId) + `?updateMask.fieldPaths=status`, {
     method: 'PATCH',
     body: JSON.stringify({
       fields: { status: { stringValue: status } },
@@ -577,7 +753,7 @@ export async function updatePaymentRest(paymentId: string, status: string): Prom
 }
 
 export async function deletePaymentRest(paymentId: string): Promise<void> {
-  const res = await fetch(docUrl('payments', paymentId) + `?key=${API_KEY}`, { method: 'DELETE' });
+  const res = await authFetch(docUrl('payments', paymentId), { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to delete payment: ${res.status}`);
 }
 
@@ -606,11 +782,11 @@ function mapPetDoc(doc: { id: string; data: Record<string, any> }): PetDoc {
 }
 
 export async function getUserPetsRest(userId: string): Promise<PetDoc[]> {
-  return fetchWhere('pets', 'userId', userId, mapPetDoc);
+  return runQueryRest('pets', 'userId', userId, mapPetDoc);
 }
 
 export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
-  const res = await fetch(docUrl('pets') + `?key=${API_KEY}`, {
+  const res = await authFetch(docUrl('pets'), {
     method: 'POST',
     body: JSON.stringify({
       fields: {
@@ -630,7 +806,7 @@ export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
 }
 
 export async function deletePetRest(petId: string): Promise<void> {
-  const res = await fetch(docUrl('pets', petId) + `?key=${API_KEY}`, { method: 'DELETE' });
+  const res = await authFetch(docUrl('pets', petId), { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to delete pet: ${res.status}`);
 }
 
@@ -643,7 +819,7 @@ export async function addMessageRest(data: {
   message: string;
   userId: string;
 }): Promise<string> {
-  const res = await fetch(docUrl('messages') + `?key=${API_KEY}`, {
+  const res = await authFetch(docUrl('messages'), {
     method: 'POST',
     body: JSON.stringify({
       fields: {
@@ -702,26 +878,26 @@ export async function getUserByIdRest(userId: string): Promise<UserDoc | null> {
   }
 }
 
-export async function updateUserDocRest(userId: string, data: Record<string, string>): Promise<void> {
+export async function updateUserDocRest(userId: string, data: Record<string, unknown>): Promise<void> {
   const fields: Record<string, unknown> = {};
   const masks: string[] = [];
   for (const [key, val] of Object.entries(data)) {
-    fields[key] = { stringValue: val };
+    if (val === undefined) continue;
+    fields[key] = toFieldValue(val);
     masks.push(key);
   }
-  const res = await fetch(
-    docUrl('users', userId) + `?key=${API_KEY}&updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`,
+  const res = await authFetch(
+    docUrl('users', userId) + `?updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`,
     {
       method: 'PATCH',
       body: JSON.stringify({ fields }),
-      headers: { 'Content-Type': 'application/json' },
     },
   );
   if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
 }
 
 export async function deleteUserDocRest(userId: string): Promise<void> {
-  const res = await fetch(docUrl('users', userId) + `?key=${API_KEY}`, { method: 'DELETE' });
+  const res = await authFetch(docUrl('users', userId), { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to delete user: ${res.status}`);
 }
 
@@ -743,16 +919,54 @@ async function recalculateProviderRating(providerId: string): Promise<void> {
 }
 
 /**
+ * Call the local API route to delete the Firebase Auth user record.
+ * Best-effort — never throws so it can't block the cascading delete flow.
+ */
+async function deleteFirebaseAuthUser(uid: string, requesterUid: string, requesterRole?: string): Promise<void> {
+  try {
+    await fetch('/api/auth/delete-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, requesterUid, requesterRole }),
+    });
+  } catch {
+    // Non-critical — the Auth record may already be gone
+  }
+}
+
+/**
+ * Best-effort update of a cooldown timestamp on the user's document.
+ * This powers the Firestore Rules rate limiter (S3) — if the write
+ * fails, the user's next write will simply be blocked until the
+ * 60-second window expires from the previous successful write.
+ */
+async function touchCooldown(userId: string, field: string): Promise<void> {
+  const now = new Date().toISOString();
+  const url = docUrl('users', userId) + `?updateMask.fieldPaths=${field}`;
+  try {
+    await authFetch(url, {
+      method: 'PATCH',
+      body: JSON.stringify({ fields: { [field]: { stringValue: now } } }),
+    });
+  } catch {
+    // Non-critical — rules will enforce cooldown regardless
+  }
+}
+
+/**
  * Cascading delete for a user (pet owner) account.
  *
  * 1. Queries all relational documents (pets, bookings, payments, reviews, favorites)
  * 2. Deletes them all
  * 3. Recalculates provider ratings for any reviews that were removed
  * 4. Deletes the user document
- * 5. Returns summary counts
+ * 5. Deletes the Firebase Auth user record (S1/F1)
+ * 6. Returns summary counts
  */
 export async function deleteUserAccountRest(
   userId: string,
+  requesterUid?: string,
+  requesterRole?: string,
 ): Promise<{
   deletedPets: number;
   deletedBookings: number;
@@ -780,27 +994,27 @@ export async function deleteUserAccountRest(
   // 2. Delete all relational documents
   await Promise.allSettled([
     ...pets.map((p) =>
-      fetch(docUrl('pets', p.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+      authFetch(docUrl('pets', p.id), { method: 'DELETE' }).then((r) => {
         if (!r.ok) throw new Error(`Failed to delete pet ${p.id}: ${r.status}`);
       }),
     ),
     ...bookings.map((b) =>
-      fetch(docUrl('bookings', b.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+      authFetch(docUrl('bookings', b.id), { method: 'DELETE' }).then((r) => {
         if (!r.ok) throw new Error(`Failed to delete booking ${b.id}: ${r.status}`);
       }),
     ),
     ...payments.map((p) =>
-      fetch(docUrl('payments', p.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+      authFetch(docUrl('payments', p.id), { method: 'DELETE' }).then((r) => {
         if (!r.ok) throw new Error(`Failed to delete payment ${p.id}: ${r.status}`);
       }),
     ),
     ...reviews.map((rev) =>
-      fetch(docUrl('reviews', rev.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+      authFetch(docUrl('reviews', rev.id), { method: 'DELETE' }).then((r) => {
         if (!r.ok) throw new Error(`Failed to delete review ${rev.id}: ${r.status}`);
       }),
     ),
     ...favorites.map((f) =>
-      fetch(docUrl('favorites', f.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+      authFetch(docUrl('favorites', f.id), { method: 'DELETE' }).then((r) => {
         if (!r.ok) throw new Error(`Failed to delete favorite ${f.id}: ${r.status}`);
       }),
     ),
@@ -818,6 +1032,11 @@ export async function deleteUserAccountRest(
     // User doc may already be gone — proceed
   }
 
+  // 5. Delete the Firebase Auth user record (S1/F1)
+  const uid = requesterUid || userId;
+  const role = requesterRole || undefined;
+  await deleteFirebaseAuthUser(userId, uid, role);
+
   return {
     deletedPets: pets.length,
     deletedBookings: bookings.length,
@@ -831,7 +1050,7 @@ export async function deleteUserAccountRest(
 /** Delete a provider document.
  *  @param providerId — Either the numeric ID or the actual Firestore document name (string). */
 export async function deleteProviderDocRest(providerId: number | string): Promise<void> {
-  const res = await fetch(docUrl('providers', String(providerId)) + `?key=${API_KEY}`, { method: 'DELETE' });
+  const res = await authFetch(docUrl('providers', String(providerId)), { method: 'DELETE' });
   if (!res.ok) throw new Error(`Failed to delete provider: ${res.status}`);
 }
 
@@ -841,6 +1060,7 @@ export async function deleteProviderDocRest(providerId: number | string): Promis
  * 1. Queries & deletes all relational documents (bookings, payments, reviews, favorites)
  * 2. Deletes the main provider document
  * 3. Returns metadata (logoUrl, user email) so the caller can clean up storage & downgrade the user role
+ * 4. Deletes the Firebase Auth user record (S1/F1)
  *
  * Uses sequential REST DELETE calls (no SDK batch needed). Returns counts of deleted items,
  * plus the provider email and logoUrl so the UI layer can perform Storage deletion
@@ -848,6 +1068,8 @@ export async function deleteProviderDocRest(providerId: number | string): Promis
  */
 export async function deleteProviderAccountRest(
   providerId: string,
+  requesterUid?: string,
+  requesterRole?: string,
 ): Promise<{
   deletedBookings: number;
   deletedPayments: number;
@@ -882,22 +1104,22 @@ export async function deleteProviderAccountRest(
   // 2. Delete all relational documents
   await Promise.allSettled([
     ...bookings.map((b) =>
-      fetch(docUrl('bookings', b.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+      authFetch(docUrl('bookings', b.id), { method: 'DELETE' }).then((r) => {
         if (!r.ok) throw new Error(`Failed to delete booking ${b.id}: ${r.status}`);
       }),
     ),
     ...payments.map((p) =>
-      fetch(docUrl('payments', p.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+      authFetch(docUrl('payments', p.id), { method: 'DELETE' }).then((r) => {
         if (!r.ok) throw new Error(`Failed to delete payment ${p.id}: ${r.status}`);
       }),
     ),
     ...reviews.map((rev) =>
-      fetch(docUrl('reviews', rev.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((res) => {
+      authFetch(docUrl('reviews', rev.id), { method: 'DELETE' }).then((res) => {
         if (!res.ok) throw new Error(`Failed to delete review ${rev.id}: ${res.status}`);
       }),
     ),
     ...favorites.map((f) =>
-      fetch(docUrl('favorites', f.id) + `?key=${API_KEY}`, { method: 'DELETE' }).then((r) => {
+      authFetch(docUrl('favorites', f.id), { method: 'DELETE' }).then((r) => {
         if (!r.ok) throw new Error(`Failed to delete favorite ${f.id}: ${r.status}`);
       }),
     ),
@@ -922,10 +1144,17 @@ export async function deleteProviderAccountRest(
 
   // 4. Delete the main provider document
   try {
-    const res = await fetch(docUrl('providers', providerId) + `?key=${API_KEY}`, { method: 'DELETE' });
+    const res = await authFetch(docUrl('providers', providerId), { method: 'DELETE' });
     if (!res.ok && res.status !== 404) throw new Error(`Failed to delete provider: ${res.status}`);
   } catch {
     // If it's already deleted that's fine
+  }
+
+  // 5. Delete the Firebase Auth user record (S1/F1)
+  // For provider deletions, the requester must pass their own UID/role
+  // or this is a no-op (Firebase Auth deletion only works with explicit credentials).
+  if (requesterUid) {
+    await deleteFirebaseAuthUser(providerId, requesterUid, requesterRole);
   }
 
   return {
@@ -993,11 +1222,10 @@ export async function updateProviderDocRest(providerId: string, data: Record<str
     masks.push(key);
   }
   const url = docUrl('providers', String(providerId))
-    + `?key=${API_KEY}&updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`;
-  const res = await fetch(url, {
+    + `?updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`;
+  const res = await authFetch(url, {
     method: 'PATCH',
     body: JSON.stringify({ fields }),
-    headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok)
     throw new Error(`Failed to update provider: ${res.status}`);
@@ -1005,14 +1233,14 @@ export async function updateProviderDocRest(providerId: string, data: Record<str
 
 /** Fetch bookings where the provider ID matches. */
 export async function getBookingsByProviderRest(providerId: string): Promise<BookingDoc[]> {
-  return fetchWhere('bookings', 'providerId', providerId, mapBookingDoc);
+  return runQueryRest('bookings', 'providerId', providerId, mapBookingDoc);
 }
 
 /** Fetch bookings for a specific provider + date (for double-booking collision detection).
  *  Filters on both fields client-side after fetching all documents for the collection. */
 export async function getBookingsForProviderDateRest(providerId: string, date: string): Promise<BookingDoc[]> {
-  const all = await fetchCollection('bookings', () => true, mapBookingDoc);
-  return all.filter((b) => b.providerId === providerId && b.date === date);
+  const docs = await runQueryRest('bookings', 'providerId', providerId, mapBookingDoc);
+  return docs.filter((b) => b.date === date);
 }
 
 // ─── Provider document creation ─────────────────────────────────
@@ -1054,12 +1282,11 @@ export async function createProviderRest(data: {
 
   const base = docUrl('providers');
   const url = data.documentId
-    ? `${base}?documentId=${data.documentId}&key=${API_KEY}`
-    : `${base}?key=${API_KEY}`;
-  const res = await fetch(url, {
+    ? `${base}?documentId=${data.documentId}`
+    : base;
+  const res = await authFetch(url, {
     method: 'POST',
     body: JSON.stringify({ fields }),
-    headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok) throw new Error(`Failed to create provider: ${res.status}`);
   const json = await res.json();
@@ -1081,11 +1308,10 @@ export async function updateProviderByIdRest(
     masks.push(key);
   }
   const url = docUrl('providers', docId)
-    + `?key=${API_KEY}&updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`;
-  const res = await fetch(url, {
+    + `?updateMask.fieldPaths=${masks.join('&updateMask.fieldPaths=')}`;
+  const res = await authFetch(url, {
     method: 'PATCH',
     body: JSON.stringify({ fields }),
-    headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok)
     throw new Error(`Failed to update provider: ${res.status}`);

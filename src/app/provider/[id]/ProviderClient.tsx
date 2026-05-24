@@ -26,7 +26,7 @@ interface Props {
 
 export default function ProviderClient({ provider: initialProvider, reviews: initialReviews, providerId }: Props) {
   const { user, firebaseUser } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.email === 'rolandabj@gmail.com';
+  const isAdmin = user?.role === 'admin';
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -217,9 +217,9 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
         <div className="bg-white rounded-2xl p-8 sm:p-10 border border-[#F0E4D8] mb-8">
           <div className="sm:flex sm:items-start sm:gap-8">
             {/* Avatar */}
-            <div className="w-[100px] h-[100px] rounded-full bg-[#FFF8F0] border border-[#F0E4D8] flex items-center justify-center overflow-hidden mx-auto sm:mx-0 flex-shrink-0 mb-4 sm:mb-0 shadow-sm">
+            <div className="w-[100px] h-[100px] rounded-full bg-[#FFF8F0] border border-[#F0E4D8] flex items-center justify-center overflow-hidden mx-auto sm:mx-0 flex-shrink-0 mb-4 sm:mb-0 shadow-sm relative">
               {provider.logoUrl ? (
-                <img src={provider.logoUrl} alt={`${provider.name || 'Business'} Logo`} className="w-full h-full object-cover" />
+                <Image src={provider.logoUrl} alt={`${provider.name || 'Business'} Logo`} fill className="object-cover" sizes="100px" />
               ) : (
                 <div className="w-12 h-12 bg-[#FFF3E5] rounded-full flex items-center justify-center text-2xl">
                   🛍️

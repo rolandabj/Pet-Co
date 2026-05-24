@@ -4,13 +4,25 @@ import React, { useState, useEffect, Suspense, useMemo, useCallback } from 'reac
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { serviceTypes } from '@/lib/providers';
+// Static service-type catalog (moved inline from legacy providers.ts)
+const serviceTypes = [
+  { value: 'walking', label: '🐕 Dog Walking', price: 25 },
+  { value: 'vet', label: '🏥 Vet Visit', price: 60 },
+  { value: 'hotel', label: '🏨 Dog Hotel', price: 45 },
+  { value: 'sitting', label: '🛋️ Pet Sitting', price: 40 },
+  { value: 'grooming', label: '✂️ Grooming', price: 35 },
+  { value: 'shop', label: '🛍️ Pet Shop', price: 0 },
+];
 import { getAllProvidersRest, getProviderByIdRest, getUserPetsRest, addBookingRest, addPaymentRest, getBookingsForProviderDateRest, getUserByIdRest } from '@/lib/firestore-rest';
-import { ServiceProvider, ServiceItem } from '@/lib/types';
+import { ServiceProvider, ServiceItem, AppUser } from '@/lib/types';
 import Link from 'next/link';
 
-function BookingForm() {
-  const { user, firebaseUser, loading: authLoading } = useAuth();
+/**
+ * Authenticated booking form — extracted into its own component so that all
+ * React hooks (useState, useEffect, useMemo, etc.) are declared unconditionally
+ * at the top level, avoiding "Rendered fewer hooks than expected" errors (D3).
+ */
+function BookingFormAuthenticated({ user, firebaseUser }: { user: AppUser; firebaseUser: any }) {
   const { showToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,7 +79,6 @@ function BookingForm() {
 
   // Read providerId from URL, pre-fill provider, fetch their custom services, and seed pricing
   useEffect(() => {
-    if (!authLoading && !user) router.push('/login');
     const providerIdParam = searchParams.get('providerId');
     if (providerIdParam) {
       setProvider(providerIdParam);
@@ -89,7 +100,7 @@ function BookingForm() {
         }
       }).catch(console.error);
     }
-  }, [user, authLoading, router, searchParams]);
+  }, [searchParams]);
 
   const isProviderLocked = !!searchParams.get('providerId');
 
@@ -200,12 +211,7 @@ function BookingForm() {
       slots.push({ label, value });
     }
     return slots;
-  }, [providerData, date, serviceType]);
-
-  // ── Early return: auth guard (must be below all hooks) ──────────
-  if (authLoading || !user) {
-    return <div className="pt-[120px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
-  }
+  }, [providerData, serviceType]);
 
   const finalTotal = serviceFee + platformFee;
   const selectedService = availableServiceTypes.find(s => s.value === serviceType);
@@ -435,6 +441,17 @@ function BookingForm() {
       </div>
     </div>
   );
+}
+
+/** Auth guard that only renders the booking form when authenticated (D3). */
+function BookingForm() {
+  const { user, firebaseUser, loading: authLoading } = useAuth();
+
+  if (authLoading || !user) {
+    return <div className="pt-[120px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
+  }
+
+  return <BookingFormAuthenticated user={user} firebaseUser={firebaseUser} />;
 }
 
 export default function BookingPage() {

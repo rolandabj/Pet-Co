@@ -5,6 +5,7 @@ import { doc, updateDoc, onSnapshot, collection, query, where } from 'firebase/f
 import { getFirestoreDb } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/context/AuthContext';
 import {
   getProviderByEmailRest,
   updateProviderDocRest,
@@ -98,10 +99,12 @@ const CURRENCIES = [
 interface Props {
   userEmail: string;
   userId: string;
+  userRole: string;
 }
 
-export default function ProviderDashboard({ userEmail, userId }: Props) {
+export default function ProviderDashboard({ userEmail, userId, userRole }: Props) {
   const { showToast } = useToast();
+  const { user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState<ProviderTab>('overview');
 
   // ── Provider data ──────────────────────────────────────────────
@@ -247,6 +250,8 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
 
   // ── Real-time bookings listener ──────────────────────────────────
   useEffect(() => {
+    // Guard: tear down immediately if the user is no longer authenticated (D5)
+    if (!userId || !authUser) return;
     setBookingsLoading(true);
     const db = getFirestoreDb();
     if (!db) {
@@ -270,7 +275,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       },
     );
     return () => unsub();
-  }, [userId]);
+  }, [userId, authUser]);
 
   // ── Fetch live user profiles for phone number cross-reference ──
   useEffect(() => {
@@ -608,7 +613,7 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
     setDeletingAccount(true);
     try {
       // 1. Cascading delete: relational docs + provider doc
-      const result = await deleteProviderAccountRest(targetDocId);
+      const result = await deleteProviderAccountRest(targetDocId, userId, userRole);
 
       // 2. Delete provider logo from Firebase Storage if it exists
       const logoUrl = result.logoUrl || provider?.logoUrl;
@@ -946,20 +951,22 @@ export default function ProviderDashboard({ userEmail, userId }: Props) {
       {/* ── Desktop Sidebar ── */}
       <aside className="hidden md:block w-[220px] shrink-0">
         <div className="sticky top-[100px] space-y-1">
-          {tabConfig.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left transition-all ${
-                activeTab === t.key
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'text-gray-500 hover:bg-[#FFF0E0] hover:text-primary'
-              }`}
-            >
-              <span className="text-lg leading-none">{t.icon}</span>
-              {t.label}
-            </button>
-          ))}
+          {tabConfig.map((t) => {
+            return (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left transition-all ${
+                  activeTab === t.key
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-gray-500 hover:bg-[#FFF0E0] hover:text-primary'
+                }`}
+              >
+                <span className="text-lg leading-none">{t.icon}</span>
+                {t.label}
+              </button>
+            );
+          })}
         </div>
       </aside>
 

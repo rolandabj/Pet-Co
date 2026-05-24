@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ServiceProvider } from '@/lib/types';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const filterTypes = [
   { value: 'all', label: 'All', href: '/services' },
@@ -105,9 +106,9 @@ export default function ServicesClient({ providers, activeFilter, loadError, dbE
                 href={`/provider/${p.id}`}
                 className="bg-white rounded-2xl p-7 border border-[#F0E4D8] hover:shadow-lg hover:-translate-y-1 transition-all flex gap-5"
               >
-                <div className="w-14 h-14 rounded-full bg-[#FFF8F0] border border-[#F0E4D8]/60 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="w-14 h-14 rounded-full bg-[#FFF8F0] border border-[#F0E4D8]/60 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                   {p.logoUrl ? (
-                    <img src={p.logoUrl} alt={`${p.name || 'Provider'} Logo`} className="w-full h-full object-cover" />
+                    <Image src={p.logoUrl} alt={`${p.name || 'Provider'} Logo`} fill className="object-cover" sizes="56px" />
                   ) : (
                     <div className="w-10 h-10 bg-[#FFF3E5] rounded-full flex items-center justify-center text-lg">
                       🛍️

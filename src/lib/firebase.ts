@@ -1,5 +1,12 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
+import {
+  getAuth,
+  Auth,
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile as firebaseUpdateProfile,
+} from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
@@ -76,7 +83,14 @@ export function getStorageDb(): FirebaseStorage | null {
   return getStorage(firebaseApp);
 }
 
-// 4. Export Auth Providers safely
+// 4. Re-export Firebase Auth helpers for email/password (F3)
+export {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  firebaseUpdateProfile as updateFirebaseProfile,
+};
+
+// 5. Export Auth Providers safely
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
