@@ -35,7 +35,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const { user, firebaseUser, loading, updateProfile } = useAuth();
+  const { user, firebaseUser, loading, isInitialized, updateProfile } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -65,7 +65,7 @@ export default function DashboardPage() {
 
   // ── Real-time bookings listener ──────────────────────────────────
   useEffect(() => {
-    if (loading || !user) return;
+    if (!isInitialized || loading || !user) return;
     const uid = firebaseUser?.uid || user.id;
     setBookingsLoading(true);
     const db = getFirestoreDb();
@@ -90,7 +90,7 @@ export default function DashboardPage() {
       },
     );
     return () => unsub();
-  }, [user, firebaseUser, loading]);
+  }, [user, firebaseUser, loading, isInitialized]);
 
   const fetchFavorites = useCallback(async () => {
     if (!user || user.role === 'provider') return;
@@ -176,18 +176,18 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!isInitialized) return;
+    if (!user) {
       router.push('/login');
+      return;
     }
-    if (user) {
-      setProfileName(user.name || '');
-      setProfilePhone(user.phone || '');
-      setProfileLocation(user.location || '');
-    }
-  }, [user, loading, router]);
+    setProfileName(user.name || '');
+    setProfilePhone(user.phone || '');
+    setProfileLocation(user.location || '');
+  }, [user, isInitialized, router]);
 
   useEffect(() => {
-    if (loading || !user) return;
+    if (!isInitialized || loading || !user) return;
     if (user.role === 'provider') {
       // Providers only need their payments and the full provider listing
       fetchPayments();
@@ -199,7 +199,7 @@ export default function DashboardPage() {
     fetchPayments();
     fetchPets();
     fetchProviders();
-  }, [user, loading, fetchFavorites, fetchReviews, fetchPayments, fetchPets, fetchProviders]);
+  }, [user, loading, isInitialized, fetchFavorites, fetchReviews, fetchPayments, fetchPets, fetchProviders]);
 
   if (loading || !user) {
     return (

@@ -28,6 +28,7 @@ function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> 
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
+  isInitialized: boolean;
   firebaseUser: FirebaseUser | null;
   login: (email: string, password: string) => Promise<{ user?: AppUser; error?: string }>;
   register: (email: string, password: string, name: string, role: UserRole) => Promise<{ user?: AppUser; error?: string }>;
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Listen for Firebase auth state changes (persists across page reloads)
   useEffect(() => {
@@ -100,10 +102,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { auth } = getFirebaseAuth();
       if (!auth) {
+        setIsInitialized(true);
         setLoading(false);
         return;
       }
       unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+        // Mark initialization complete as soon as Firebase Auth reports
+        // the user's identity — even before the Firestore doc fetch below.
+        // This lets downstream components (e.g. Dashboard) safely dispatch
+        // network requests with a valid token.
+        setIsInitialized(true);
         if (fbUser) {
           setFirebaseUser(fbUser);
           // Determine the auth method from Firebase provider data (F3)
@@ -131,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch {
       // Firebase not configured — fall back to local auth
+      setIsInitialized(true);
       const local = localAuth.getCurrentUser();
       if (local) setUser(local);
       setLoading(false);
@@ -497,7 +506,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, firebaseUser, login, register, googleLogin, logout, updateProfile, requireAuth }}>
+    <AuthContext.Provider value={{ user, loading, isInitialized, firebaseUser, login, register, googleLogin, logout, updateProfile, requireAuth }}>
       {children}
     </AuthContext.Provider>
   );
