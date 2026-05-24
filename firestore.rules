@@ -81,14 +81,20 @@ service cloud.firestore {
 
     // 6. Pets
     match /pets/{petId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      // Allow read if the user owns the doc OR the user is an Admin
+      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      // Allow create/update for self, allow delete for self or admin
+      allow create, update: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null && (request.auth.uid == resource.data.userId || isAdmin());
     }
 
     // 7. Favorites
     match /favorites/{favoriteId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      // Allow read if the user owns the doc OR the user is an Admin
+      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      // Allow create/update for self, allow delete for self or admin
+      allow create, update: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null && (request.auth.uid == resource.data.userId || isAdmin());
     }
 
     // 8. Contact Messages
