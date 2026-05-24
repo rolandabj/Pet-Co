@@ -145,10 +145,10 @@ async function runQueryRest<T>(
         continue;
       }
 
-      // Non-403 failure or second 403 — log and break to fallback
+      // Non-403 failure or second 403 — log as warn (REST is fallback; SDK is primary)
       if (!res.ok) {
         const body = await res.text().catch(() => '(no body)');
-        console.error(`🐛 runQueryRest HTTP ${res.status} for ${collectionId}:`, body);
+        console.warn(`🐛 runQueryRest HTTP ${res.status} for ${collectionId}; falling back:`, body);
       }
       break;
     }
@@ -188,6 +188,51 @@ async function runQuerySdk<T>(
   } catch {
     return runQueryLocal(collectionId, value, mapFn);
   }
+}
+
+/**
+ * SDK-first owned-query helper.
+ * Fetches user-scoped documents via the Firebase SDK with a strict
+ * userId == request.auth.uid check, so Firestore security rules see
+ * an authenticated list/get request that passes ownsExistingDoc().
+ */
+async function runOwnedQuerySdk<T>(
+  collectionId: string,
+  userId: string,
+  mapFn: (id: string, data: any) => T,
+): Promise<T[]> {
+  const db = getFirestoreDb();
+  const { auth } = getFirebaseAuth();
+
+  if (!db) {
+    throw new Error(`Firestore SDK unavailable for ${collectionId}`);
+  }
+
+  if (!auth?.currentUser) {
+    throw new Error(`No Firebase currentUser for ${collectionId} read`);
+  }
+
+  const firebaseUid = auth.currentUser.uid;
+
+  console.log('🐛 SDK OWNED QUERY DEBUG', {
+    collectionId,
+    userId,
+    firebaseUid,
+    email: auth.currentUser.email,
+    sameUser: userId === firebaseUid,
+  });
+
+  if (userId !== firebaseUid) {
+    throw new Error(
+      `UID mismatch for ${collectionId}: query userId=${userId}, firebaseUid=${firebaseUid}`,
+    );
+  }
+
+  const snap = await getDocs(
+    query(collection(db, collectionId), where('userId', '==', userId)),
+  );
+
+  return snap.docs.map((docSnap) => mapFn(docSnap.id, docSnap.data()));
 }
 
 // ─── LocalStorage fallback ──────────────────────────────────────────
@@ -630,64 +675,64 @@ function mapFavoriteDoc(doc: { id: string; data: Record<string, any> }): Favorit
   };
 }
 
+/** Plain-data mapper for SDK reads (doc.data() returns plain object). */
+function mapFavoriteDocFromPlainData(id: string, data: any): FavoriteDoc {
+  return {
+    id,
+    userId: data.userId ?? '',
+    providerId: data.providerId ?? '',
+    providerName: data.providerName ?? '',
+    category: data.category ?? '',
+    emoji: data.emoji ?? '',
+    rating: data.rating ?? 0,
+    createdAt: data.createdAt ?? undefined,
+  };
+}
+
 export async function getUserFavoritesRest(userId: string): Promise<FavoriteDoc[]> {
   console.log('🐛 [firestore-rest] getUserFavoritesRest called with userId:', userId);
 
-  // Priority: Firebase SDK → REST → localStorage
+  // Priority: Firebase SDK → REST
   try {
-    const { auth } = getFirebaseAuth();
-    if (!auth?.currentUser) {
-      console.warn('getUserFavoritesRest: No Firebase currentUser — cannot authenticate SDK query');
-      throw new Error('No Firebase user');
-    }
-
-    const db = getFirestoreDb();
-    if (!db) {
-      console.warn('getUserFavoritesRest: getFirestoreDb returned null');
-      throw new Error('No Firestore DB');
-    }
-
-    // Verify the userId matches the authenticated user
-    if (auth.currentUser.uid !== userId) {
-      console.error('🐛 USERID MISMATCH: auth.currentUser.uid !== userId', {
-        authUid: auth.currentUser.uid,
-        requestedUid: userId,
-        authEmail: auth.currentUser.email,
-      });
-      // Still proceed with the requested userId for the query
-    }
-
-    console.log('🐛 SDK query favorites WHERE userId ==', userId);
-    console.log('🐛 SDK currentUser:', { uid: auth.currentUser.uid, email: auth.currentUser.email });
-
-    const q = query(collection(db, 'favorites'), where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-
-    const results = snapshot.docs.map((d) => mapFavoriteDoc({ id: d.id, data: d.data() }));
+    const results = await runOwnedQuerySdk('favorites', userId, mapFavoriteDocFromPlainData);
     console.log('🐛 SDK favorites result count:', results.length);
     return results;
   } catch (sdkErr) {
-    console.warn('🐛 SDK favorites query failed, falling back to REST:', sdkErr);
-    // Fall through to REST
+    console.warn('🐛 SDK favorites read failed, falling back to REST:', sdkErr);
   }
 
   // REST fallback
   try {
-    const { auth } = getFirebaseAuth();
-    console.log('🐛 REST Firebase currentUser:', {
-      uid: auth?.currentUser?.uid,
-      email: auth?.currentUser?.email,
-    });
     const list = await runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
     console.log('🐛 REST favorites result count:', list.length);
     return list;
   } catch (restErr) {
-    console.error('🐛 REST favorites query also failed:', restErr);
+    console.warn('🐛 REST favorites query also failed:', restErr);
     return [];
   }
 }
 
 export async function findFavoriteIdRest(userId: string, providerId: string): Promise<string | null> {
+  // SDK-first: try compound query (userId + providerId)
+  try {
+    const db = getFirestoreDb();
+    const { auth } = getFirebaseAuth();
+    if (db && auth?.currentUser && auth.currentUser.uid === userId) {
+      const q = query(
+        collection(db, 'favorites'),
+        where('userId', '==', userId),
+        where('providerId', '==', providerId),
+      );
+      const snap = await getDocs(q);
+      const match = snap.docs[0];
+      if (match) return match.id;
+      return null;
+    }
+  } catch {
+    console.warn('SDK compound query failed for findFavoriteIdRest, falling back');
+  }
+
+  // Fallback: query by userId only and filter client-side
   const docs = await runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
   const match = docs.find((d) => d.providerId === providerId || d.providerId == providerId);
   return match?.id ?? null;
@@ -1022,58 +1067,38 @@ function mapPetDoc(doc: { id: string; data: Record<string, any> }): PetDoc {
   };
 }
 
+/** Plain-data mapper for SDK reads (doc.data() returns plain object). */
+function mapPetDocFromPlainData(id: string, data: any): PetDoc {
+  return {
+    id,
+    userId: data.userId ?? '',
+    name: data.name ?? '',
+    type: data.type ?? '',
+    breed: data.breed ?? '',
+    age: data.age ?? '',
+    notes: data.notes ?? '',
+  };
+}
+
 export async function getUserPetsRest(userId: string): Promise<PetDoc[]> {
   console.log('🐛 [firestore-rest] getUserPetsRest called with userId:', userId);
 
-  // Priority: Firebase SDK → REST → localStorage
+  // Priority: Firebase SDK → REST
   try {
-    const { auth } = getFirebaseAuth();
-    if (!auth?.currentUser) {
-      console.warn('getUserPetsRest: No Firebase currentUser — cannot authenticate SDK query');
-      throw new Error('No Firebase user');
-    }
-
-    const db = getFirestoreDb();
-    if (!db) {
-      console.warn('getUserPetsRest: getFirestoreDb returned null');
-      throw new Error('No Firestore DB');
-    }
-
-    // Verify the userId matches the authenticated user
-    if (auth.currentUser.uid !== userId) {
-      console.error('🐛 USERID MISMATCH: auth.currentUser.uid !== userId', {
-        authUid: auth.currentUser.uid,
-        requestedUid: userId,
-        authEmail: auth.currentUser.email,
-      });
-    }
-
-    console.log('🐛 SDK query pets WHERE userId ==', userId);
-    console.log('🐛 SDK currentUser:', { uid: auth.currentUser.uid, email: auth.currentUser.email });
-
-    const q = query(collection(db, 'pets'), where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-
-    const results = snapshot.docs.map((d) => mapPetDoc({ id: d.id, data: d.data() }));
+    const results = await runOwnedQuerySdk('pets', userId, mapPetDocFromPlainData);
     console.log('🐛 SDK pets result count:', results.length);
     return results;
   } catch (sdkErr) {
-    console.warn('🐛 SDK pets query failed, falling back to REST:', sdkErr);
-    // Fall through to REST
+    console.warn('🐛 SDK pets read failed, falling back to REST:', sdkErr);
   }
 
   // REST fallback
   try {
-    const { auth } = getFirebaseAuth();
-    console.log('🐛 REST Firebase currentUser:', {
-      uid: auth?.currentUser?.uid,
-      email: auth?.currentUser?.email,
-    });
     const list = await runQueryRest('pets', 'userId', userId, mapPetDoc);
     console.log('🐛 REST pets result count:', list.length);
     return list;
   } catch (restErr) {
-    console.error('🐛 REST pets query also failed:', restErr);
+    console.warn('🐛 REST pets query also failed:', restErr);
     return [];
   }
 }

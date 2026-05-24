@@ -1,113 +1,110 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ==========================================
-    // GLOBAL HELPERS
-    // ==========================================
-    
-    function isAuthenticated() {
+    // ─── Helper Functions ──────────────────────────────────────
+
+    function signedIn() {
       return request.auth != null;
     }
-    
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-    
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function ownsExistingDoc() {
+      return signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    function ownsNewDoc() {
+      return signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-    
-    // Strict role-based admin check (S4)
-    function isAdmin() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && getUserData().role == 'admin';
-    }
 
     // ── Rate limiting helpers (S3) ───────────────────────────────
-    // Returns true if at least 60 seconds have elapsed since `field`
-    // was last set on the user document (or the field doesn't exist).
     function cooldownElapsed(field) {
       return !exists(/databases/$(database)/documents/users/$(request.auth.uid))
         || !(field in get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
         || request.time - get(/databases/$(database)/documents/users/$(request.auth.uid)).data[field] > duration.value(60, 's');
     }
 
-    // ==========================================
-    // COLLECTION RULES
-    // ==========================================
-
-    // 1. Users
+    // ─── 1. Users ──────────────────────────────────────────────
     match /users/{userId} {
       allow read, update, delete: if isOwner(userId) || isAdmin();
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if signedIn() && request.auth.uid == userId;
     }
 
-    // 2. Providers
+    // ─── 2. Providers ──────────────────────────────────────────
     match /providers/{providerId} {
-      allow read: if true; // Public discovery
-      allow create: if isAuthenticated() && (request.auth.uid == providerId || getUserData().role == 'provider' || isAdmin());
-      allow update: if isAdmin() || (isAuthenticated() && (request.auth.uid == providerId || resource.data.email == request.auth.token.email));
-      allow delete: if isAdmin(); // Cascading delete handled via admin context or REST service
+      allow read: if true;
+      allow create: if signedIn() && (request.auth.uid == providerId || getUserData().role == 'provider' || isAdmin());
+      allow update: if isAdmin() || (signedIn() && (request.auth.uid == providerId || resource.data.email == request.auth.token.email));
+      allow delete: if isAdmin();
     }
 
-    // 3. Bookings (S3: rate-limited — max 1 per 60 seconds per user)
+    // ─── 3. Bookings ───────────────────────────────────────────
     match /bookings/{bookingId} {
-      allow read: if isAdmin() || (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.providerId == request.auth.uid));
-      allow create: if isAuthenticated() && cooldownElapsed('lastBookingAt');
-      allow update: if isAdmin() || (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.providerId == request.auth.uid));
-      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin() || (signedIn() && (resource.data.userId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow create: if signedIn() && cooldownElapsed('lastBookingAt');
+      allow update: if isAdmin() || (signedIn() && (resource.data.userId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
     }
 
-    // 4. Payments (Ledger security)
+    // ─── 4. Payments ───────────────────────────────────────────
     match /payments/{paymentId} {
-      allow read: if isAdmin() || (isAuthenticated() && (resource.data.customerId == request.auth.uid || resource.data.providerId == request.auth.uid));
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin(); // Prevent tampering with history
+      allow read: if isAdmin() || (signedIn() && (resource.data.customerId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
     }
 
-    // 5. Reviews (Resolves S2; S3: rate-limited — max 1 per 60 seconds per user)
+    // ─── 5. Reviews ────────────────────────────────────────────
     match /reviews/{reviewId} {
-      allow read: if true; // Public testimonials
-      // S2 Mitigation: Databases strictly blocks service providers from writing reviews
-      // S3: Cooldown prevents spam
-      allow create: if isAuthenticated()
+      allow read: if true;
+      allow create: if signedIn()
         && getUserData().role != 'provider'
         && request.resource.data.userId == request.auth.uid
         && cooldownElapsed('lastReviewAt');
-      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
     }
 
-    // 6. Pets
+    // ─── 6. Pets ───────────────────────────────────────────────
     match /pets/{petId} {
-      // Strict ownership: only the owning user (or admin) can read
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
-
-      allow read, update, delete: if request.auth != null
-        && (
-          resource.data.userId == request.auth.uid
-          || isAdmin()
+      allow create: if ownsNewDoc() || isAdmin();
+      allow get, list: if ownsExistingDoc() || isAdmin();
+      allow update: if isAdmin()
+        || (
+          ownsExistingDoc()
+          && request.resource.data.userId == request.auth.uid
         );
+      allow delete: if ownsExistingDoc() || isAdmin();
     }
 
-    // 7. Favorites
+    // ─── 7. Favorites ──────────────────────────────────────────
     match /favorites/{favoriteId} {
-      // Strict ownership: only the owning user (or admin) can read
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
-
-      allow read, update, delete: if request.auth != null
-        && (
-          resource.data.userId == request.auth.uid
-          || isAdmin()
+      allow create: if ownsNewDoc() || isAdmin();
+      allow get, list: if ownsExistingDoc() || isAdmin();
+      allow update: if isAdmin()
+        || (
+          ownsExistingDoc()
+          && request.resource.data.userId == request.auth.uid
         );
+      allow delete: if ownsExistingDoc() || isAdmin();
     }
 
-    // 8. Contact Messages
+    // ─── 8. Contact Messages ───────────────────────────────────
     match /messages/{messageId} {
-      allow create: if true; // Open contact form endpoint (uses SDK addDoc)
+      allow create: if true;
       allow read, update, delete: if isAdmin();
     }
   }
