@@ -1,3 +1,6 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
@@ -6,15 +9,8 @@ export async function GET(request: Request) {
   try {
     const decoded = await requireFirebaseUser(request);
 
-    const adminDb = getAdminDb();
-    if (!adminDb) {
-      return NextResponse.json(
-        { error: 'Firestore Admin is not initialized' },
-        { status: 500 },
-      );
-    }
-
-    const snap = await adminDb
+    const db = getAdminDb();
+    const snap = await db
       .collection('pets')
       .where('userId', '==', decoded.uid)
       .get();
@@ -25,17 +21,17 @@ export async function GET(request: Request) {
     }));
 
     return NextResponse.json({ pets });
-  } catch (error) {
-    console.error('GET /api/me/pets failed', {
-      message: (error as any)?.message,
-      code: (error as any)?.code,
-      stack: (error as any)?.stack,
+  } catch (error: any) {
+    console.error('API route failed', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
     });
     return NextResponse.json(
       {
-        error: 'Failed to fetch pets',
-        message: (error as any)?.message,
-        code: (error as any)?.code,
+        error: 'Unauthorized or API failure',
+        message: error?.message,
+        code: error?.code,
       },
       { status: 401 },
     );
@@ -47,14 +43,7 @@ export async function POST(request: Request) {
     const decoded = await requireFirebaseUser(request);
     const body = await request.json();
 
-    const adminDb = getAdminDb();
-    if (!adminDb) {
-      return NextResponse.json(
-        { error: 'Firestore Admin is not initialized' },
-        { status: 500 },
-      );
-    }
-
+    const db = getAdminDb();
     const pet = {
       name: body.name,
       type: body.type,
@@ -65,7 +54,7 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     };
 
-    const ref = await adminDb.collection('pets').add(pet);
+    const ref = await db.collection('pets').add(pet);
 
     return NextResponse.json({
       pet: {
@@ -73,17 +62,17 @@ export async function POST(request: Request) {
         ...pet,
       },
     });
-  } catch (error) {
-    console.error('POST /api/me/pets failed', {
-      message: (error as any)?.message,
-      code: (error as any)?.code,
-      stack: (error as any)?.stack,
+  } catch (error: any) {
+    console.error('API route failed', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
     });
     return NextResponse.json(
       {
-        error: 'Failed to add pet',
-        message: (error as any)?.message,
-        code: (error as any)?.code,
+        error: 'Unauthorized or API failure',
+        message: error?.message,
+        code: error?.code,
       },
       { status: 401 },
     );

@@ -38,7 +38,13 @@ export async function fetchMyPets() {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch pets: ${res.status}`);
+    const text = await res.text().catch(() => '');
+    console.error('🐛 API ERROR BODY', {
+      url: res.url,
+      status: res.status,
+      text,
+    });
+    throw new Error(`API failed ${res.status}: ${text}`);
   }
 
   const data = await res.json();
@@ -59,7 +65,13 @@ export async function addMyPet(pet: {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to add pet: ${res.status}`);
+    const text = await res.text().catch(() => '');
+    console.error('🐛 API ERROR BODY', {
+      url: res.url,
+      status: res.status,
+      text,
+    });
+    throw new Error(`API failed ${res.status}: ${text}`);
   }
 
   const data = await res.json();
@@ -79,7 +91,13 @@ export async function fetchMyFavorites(providerId?: string) {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch favorites: ${res.status}`);
+    const text = await res.text().catch(() => '');
+    console.error('🐛 API ERROR BODY', {
+      url: res.url,
+      status: res.status,
+      text,
+    });
+    throw new Error(`API failed ${res.status}: ${text}`);
   }
 
   const data = await res.json();
@@ -100,7 +118,13 @@ export async function addMyFavorite(favorite: {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to add favorite: ${res.status}`);
+    const text = await res.text().catch(() => '');
+    console.error('🐛 API ERROR BODY', {
+      url: res.url,
+      status: res.status,
+      text,
+    });
+    throw new Error(`API failed ${res.status}: ${text}`);
   }
 
   const data = await res.json();
@@ -117,7 +141,13 @@ export async function removeMyFavoriteByProvider(providerId: string) {
   );
 
   if (!res.ok) {
-    throw new Error(`Failed to remove favorite: ${res.status}`);
+    const text = await res.text().catch(() => '');
+    console.error('🐛 API ERROR BODY', {
+      url: res.url,
+      status: res.status,
+      text,
+    });
+    throw new Error(`API failed ${res.status}: ${text}`);
   }
 
   return true;

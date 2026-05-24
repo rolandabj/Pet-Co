@@ -3,93 +3,62 @@
  *
  * Server-only module — never import this from client components.
  * Uses service-account credentials via environment variables.
+ *
+ * Lazily initialised so that module-level imports don't throw during
+ * build time when env vars are absent (e.g. `next build` collecting
+ * page data for static pages that happen to import this module).
  */
-import type { ServiceAccount } from 'firebase-admin';
-import type { App } from 'firebase-admin/app';
-import type { Auth } from 'firebase-admin/auth';
-import type { Firestore } from 'firebase-admin/firestore';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
-// Lazy imports so this module can be required without throwing when
-// the Admin SDK is not installed (e.g. in test environments).
-let cachedApp: App | null = null;
-let cachedAuth: Auth | null = null;
-let cachedDb: Firestore | null = null;
+let cachedAuth: ReturnType<typeof getAuth> | null = null;
+let cachedDb: ReturnType<typeof getFirestore> | null = null;
 
-function getCredentials(): ServiceAccount | null {
+function ensureInitialized() {
+  if (cachedAuth) return;
+
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const privateKey = rawPrivateKey?.replace(/\\n/g, '\n');
+
+  console.log('🐛 FIREBASE ADMIN ENV DEBUG', {
+    hasProjectId: Boolean(projectId),
+    projectId,
+    hasClientEmail: Boolean(clientEmail),
+    clientEmail,
+    hasPrivateKey: Boolean(rawPrivateKey),
+    privateKeyStartsCorrectly: rawPrivateKey?.includes('BEGIN PRIVATE KEY'),
+  });
 
   if (!projectId || !clientEmail || !privateKey) {
-    return null;
+    throw new Error('Missing Firebase Admin environment variables');
   }
 
-  return {
-    projectId,
-    clientEmail,
-    // Private keys from env vars often arrive with literal \n sequences
-    // that need to be converted to actual newlines.
-    privateKey: privateKey.replace(/\\n/g, '\n'),
-  };
+  const app =
+    getApps().length > 0
+      ? getApps()[0]
+      : initializeApp({
+          credential: cert({
+            projectId,
+            clientEmail,
+            privateKey,
+          }),
+        });
+
+  cachedAuth = getAuth(app);
+  cachedDb = getFirestore(app);
 }
 
-/**
- * Get or initialise the Firebase Admin app.
- * Returns null when credentials are missing (safe to call before they are set).
- */
-export function getAdminApp() {
-  if (cachedApp) return cachedApp;
-
-  const credentials = getCredentials();
-  if (!credentials) return null;
-
-  // Dynamic import keeps the module from crashing at module-graph time
-  // when firebase-admin is absent.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const admin = require('firebase-admin');
-
-  if (admin.apps.length === 0) {
-    cachedApp = admin.initializeApp({ credential: admin.credential.cert(credentials) });
-  } else {
-    cachedApp = admin.app();
-  }
-  return cachedApp;
-}
-
-/**
- * Get the Firebase Admin Auth instance.
- * Returns null when credentials are missing.
- */
+/** Get the Firebase Admin Auth instance (lazily initialised). */
 export function getAdminAuth() {
-  if (cachedAuth) return cachedAuth;
-
-  const app = getAdminApp();
-  if (!app) {
-    cachedAuth = null;
-    return null;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const admin = require('firebase-admin');
-  cachedAuth = admin.auth();
-  return cachedAuth;
+  ensureInitialized();
+  return cachedAuth!;
 }
 
-/**
- * Get the Firebase Admin Firestore instance.
- * Returns null when credentials are missing.
- */
+/** Get the Firebase Admin Firestore instance (lazily initialised). */
 export function getAdminDb() {
-  if (cachedDb) return cachedDb;
-
-  const app = getAdminApp();
-  if (!app) {
-    cachedDb = null;
-    return null;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const admin = require('firebase-admin');
-  cachedDb = admin.firestore();
-  return cachedDb;
+  ensureInitialized();
+  return cachedDb!;
 }

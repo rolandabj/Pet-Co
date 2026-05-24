@@ -1,3 +1,6 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
@@ -8,15 +11,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const providerId = searchParams.get('providerId');
 
-    const adminDb = getAdminDb();
-    if (!adminDb) {
-      return NextResponse.json(
-        { error: 'Firestore Admin is not initialized' },
-        { status: 500 },
-      );
-    }
-
-    const snap = await adminDb
+    const db = getAdminDb();
+    const snap = await db
       .collection('favorites')
       .where('userId', '==', decoded.uid)
       .get();
@@ -31,17 +27,17 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ favorites });
-  } catch (error) {
-    console.error('GET /api/me/favorites failed', {
-      message: (error as any)?.message,
-      code: (error as any)?.code,
-      stack: (error as any)?.stack,
+  } catch (error: any) {
+    console.error('API route failed', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
     });
     return NextResponse.json(
       {
-        error: 'Failed to fetch favorites',
-        message: (error as any)?.message,
-        code: (error as any)?.code,
+        error: 'Unauthorized or API failure',
+        message: error?.message,
+        code: error?.code,
       },
       { status: 401 },
     );
@@ -53,16 +49,10 @@ export async function POST(request: Request) {
     const decoded = await requireFirebaseUser(request);
     const body = await request.json();
 
-    const adminDb = getAdminDb();
-    if (!adminDb) {
-      return NextResponse.json(
-        { error: 'Firestore Admin is not initialized' },
-        { status: 500 },
-      );
-    }
+    const db = getAdminDb();
 
     // Check if already favorited
-    const existingSnap = await adminDb
+    const existingSnap = await db
       .collection('favorites')
       .where('userId', '==', decoded.uid)
       .where('providerId', '==', body.providerId)
@@ -88,7 +78,7 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     };
 
-    const ref = await adminDb.collection('favorites').add(favorite);
+    const ref = await db.collection('favorites').add(favorite);
 
     return NextResponse.json({
       favorite: {
@@ -96,17 +86,17 @@ export async function POST(request: Request) {
         ...favorite,
       },
     });
-  } catch (error) {
-    console.error('POST /api/me/favorites failed', {
-      message: (error as any)?.message,
-      code: (error as any)?.code,
-      stack: (error as any)?.stack,
+  } catch (error: any) {
+    console.error('API route failed', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
     });
     return NextResponse.json(
       {
-        error: 'Failed to add favorite',
-        message: (error as any)?.message,
-        code: (error as any)?.code,
+        error: 'Unauthorized or API failure',
+        message: error?.message,
+        code: error?.code,
       },
       { status: 401 },
     );
@@ -120,16 +110,10 @@ export async function DELETE(request: Request) {
     const providerId = searchParams.get('providerId');
     const favoriteId = searchParams.get('favoriteId');
 
-    const adminDb = getAdminDb();
-    if (!adminDb) {
-      return NextResponse.json(
-        { error: 'Firestore Admin is not initialized' },
-        { status: 500 },
-      );
-    }
+    const db = getAdminDb();
 
     if (favoriteId) {
-      const ref = adminDb.collection('favorites').doc(favoriteId);
+      const ref = db.collection('favorites').doc(favoriteId);
       const doc = await ref.get();
 
       if (!doc.exists || doc.data()?.userId !== decoded.uid) {
@@ -150,7 +134,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const snap = await adminDb
+    const snap = await db
       .collection('favorites')
       .where('userId', '==', decoded.uid)
       .where('providerId', '==', providerId)
@@ -159,17 +143,17 @@ export async function DELETE(request: Request) {
     await Promise.all(snap.docs.map((doc) => doc.ref.delete()));
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('DELETE /api/me/favorites failed', {
-      message: (error as any)?.message,
-      code: (error as any)?.code,
-      stack: (error as any)?.stack,
+  } catch (error: any) {
+    console.error('API route failed', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
     });
     return NextResponse.json(
       {
-        error: 'Failed to remove favorite',
-        message: (error as any)?.message,
-        code: (error as any)?.code,
+        error: 'Unauthorized or API failure',
+        message: error?.message,
+        code: error?.code,
       },
       { status: 401 },
     );

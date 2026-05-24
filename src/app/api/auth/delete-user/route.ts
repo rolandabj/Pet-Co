@@ -42,15 +42,8 @@ async function handleDeleteUser(req: NextRequest) {
     }
 
     // --- Perform the deletion via Admin SDK ---
-    const auth = getAdminAuth();
-    if (!auth) {
-      return NextResponse.json(
-        { error: 'Firebase Admin SDK is not configured. Add FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY to your environment.' },
-        { status: 500 },
-      );
-    }
-
-    await auth.deleteUser(uid);
+    const adminAuth = getAdminAuth();
+    await adminAuth.deleteUser(uid);
 
     return NextResponse.json({ success: true, uid });
   } catch (err: unknown) {
