@@ -26,7 +26,7 @@ interface Props {
 
 export default function ProviderClient({ provider: initialProvider, reviews: initialReviews, providerId }: Props) {
   const { user, firebaseUser } = useAuth();
-  const isAdmin = user?.email === 'rolandabj@gmail.com';
+  const isAdmin = user?.role === 'admin' || user?.email === 'rolandabj@gmail.com';
   const { showToast } = useToast();
   const router = useRouter();
 
