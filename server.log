@@ -8,3 +8,87 @@
 [browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
 [browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
  GET /dashboard 200 in 51ms (next.js: 3ms, application-code: 48ms)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+ GET / 200 in 70ms (next.js: 22ms, application-code: 48ms)
+ GET /login 200 in 41ms (next.js: 20ms, application-code: 21ms)
+ GET /dashboard 200 in 48ms (next.js: 3ms, application-code: 45ms)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+ GET /services 200 in 170ms (next.js: 19ms, application-code: 151ms)
+ GET /provider/wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 496ms (next.js: 396ms, application-code: 100ms)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+ GET /dashboard 200 in 29ms (next.js: 2ms, application-code: 27ms)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+ GET /services 200 in 156ms (next.js: 4ms, application-code: 152ms)
+ GET /services 200 in 150ms (next.js: 3ms, application-code: 147ms)
+✓ Compiled in 88ms
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] Failed to fetch favorites: TypeError: Failed to fetch
+    at s.fetch (chrome-extension://eppiocemhmnlbhjplcgkofciiegomcon/libs/requests.js:1:3798)
+    at authFetch (src/lib/firestore-rest.ts:39:10)
+    at async runQueryRest (src/lib/firestore-rest.ts:55:15)
+    at async DashboardPage.useCallback[fetchFavorites] (src/app/dashboard/page.tsx:100:20)
+  37 |   const headers = await getAuthHeaders();
+  38 |   const separator = url.includes('?') ? '&' : '?';
+> 39 |   return fetch(`${url}${separator}key=${API_KEY}`, { ...options, headers: { ...headers, .....
+     |          ^
+  40 | }
+  41 |
+  42 | // ─── Structured query helper (F4: server-side filter) ──────────── (src/app/dashboard/page.tsx:103:15)
+[browser] Failed to fetch pets: TypeError: Failed to fetch
+    at s.fetch (chrome-extension://eppiocemhmnlbhjplcgkofciiegomcon/libs/requests.js:1:3798)
+    at authFetch (src/lib/firestore-rest.ts:39:10)
+    at async runQueryRest (src/lib/firestore-rest.ts:55:15)
+    at async DashboardPage.useCallback[fetchPets] (src/app/dashboard/page.tsx:143:20)
+  37 |   const headers = await getAuthHeaders();
+  38 |   const separator = url.includes('?') ? '&' : '?';
+> 39 |   return fetch(`${url}${separator}key=${API_KEY}`, { ...options, headers: { ...headers, .....
+     |          ^
+  40 | }
+  41 |
+  42 | // ─── Structured query helper (F4: server-side filter) ──────────── (src/app/dashboard/page.tsx:146:15)
+[browser] Failed to fetch payments: TypeError: Failed to fetch
+    at s.fetch (chrome-extension://eppiocemhmnlbhjplcgkofciiegomcon/libs/requests.js:1:3798)
+    at authFetch (src/lib/firestore-rest.ts:39:10)
+    at async runQueryRest (src/lib/firestore-rest.ts:55:15)
+    at async DashboardPage.useCallback[fetchPayments] (src/app/dashboard/page.tsx:129:20)
+  37 |   const headers = await getAuthHeaders();
+  38 |   const separator = url.includes('?') ? '&' : '?';
+> 39 |   return fetch(`${url}${separator}key=${API_KEY}`, { ...options, headers: { ...headers, .....
+     |          ^
+  40 | }
+  41 |
+  42 | // ─── Structured query helper (F4: server-side filter) ──────────── (src/app/dashboard/page.tsx:132:15)
+[browser] Failed to fetch reviews: TypeError: Failed to fetch
+    at s.fetch (chrome-extension://eppiocemhmnlbhjplcgkofciiegomcon/libs/requests.js:1:3798)
+    at authFetch (src/lib/firestore-rest.ts:39:10)
+    at async runQueryRest (src/lib/firestore-rest.ts:55:15)
+    at async DashboardPage.useCallback[fetchReviews] (src/app/dashboard/page.tsx:114:20)
+  37 |   const headers = await getAuthHeaders();
+  38 |   const separator = url.includes('?') ? '&' : '?';
+> 39 |   return fetch(`${url}${separator}key=${API_KEY}`, { ...options, headers: { ...headers, .....
+     |          ^
+  40 | }
+  41 |
+  42 | // ─── Structured query helper (F4: server-side filter) ──────────── (src/app/dashboard/page.tsx:117:15)
+[browser] Failed to fetch providers: TypeError: Failed to fetch
+    at s.fetch (chrome-extension://eppiocemhmnlbhjplcgkofciiegomcon/libs/requests.js:1:3798)
+    at authFetch (src/lib/firestore-rest.ts:39:10)
+    at async getAllProvidersRest (src/lib/firestore-rest.ts:390:15)
+    at async DashboardPage.useCallback[fetchProviders] (src/app/dashboard/page.tsx:154:20)
+  37 |   const headers = await getAuthHeaders();
+  38 |   const separator = url.includes('?') ? '&' : '?';
+> 39 |   return fetch(`${url}${separator}key=${API_KEY}`, { ...options, headers: { ...headers, .....
+     |          ^
+  40 | }
+  41 |
+  42 | // ─── Structured query helper (F4: server-side filter) ──────────── (src/app/dashboard/page.tsx:157:15)
+✓ Compiled in 68ms
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)

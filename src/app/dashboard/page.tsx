@@ -292,7 +292,7 @@ export default function DashboardPage() {
     }
     const uid = firebaseUser?.uid || user.id;
     try {
-      await addPetRest({
+      const newPetId = await addPetRest({
         userId: uid,
         name: petName.trim(),
         type: petType,
@@ -306,7 +306,8 @@ export default function DashboardPage() {
       setPetBreed('');
       setPetAge('');
       setPetNotes('');
-      fetchPets();
+      await fetchPets();
+      router.refresh();
     } catch (err) {
       console.error('Failed to add pet:', err);
       showToast(`❌ ${err instanceof Error ? err.message : 'Failed to add pet.'}`, 'error');
@@ -566,7 +567,7 @@ export default function DashboardPage() {
                               try {
                                 const uid = firebaseUser?.uid || user.id;
                                 await removeFavoriteRest(fav.id, uid);
-                                setFavorites(prev => prev.filter(f => f.id !== fav.id));
+                                await fetchFavorites();
                                 showToast('⭐ Removed from favorites.', 'success');
                               } catch (err) {
                                 console.error('Failed to remove favorite:', err);

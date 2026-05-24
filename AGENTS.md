@@ -3,3 +3,29 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
+
+# Firestore-REST Debug Notes
+
+## Write Operations (addPetRest / addFavoriteRest)
+- Both functions manually construct `fields: { ... }` with explicit typed values (stringValue, doubleValue, etc.)
+- userId is explicitly injected as `{ stringValue: data.userId }` at the field level
+- No `docToJson` helper exists — the payload is never auto-transformed, so no double-wrapping risk
+
+## Verified via curl (2026-05-24)
+- Firestore REST API `POST /documents/pets` with valid Firebase ID token → **HTTP 200**
+- Payload format: `{"fields":{"userId":{"stringValue":"..."},"name":{"stringValue":"..."},"type":{"stringValue":"Dog"},...}}`
+- This confirms the API accepts writes when the auth token is valid and payload is correctly formatted
+
+## Security Rules (firestore.rules)
+- Pets/favorites rules simplified to single-condition `&&` to pass Firestore query analyzer
+- `allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId`
+- `allow create: if request.auth != null && request.auth.uid == request.resource.data.userId`
+- No `||` operators in pets/favorites rules (Firestore's query analyzer chokes on `||`)
+- **Cannot deploy from this environment** — workload identity has no access to `pet-co-fc4d6` project
+- To deploy: `npx firebase deploy --only firestore:rules --project pet-co-fc4d6` from local machine
+
+## Debug Logging Added
+- `console.log('OUTGOING PAYLOAD:')` right before each fetch
+- `console.log('data.userId:')` to verify userId value
+- `console.error('FIRESTORE WRITE ERROR:')` with the error response body on non-ok responses
+- `console.error('...network error:')` on fetch exceptions
