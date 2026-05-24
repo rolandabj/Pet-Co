@@ -300,13 +300,26 @@ export default function DashboardPage() {
         age: petAge.trim(),
         notes: petNotes.trim(),
       });
-      showToast('🐾 Pet added successfully!', 'success');
+      // Optimistic update: immediately append the new pet to local state
+      // so the UI updates instantly even if the read query falls back to
+      // localStorage (which won't contain Firestore-saved data).
+      const newPet: PetDoc = {
+        id: newPetId,
+        userId: uid,
+        name: petName.trim(),
+        type: petType,
+        breed: petBreed.trim(),
+        age: petAge.trim(),
+        notes: petNotes.trim(),
+      };
+      setPets(prev => [...prev, newPet]);
       setPetName('');
       setPetType('');
       setPetBreed('');
       setPetAge('');
       setPetNotes('');
-      await fetchPets();
+      // Background re-fetch to reconcile with Firestore
+      fetchPets();
       router.refresh();
     } catch (err) {
       console.error('Failed to add pet:', err);

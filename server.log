@@ -92,3 +92,18 @@
 ✓ Compiled in 68ms
 [browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
 [browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+ GET /services 200 in 116ms (next.js: 3ms, application-code: 113ms)
+ GET /provider/wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 146ms (next.js: 35ms, application-code: 111ms)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+ GET /services 200 in 209ms (next.js: 2ms, application-code: 206ms)
+ GET /dashboard 200 in 30ms (next.js: 4ms, application-code: 26ms)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+✓ Compiled in 67ms
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for favorites — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
+[browser] runQueryRest got 403 for pets — falling back to Firebase SDK (src/lib/firestore-rest.ts:75:13)
