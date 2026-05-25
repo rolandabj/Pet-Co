@@ -327,8 +327,13 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
   }, [provider, fetchReviews]);
 
   // ── Derived stats ──────────────────────────────────────────────
+  // Only count payments linked to confirmed or completed bookings
   const totalEarnings = payments
-    .filter((p) => p.status === 'paid')
+    .filter((p) => {
+      if (p.status !== 'paid') return false;
+      const booking = bookings.find((b) => b.id === p.bookingId);
+      return booking && (booking.status === 'confirmed' || booking.status === 'completed');
+    })
     .reduce((sum, p) => sum + (p.amount ?? 0), 0);
   const activeBookings = bookings.filter(
     (b) => b.status === 'pending' || b.status === 'confirmed',
