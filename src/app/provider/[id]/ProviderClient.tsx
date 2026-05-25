@@ -10,7 +10,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import {
   getReviewsByProviderRest,
-  updateProviderDocRest,
 } from '@/lib/firestore-rest';
 import {
   fetchMyFavorites,
@@ -137,31 +136,21 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
     }
     setSubmitting(true);
     try {
-      await addMyReview({
+      const result = await addMyReview({
         providerId,
         rating: newRating,
         comment: newComment.trim(),
         userRole: user?.role,
       });
 
-      // Sync provider rating/reviewCount aggregates
-      try {
-        const allReviews = await getReviewsByProviderRest(providerId);
-        const totalReviews = allReviews.length;
-        const totalStars = allReviews.reduce((sum, r) => sum + r.rating, 0);
-        const computedAvg = totalReviews > 0 ? totalStars / totalReviews : 0;
-        const roundedAvg = parseFloat(computedAvg.toFixed(1));
-
-        await updateProviderDocRest(providerId, {
-          rating: roundedAvg,
-          reviews: totalReviews,
-        });
-
-        // Update local state so header reflects instantly
-        setProvider(prev => prev ? { ...prev, rating: roundedAvg, reviews: totalReviews } : prev);
-      } catch (syncErr) {
-        console.error('Failed to sync review aggregates:', syncErr);
-        // Non-fatal — review itself was saved
+      // Update local state so header reflects provider aggregate changes
+      // (server syncs rating/review counts via Admin SDK)
+      if (result?.providerRating !== undefined && result?.providerReviews !== undefined) {
+        setProvider(prev => prev ? {
+          ...prev,
+          rating: result.providerRating,
+          reviews: result.providerReviews,
+        } : prev);
       }
 
       showToast('✅ Review submitted!', 'success');

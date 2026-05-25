@@ -178,5 +178,10 @@ export async function addMyReview(review: {
   }
 
   const data = await res.json();
-  return data.review;
+  return {
+    id: data.review.id,
+    ...data.review,
+    providerRating: data.providerRating,
+    providerReviews: data.providerReviews,
+  };
 }

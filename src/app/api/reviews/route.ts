@@ -31,11 +31,39 @@ export async function POST(request: Request) {
 
     const ref = await db.collection('reviews').add(review);
 
+    // Sync provider rating/review count aggregates
+    let providerRating = 0;
+    let providerReviews = 0;
+    try {
+      const allReviewsSnap = await db
+        .collection('reviews')
+        .where('providerId', '==', body.providerId)
+        .get();
+      providerReviews = allReviewsSnap.size;
+      let totalStars = 0;
+      allReviewsSnap.forEach((doc) => {
+        totalStars += doc.data().rating || 0;
+      });
+      providerRating = providerReviews > 0
+        ? parseFloat((totalStars / providerReviews).toFixed(1))
+        : 0;
+
+      await db.collection('providers').doc(body.providerId).update({
+        rating: providerRating,
+        reviews: providerReviews,
+      });
+    } catch (syncErr) {
+      // Non-fatal — review itself was saved
+      console.error('Failed to sync provider aggregates:', syncErr);
+    }
+
     return NextResponse.json({
       review: {
         id: ref.id,
         ...review,
       },
+      providerRating,
+      providerReviews,
     });
   } catch (error: any) {
     console.error('API route failed', {
