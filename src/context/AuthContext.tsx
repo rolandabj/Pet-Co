@@ -389,15 +389,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const appUser = buildAppUser(credential, resolvedRole);
         setFirebaseUser(credential);
+
+        // 3) CRITICAL: For NEW users, MUST await the Firestore doc creation
+        //    BEFORE setting user state and completing loading. This prevents
+        //    the dashboard from rendering before the user's role is persisted
+        //    — avoiding a brief flash of the wrong layout.
+        if (!existingRole) {
+          await persistNewUser(appUser);
+        }
+
+        // 4) NOW it's safe to set the user — the Firestore doc is committed
         setUser(appUser);
         setLoading(false);
 
-        // 3) Only persist for NEW users (no existing doc in Firestore)
-        if (!existingRole) {
-          persistNewUser(appUser);
-        }
-
-        // 2. SUCCESS PATH: return object explicitly indicating no errors
         return { success: true, error: null };
       };
 

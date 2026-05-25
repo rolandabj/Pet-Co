@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
+import type { UserRole } from '@/lib/types';
 
 export default function LoginPage() {
   const { login, googleLogin } = useAuth();
   const { showToast } = useToast();
+  const [role, setRole] = useState<UserRole>('owner');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,7 +34,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setError('');
     setGoogleLoading(true);
-    const result = await googleLogin();
+    const result = await googleLogin(role);
     setGoogleLoading(false);
     if (result.error) {
       if (result.error === 'cancelled') return; // user closed popup — no-op
@@ -56,6 +58,35 @@ export default function LoginPage() {
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-500 mb-5">{error}</div>
           )}
+
+          {/* Role selector — only affects first-time Google sign-ins */}
+          <div className="mb-5">
+            <label className="block text-sm font-semibold text-[#2C3E50] mb-3">I am a...</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'owner' as UserRole, icon: '🏠', title: 'Pet Owner', desc: 'Looking for pet services' },
+                { value: 'provider' as UserRole, icon: '💼', title: 'Service Provider', desc: 'Offering pet services' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setRole(opt.value)}
+                  className={`p-4 border-2 rounded-xl text-center cursor-pointer transition-all ${
+                    role === opt.value
+                      ? 'border-[#E86A33] bg-orange-500/5'
+                      : 'border-[#F0E4D8] bg-[#FFF8F0] hover:border-[#F5A07A]'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">{opt.icon}</div>
+                  <h4 className="text-sm font-semibold text-[#2C3E50]">{opt.title}</h4>
+                  <p className="text-xs text-gray-400">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">
+              Returning users: your saved role will be used instead.
+            </p>
+          </div>
 
           {/* Google */}
           <button
