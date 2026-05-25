@@ -89,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser({
             ...appUser,
             role: data.role || appUser.role,
+            name: data.name || appUser.name,
             phone: data.phone,
             location: data.location,
           });
@@ -495,11 +496,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = localAuth.updateProfile(updates);
     if (result.user) setUser(result.user);
 
-    // Also save phone/location to Firestore users doc
+    // Also save name/phone/location to Firestore so they survive a refresh
     const uid = firebaseUser?.uid || result.user?.id;
-    if (uid && (updates.phone !== undefined || updates.location !== undefined)) {
+    if (uid && (updates.name !== undefined || updates.phone !== undefined || updates.location !== undefined)) {
       try {
         const firestoreUpdates: Record<string, string> = {};
+        if (updates.name !== undefined) firestoreUpdates.name = updates.name;
         if (updates.phone !== undefined) firestoreUpdates.phone = updates.phone;
         if (updates.location !== undefined) firestoreUpdates.location = updates.location;
         await updateUserDocRest(uid, firestoreUpdates);

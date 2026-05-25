@@ -6,10 +6,17 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 339ms
+✓ Ready in 327ms
 
- GET /login 200 in 850ms (next.js: 501ms, application-code: 349ms)
- GET /provider/wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 528ms (next.js: 377ms, application-code: 151ms)
+ GET /login 200 in 601ms (next.js: 230ms, application-code: 371ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 80ms (next.js: 15ms, application-code: 65ms)
 🐛 API AUTH HEADER DEBUG {
   hasAuthHeader: true,
   startsWithBearer: true,
@@ -23,12 +30,22 @@
   hasPrivateKey: true,
   privateKeyStartsCorrectly: true
 }
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
 🐛 API TOKEN VERIFIED {
   uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
   email: 'rolandabj123@gmail.com',
   aud: 'pet-co-fc4d6',
   iss: 'https://securetoken.google.com/pet-co-fc4d6'
 }
- GET /api/me/favorites?providerId=wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 482ms (next.js: 291ms, application-code: 192ms)
-[browser] Image with src "https://firebasestorage.googleapis.com/v0/b/pet-co-fc4d6.firebasestorage.app/o/providers%2FwxYK5d51I2VaK2pc4N4QkfaFzkG2%2Fproducts%2F1779703414904_image.png?alt=media&token=2fe10b09-33b5-426b-85ec-915c245431d0" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
-Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 539ms (next.js: 306ms, application-code: 233ms)
+ GET /api/me/favorites 200 in 213ms (next.js: 37ms, application-code: 176ms)
