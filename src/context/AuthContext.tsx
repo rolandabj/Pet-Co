@@ -35,8 +35,8 @@ interface AuthContextType {
    *  Never equals a localAuth-generated `user_` timestamp ID when Firebase is configured. */
   effectiveUserId: string | null;
   login: (email: string, password: string) => Promise<{ user?: AppUser; error?: string }>;
-  register: (email: string, password: string, name: string, role: UserRole) => Promise<{ user?: AppUser; error?: string }>;
-  googleLogin: (role?: UserRole) => Promise<{ success: boolean; error: string | null }>;
+  register: (email: string, password: string, name: string, role: UserRole, providerType?: string) => Promise<{ user?: AppUser; error?: string }>;
+  googleLogin: (role?: UserRole, providerType?: string) => Promise<{ success: boolean; error: string | null }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<AppUser>) => Promise<{ user?: AppUser; error?: string }>;
   requireAuth: () => boolean;
@@ -481,6 +481,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw e;
         }
       }
+      if (!popupResult) throw new Error('Google sign-in returned no result');
       return handleCredential(popupResult.user, providerType);
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };

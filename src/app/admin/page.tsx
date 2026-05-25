@@ -30,6 +30,7 @@ import {
   updateUserDocRest,
   getReviewsByProviderRest,
   getUserByIdRest,
+  setPaymentFeeCollectedRest,
   type PaginatedResult,
   type MonthlyAnalyticsData,
 } from '@/lib/firestore-rest';
@@ -37,7 +38,7 @@ import type { BookingDoc, PaymentDoc } from '@/lib/firestore-rest';
 import type { ReviewDoc } from '@/lib/firestore-rest';
 import { ServiceProvider, AppUser } from '@/lib/types';
 import { ref, deleteObject } from 'firebase/storage';
-import { getStorageDb } from '@/lib/firebase';
+import { getFirebaseAuth, getStorageDb } from '@/lib/firebase';
 
 type AdminTab = 'users' | 'services' | 'bookings' | 'analytics' | 'payments' | 'reviews';
 
@@ -79,13 +80,36 @@ export default function AdminPage() {
 
   // ── Analytics data (fetched independently of paginated tables) ──
   const [analyticsData, setAnalyticsData] = useState<MonthlyAnalyticsData>({ bookings: [], payments: [] });
+  const [fullAnalyticsBookings, setFullAnalyticsBookings] = useState<BookingDoc[]>([]);
+  const [fullAnalyticsPayments, setFullAnalyticsPayments] = useState<PaymentDoc[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   // ── Merged user list (Firestore + local, deduplicated) ──────────
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<BookingDoc | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<PaymentDoc | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  // ── Payments tab state ───────────────────────────────────────────
+  const [paymentsProviderFilter, setPaymentsProviderFilter] = useState('');
+  const [paymentsSortOrder, setPaymentsSortOrder] = useState<'newest' | 'oldest'>('newest');
+
+  // ── Reviews tab state ────────────────────────────────────────────
+  const [reviewsProviderFilter, setReviewsProviderFilter] = useState('');
+  const [reviewsSortOrder, setReviewsSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [selectedProvider, setSelectedProvider] = useState<ServiceProvider | null>(null);
   const [showProviderModal, setShowProviderModal] = useState(false);
+
+  // ── User detail modal state ────────────────────────────────────
+  const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [userModalLoading, setUserModalLoading] = useState(false);
+  const [userDetailData, setUserDetailData] = useState<{
+    user: any;
+    pets: any[];
+    bookings: any[];
+    payments: any[];
+    reviews: any[];
+  } | null>(null);
 
   const admin = isAdminUser(user);
 
@@ -261,9 +285,19 @@ export default function AdminPage() {
   // Fetch analytics data independently of paginated table state (F5 fix)
   useEffect(() => {
     if (loading || !user || !admin) return;
-    getMonthlyAnalyticsDataRest()
-      .then(setAnalyticsData)
-      .catch((err) => console.error('Failed to fetch analytics data:', err));
+    setAnalyticsLoading(true);
+    Promise.all([
+      getMonthlyAnalyticsDataRest(),
+      getAllBookingsRest(),
+      getAllPaymentsRest(),
+    ])
+      .then(([monthly, allB, allP]) => {
+        setAnalyticsData(monthly);
+        setFullAnalyticsBookings(allB);
+        setFullAnalyticsPayments(allP);
+      })
+      .catch((err) => console.error('Failed to fetch analytics data:', err))
+      .finally(() => setAnalyticsLoading(false));
   }, [loading, user, admin]);
 
   // ── Derived analytics (from independent analyticsData) ─────────
@@ -326,6 +360,82 @@ export default function AdminPage() {
     }));
   })();
 
+  // ── Advanced analytics (computed from full data) ─────────────────
+
+  /** Monthly revenue vs payouts — last 12 months. */
+  const monthlyRevenueData = (() => {
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (11 - i));
+      return { year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) };
+    });
+    return months.map(({ year, month, label }) => {
+      const relevant = fullAnalyticsPayments.filter(p => {
+        if (!p.createdAt) return false;
+        const d = new Date(p.createdAt);
+        return d.getFullYear() === year && d.getMonth() === month && (p.status === 'paid' || p.status === 'completed');
+      });
+      const total = relevant.reduce((s, p) => s + (p.amount || 0), 0);
+      return { label, revenue: total * 0.10, payout: total * 0.90, total };
+    });
+  })();
+
+  const maxMonthlyTotal = Math.max(...monthlyRevenueData.map(m => m.total), 1);
+
+  // ── KPI: MoM user growth ───────────────────────────────────────────
+  const userGrowth = (() => {
+    if (allUsers.length === 0) return { pct: 0, direction: 'neutral' as const };
+    const now = new Date();
+    const thisMonth = allUsers.filter(u => {
+      if (!u.createdAt) return false;
+      const d = new Date(u.createdAt);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length;
+    const lastMonth = allUsers.filter(u => {
+      if (!u.createdAt) return false;
+      const d = new Date(u.createdAt);
+      const lm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+      const ly = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      return d.getFullYear() === ly && d.getMonth() === lm;
+    }).length;
+    const base = lastMonth || 1;
+    const pct = Math.round(((thisMonth - lastMonth) / base) * 100);
+    return { pct, direction: pct >= 0 ? 'up' as const : 'down' as const };
+  })();
+
+  const totalPlatformFees = fullAnalyticsPayments
+    .filter(p => p.status === 'paid' || p.status === 'completed')
+    .reduce((s, p) => s + (p.amount || 0) * 0.10, 0);
+
+  // ── Top 3 providers ────────────────────────────────────────────────
+  const topProviders = (() => {
+    // Completed bookings per provider
+    const bookingCounts: Record<string, number> = {};
+    const ratingSums: Record<string, { sum: number; count: number }> = {};
+    for (const b of fullAnalyticsBookings) {
+      if (b.status === 'completed' && b.providerId) {
+        bookingCounts[b.providerId] = (bookingCounts[b.providerId] || 0) + 1;
+      }
+    }
+    // Average rating per provider from allReviews
+    for (const r of allReviews) {
+      if (!r.providerId) continue;
+      if (!ratingSums[r.providerId]) ratingSums[r.providerId] = { sum: 0, count: 0 };
+      ratingSums[r.providerId].sum += r.rating;
+      ratingSums[r.providerId].count += 1;
+    }
+    const providerIds = new Set([...Object.keys(bookingCounts), ...Object.keys(ratingSums)]);
+    const ranked = Array.from(providerIds).map(id => {
+      const pr = providers.find(p => p.id === id);
+      const bc = bookingCounts[id] || 0;
+      const rs = ratingSums[id];
+      const avgRating = rs ? rs.sum / rs.count : 0;
+      return { id, name: pr?.businessName || pr?.name || id.slice(0, 8), completedBookings: bc, avgRating, provider: pr };
+    });
+    ranked.sort((a, b) => b.completedBookings - a.completedBookings || b.avgRating - a.avgRating);
+    return ranked.slice(0, 3);
+  })();
+
   // Early returns while auth resolves or during redirect
   if (loading || !user || !admin) {
     return <div className="pt-[100px] min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-3 border-[#F0E4D8] border-t-[#E86A33] rounded-full animate-spin" /></div>;
@@ -375,6 +485,42 @@ export default function AdminPage() {
       console.error('Failed to delete user:', err);
       showToast('❌ Failed to delete user.', 'error');
     }
+  };
+
+  /** Fetch user details from secure Admin API route and open modal. */
+  const handleOpenUserModal = async (u: AppUser) => {
+    setSelectedUser(u);
+    setShowUserModal(true);
+    setUserModalLoading(true);
+    setUserDetailData(null);
+    try {
+      // Get Firebase ID token for auth
+      const { auth } = getFirebaseAuth();
+      if (!auth?.currentUser) throw new Error('Not authenticated');
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(u.id)}/details`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setUserDetailData(data);
+    } catch (err) {
+      console.error('Failed to fetch user details:', err);
+      showToast('❌ Failed to load user details.', 'error');
+      setShowUserModal(false);
+      setSelectedUser(null);
+    } finally {
+      setUserModalLoading(false);
+    }
+  };
+
+  const handleCloseUserModal = () => {
+    setShowUserModal(false);
+    setSelectedUser(null);
+    setUserDetailData(null);
   };
 
   const handleDeleteBooking = async (bookingId: string) => {
@@ -655,7 +801,7 @@ export default function AdminPage() {
                 {filteredUsers.length === 0 ? (
                   <tr><td colSpan={6} className="text-center py-10 text-gray-400 text-sm">No users found.</td></tr>
                 ) : filteredUsers.map(u => (
-                  <tr key={u.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
+                  <tr key={u.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0] cursor-pointer" onClick={() => handleOpenUserModal(u)}>
                     <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">{u.name || 'Unnamed'}</td>
                     <td className="px-5 py-4 text-sm text-gray-500">{u.email}</td>
                     <td className="px-5 py-4">
@@ -667,7 +813,7 @@ export default function AdminPage() {
                     <td className="px-5 py-4 text-sm text-gray-400">{u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-GB') : 'N/A'}</td>
                     <td className="px-5 py-4">
                       <button
-                        onClick={() => handleDeleteUser(u.id, u.name || u.email)}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.id, u.name || u.email); }}
                         className="text-xs text-red-500 hover:text-red-700"
                       >
                         🗑️ Delete
@@ -926,9 +1072,31 @@ export default function AdminPage() {
         {/* Payments Ledger tab */}
           {activeTab === 'payments' && (
             <div className="bg-white border border-[#F0E4D8] rounded-2xl overflow-hidden">
-              <div className="p-5 border-b border-[#F0E4D8]">
+              {/* ── Filters bar ── */}
+              <div className="p-5 border-b border-[#F0E4D8] flex items-center justify-between gap-4 flex-wrap">
                 <h4 className="text-sm font-semibold text-[#2C3E50]">Payments Ledger ({payments.length})</h4>
+                <div className="flex items-center gap-3">
+                  {/* Provider filter */}
+                  <select
+                    value={paymentsProviderFilter}
+                    onChange={e => setPaymentsProviderFilter(e.target.value)}
+                    className="text-xs border border-[#F0E4D8] rounded-lg px-3 py-1.5 bg-white text-[#2C3E50] font-medium focus:outline-none focus:ring-2 focus:ring-[#E86A33]/20"
+                  >
+                    <option value="">All Providers</option>
+                    {providers.map(pr => (
+                      <option key={pr.id} value={pr.id}>{pr.businessName || pr.name}</option>
+                    ))}
+                  </select>
+                  {/* Sort toggle */}
+                  <button
+                    onClick={() => setPaymentsSortOrder(o => o === 'newest' ? 'oldest' : 'newest')}
+                    className="text-xs flex items-center gap-1.5 border border-[#F0E4D8] rounded-lg px-3 py-1.5 bg-white text-[#2C3E50] font-medium hover:bg-[#FFF8F0] transition-all"
+                  >
+                    {paymentsSortOrder === 'newest' ? '📅 Newest First' : '📅 Oldest First'}
+                  </button>
+                </div>
               </div>
+
               {dataLoading ? (
                 <div className="animate-pulse">
                   <div className="flex gap-6 px-5 py-4 border-b border-[#F0E4D8]">
@@ -954,49 +1122,66 @@ export default function AdminPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-[#F0E4D8]">
-                      {['Booking', 'Customer', 'Provider', 'Category', 'Amount', 'Status', ''].map(h => (
+                      {['Booking', 'Customer', 'Provider', 'Category', 'Service Cost', 'Platform Fee', 'Total', 'Status', ''].map(h => (
                         <th key={h} className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.map(p => (
-                      <tr key={p.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
-                        <td className="px-5 py-4 text-sm text-gray-500 font-mono cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{p.bookingId.slice(0, 8)}...</td>
-                        <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{p.customerName}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50] cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{(m => m ? (m.businessName || m.name) : p.providerName)(providers.find(pr => pr.id === p.providerId))}</td>
-                        <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{p.category}</td>
-                        <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>${p.amount.toFixed(2)}</td>
-                        <td className="px-5 py-4 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>
-                          {editStatus?.id === p.id ? (
-                            <div className="flex gap-1">
-                              <select
-                                onClick={(e) => e.stopPropagation()}
-                                value={editStatus.value}
-                                onChange={e => setEditStatus({ id: p.id, value: e.target.value })}
-                                className="text-xs px-2 py-1 border border-[#F0E4D8] rounded-lg bg-white"
-                              >
-                                {['paid', 'pending', 'refunded', 'cancelled'].map(s => (
-                                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                                ))}
-                              </select>
-                              <button onClick={(e) => { e.stopPropagation(); handlePaymentStatusEdit(p.id, editStatus.value); }} className="text-xs text-emerald-600 hover:text-emerald-800">Save</button>
-                              <button onClick={(e) => { e.stopPropagation(); setEditStatus(null); }} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                    {(() => {
+                      // Client-side filter + sort — no re-fetch
+                      let filtered = [...payments];
+                      if (paymentsProviderFilter) {
+                        filtered = filtered.filter(p => p.providerId === paymentsProviderFilter);
+                      }
+                      filtered.sort((a, b) => {
+                        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        return paymentsSortOrder === 'newest' ? db - da : da - db;
+                      });
+                      return filtered.map(p => {
+                        const platformFee = p.amount * 0.10;
+                        const serviceCost = p.amount - platformFee;
+                        return (
+                        <tr key={p.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
+                          <td className="px-5 py-4 text-sm text-gray-500 font-mono cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{p.bookingId.slice(0, 8)}...</td>
+                          <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{p.customerName}</td>
+                          <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50] cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{(m => m ? (m.businessName || m.name) : p.providerName)(providers.find(pr => pr.id === p.providerId))}</td>
+                          <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>{p.category}</td>
+                          <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>${serviceCost.toFixed(2)}</td>
+                          <td className="px-5 py-4 text-sm text-gray-500 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>${platformFee.toFixed(2)}</td>
+                          <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50] cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>${p.amount.toFixed(2)}</td>
+                          <td className="px-5 py-4 cursor-pointer" onClick={() => { setSelectedPayment(p); setShowPaymentModal(true); }}>
+                            {editStatus?.id === p.id ? (
+                              <div className="flex gap-1">
+                                <select
+                                  onClick={(e) => e.stopPropagation()}
+                                  value={editStatus.value}
+                                  onChange={e => setEditStatus({ id: p.id, value: e.target.value })}
+                                  className="text-xs px-2 py-1 border border-[#F0E4D8] rounded-lg bg-white"
+                                >
+                                  {['paid', 'pending', 'refunded', 'cancelled'].map(s => (
+                                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                  ))}
+                                </select>
+                                <button onClick={(e) => { e.stopPropagation(); handlePaymentStatusEdit(p.id, editStatus.value); }} className="text-xs text-emerald-600 hover:text-emerald-800">Save</button>
+                                <button onClick={(e) => { e.stopPropagation(); setEditStatus(null); }} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                              </div>
+                            ) : (
+                              <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${p.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600' : p.status === 'refunded' ? 'bg-red-500/10 text-red-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                                {p.status.charAt(0).toUpperCase() + p.status.slice(1)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex gap-2">
+                              <button onClick={() => setEditStatus({ id: p.id, value: p.status })} className="text-xs text-blue-500 hover:text-blue-700">✏️ Edit</button>
+                              <button onClick={() => handleDeletePayment(p.id)} className="text-xs text-red-500 hover:text-red-700">🗑️ Delete</button>
                             </div>
-                          ) : (
-                            <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${p.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600' : p.status === 'refunded' ? 'bg-red-500/10 text-red-500' : 'bg-gray-500/10 text-gray-500'}`}>
-                              {p.status.charAt(0).toUpperCase() + p.status.slice(1)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex gap-2">
-                            <button onClick={() => setEditStatus({ id: p.id, value: p.status })} className="text-xs text-blue-500 hover:text-blue-700">✏️ Edit</button>
-                            <button onClick={() => handleDeletePayment(p.id)} className="text-xs text-red-500 hover:text-red-700">🗑️ Delete</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      )});
+                    })()}
                   </tbody>
                 </table>
               )}
@@ -1037,11 +1222,42 @@ export default function AdminPage() {
             />
           )}
 
+          {/* ── User Detail Modal ── */}
+          {showUserModal && selectedUser && (
+            <UserDetailModal
+              user={selectedUser}
+              data={userDetailData}
+              loading={userModalLoading}
+              onClose={handleCloseUserModal}
+            />
+          )}
+
           {/* Reviews management tab */}
           {activeTab === 'reviews' && (
             <div className="bg-white border border-[#F0E4D8] rounded-2xl overflow-hidden">
-              <div className="p-5 border-b border-[#F0E4D8] flex items-center justify-between">
+              {/* ── Filters bar ── */}
+              <div className="p-5 border-b border-[#F0E4D8] flex items-center justify-between gap-4 flex-wrap">
                 <h4 className="text-sm font-semibold text-[#2C3E50]">⭐ Platform Reviews ({allReviews.length})</h4>
+                <div className="flex items-center gap-3">
+                  {/* Provider filter */}
+                  <select
+                    value={reviewsProviderFilter}
+                    onChange={e => setReviewsProviderFilter(e.target.value)}
+                    className="text-xs border border-[#F0E4D8] rounded-lg px-3 py-1.5 bg-white text-[#2C3E50] font-medium focus:outline-none focus:ring-2 focus:ring-[#E86A33]/20"
+                  >
+                    <option value="">All Providers</option>
+                    {providers.map(pr => (
+                      <option key={pr.id} value={pr.id}>{pr.businessName || pr.name}</option>
+                    ))}
+                  </select>
+                  {/* Sort toggle */}
+                  <button
+                    onClick={() => setReviewsSortOrder(o => o === 'newest' ? 'oldest' : 'newest')}
+                    className="text-xs flex items-center gap-1.5 border border-[#F0E4D8] rounded-lg px-3 py-1.5 bg-white text-[#2C3E50] font-medium hover:bg-[#FFF8F0] transition-all"
+                  >
+                    {reviewsSortOrder === 'newest' ? '📅 Newest First' : '📅 Oldest First'}
+                  </button>
+                </div>
               </div>
               {dataLoading ? (
                 <div className="animate-pulse p-6 space-y-4">
@@ -1053,7 +1269,17 @@ export default function AdminPage() {
                 <div className="text-center py-10 text-gray-400 text-sm">No reviews found.</div>
               ) : (
                 <div className="divide-y divide-[#F0E4D8]">
-                  {allReviews.map(r => (
+                  {(() => {
+                    let filtered = [...allReviews];
+                    if (reviewsProviderFilter) {
+                      filtered = filtered.filter(r => r.providerId === reviewsProviderFilter);
+                    }
+                    filtered.sort((a, b) => {
+                      const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                      const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                      return reviewsSortOrder === 'newest' ? db - da : da - db;
+                    });
+                    return filtered.map(r => (
                     <div key={r.id} className="px-5 py-4 hover:bg-[#FFF8F0]/50 transition-colors">
                       {editReviewId === r.id ? (
                         <div className="flex flex-col gap-3">
@@ -1142,7 +1368,8 @@ export default function AdminPage() {
                         </div>
                       )}
                     </div>
-                  ))}
+                  ));
+                })()}
                 </div>
               )}
               {/* ── Reviews pagination ── */}
@@ -1168,45 +1395,175 @@ export default function AdminPage() {
 
           {/* Analytics tab — all values computed from live Firestore data */}
         {activeTab === 'analytics' && (
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div className="bg-white border border-[#F0E4D8] rounded-2xl p-8">
-              <h4 className="text-sm font-heading text-[#2C3E50] mb-5">📈 Monthly Bookings</h4>
-              <div className="flex items-end gap-3 h-[160px] pt-5">
-                {(() => {
-                  const max = Math.max(...monthlyBookings, 1);
-                  const months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
-                  return months.map((label, i) => {
-                    const count = monthlyBookings[i];
-                    const heightPx = Math.max((count / max) * 140, count > 0 ? 12 : 4);
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div
-                          className="w-full bg-[#E86A33] rounded-t-md transition-all"
-                          style={{ height: `${heightPx}px`, opacity: count > 0 ? (0.4 + (i / 12) * 0.6) : 0.15 }}
-                        />
-                        <span className="text-[10px] text-gray-400">{label}</span>
-                      </div>
-                    );
-                  });
-                })()}
+          <div className="space-y-6">
+            {analyticsLoading ? (
+              <div className="animate-pulse grid lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map(i => <div key={i} className="h-28 bg-gray-100 rounded-2xl" />)}
               </div>
-            </div>
-            <div className="bg-white border border-[#F0E4D8] rounded-2xl p-8">
-              <h4 className="text-sm font-heading text-[#2C3E50] mb-5">🎯 Service Distribution</h4>
-              <div className="flex flex-col gap-4">
-                {serviceDistribution.map((s) => (
-                  <div key={s.label}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-700">{s.label}</span>
-                      <span className="text-gray-400">{s.pct}%</span>
+            ) : (
+              <>
+                {/* ── KPI Cards ── */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-2xl border border-[#F0E4D8] p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-lg">👥</span>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Total Users</span>
                     </div>
-                    <div className="h-2 bg-[#FFF0E0] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${s.pct}%`, background: s.color }} />
+                    <p className="text-2xl font-bold text-[#2C3E50]">{allUsers.length}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className={`text-xs font-semibold ${userGrowth.direction === 'up' ? 'text-emerald-500' : userGrowth.direction === 'down' ? 'text-red-400' : 'text-gray-400'}`}>
+                        {userGrowth.direction === 'up' ? '▲' : userGrowth.direction === 'down' ? '▼' : '—'} {Math.abs(userGrowth.pct)}%
+                      </span>
+                      <span className="text-[10px] text-gray-400">MoM</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="bg-white rounded-2xl border border-[#F0E4D8] p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-lg">🏪</span>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Active Providers</span>
+                    </div>
+                    <p className="text-2xl font-bold text-[#2C3E50]">{providers.length}</p>
+                    <span className="text-[10px] text-gray-400 mt-1 block">
+                      {fullAnalyticsBookings.filter(b => b.status === 'completed').length > 0
+                        ? `${new Set(fullAnalyticsBookings.filter(b => b.status === 'completed').map(b => b.providerId)).size} with completed bookings`
+                        : 'No completed bookings yet'}
+                    </span>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-[#F0E4D8] p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-lg">💰</span>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Total Platform Fees</span>
+                    </div>
+                    <p className="text-2xl font-bold text-[#2C3E50]">${totalPlatformFees.toFixed(2)}</p>
+                    <span className="text-[10px] text-gray-400 mt-1 block">All-time collected fees (10%)</span>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-[#F0E4D8] p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-lg">📅</span>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Revenue MTD</span>
+                    </div>
+                    <p className="text-2xl font-bold text-[#2C3E50]">${revenueMtd.toFixed(2)}</p>
+                    <span className="text-[10px] text-gray-400 mt-1 block">This month (paid bookings)</span>
+                  </div>
+                </div>
+
+                {/* ── Row 2: Financial Health Chart + Top Providers ── */}
+                <div className="grid lg:grid-cols-3 gap-6">
+                  {/* Financial Health: Platform Revenue vs Provider Payouts */}
+                  <div className="lg:col-span-2 bg-white border border-[#F0E4D8] rounded-2xl p-6">
+                    <h4 className="text-sm font-semibold text-[#2C3E50] mb-5">📊 Platform Revenue vs. Provider Payouts</h4>
+                    {monthlyRevenueData.every(m => m.total === 0) ? (
+                      <p className="text-sm text-gray-400 text-center py-8">No payment data available for the last 12 months.</p>
+                    ) : (
+                      <div className="relative h-[200px] pt-4">
+                        {/* Y-axis labels */}
+                        <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between text-[10px] text-gray-400">
+                          <span>${maxMonthlyTotal.toFixed(0)}</span>
+                          <span>${(maxMonthlyTotal / 2).toFixed(0)}</span>
+                          <span>$0</span>
+                        </div>
+                        {/* Bars */}
+                        <div className="ml-12 h-full flex items-end gap-2">
+                          {monthlyRevenueData.map((m, i) => {
+                            const revPx = (m.revenue / maxMonthlyTotal) * 170;
+                            const payoutPx = (m.payout / maxMonthlyTotal) * 170;
+                            return (
+                              <div key={i} className="flex-1 flex flex-col items-center gap-0.5 justify-end h-full">
+                                {/* Tooltip on hover — stacked revenue (orange) on top */}
+                                <div className="group relative w-full flex flex-col items-center justify-end" style={{ height: `${Math.max(revPx + payoutPx, 2)}px` }}>
+                                  {/* Payout bar (teal) */}
+                                  <div className="w-full bg-teal-400/80 rounded-t-sm transition-all group-hover:opacity-90" style={{ height: `${Math.max(payoutPx, 2)}px` }} />
+                                  {/* Revenue bar (orange, stacked on top) */}
+                                  <div className="w-full bg-[#E86A33] rounded-t-sm transition-all group-hover:opacity-90" style={{ height: `${Math.max(revPx, 1)}px` }} />
+                                  {/* Hover tooltip */}
+                                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center bg-[#2C3E50] text-white text-[9px] px-2 py-1 rounded-lg whitespace-nowrap z-10 shadow-lg">
+                                    <span>Revenue: ${m.revenue.toFixed(2)}</span>
+                                    <span>Payout: ${m.payout.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                                <span className="text-[9px] text-gray-400 mt-1">{m.label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Legend */}
+                        <div className="flex items-center justify-center gap-5 mt-3 text-[10px] text-gray-500">
+                          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#E86A33]" /> Platform Revenue (10%)</span>
+                          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-teal-400/80" /> Provider Payout (90%)</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Top Performers Leaderboard */}
+                  <div className="bg-white border border-[#F0E4D8] rounded-2xl p-6">
+                    <h4 className="text-sm font-semibold text-[#2C3E50] mb-4">🏆 Top Providers</h4>
+                    {topProviders.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-8">No provider data yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {topProviders.map((tp, i) => (
+                          <div key={tp.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#FFF8F0] border border-[#F0E4D8]">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white ${i === 0 ? 'bg-amber-400' : i === 1 ? 'bg-gray-400' : 'bg-amber-700'}`}>
+                              {['🥇', '🥈', '🥉'][i]}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-[#2C3E50] truncate">{tp.name}</p>
+                              <div className="flex items-center gap-3 text-[10px] text-gray-400 mt-0.5">
+                                <span>{tp.completedBookings} bookings</span>
+                                <span>★ {tp.avgRating.toFixed(1)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Row 3: Original charts preserved ── */}
+                <div className="grid lg:grid-cols-2 gap-6">
+                  <div className="bg-white border border-[#F0E4D8] rounded-2xl p-8">
+                    <h4 className="text-sm font-semibold text-[#2C3E50] mb-5">📈 Monthly Bookings</h4>
+                    <div className="flex items-end gap-3 h-[160px] pt-5">
+                      {(() => {
+                        const max = Math.max(...monthlyBookings, 1);
+                        const months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+                        return months.map((label, i) => {
+                          const count = monthlyBookings[i];
+                          const heightPx = Math.max((count / max) * 140, count > 0 ? 12 : 4);
+                          return (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                              <div
+                                className="w-full bg-[#E86A33] rounded-t-md transition-all"
+                                style={{ height: `${heightPx}px`, opacity: count > 0 ? (0.4 + (i / 12) * 0.6) : 0.15 }}
+                              />
+                              <span className="text-[10px] text-gray-400">{label}</span>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                  <div className="bg-white border border-[#F0E4D8] rounded-2xl p-8">
+                    <h4 className="text-sm font-semibold text-[#2C3E50] mb-5">🎯 Service Distribution</h4>
+                    <div className="flex flex-col gap-4">
+                      {serviceDistribution.map((s) => (
+                        <div key={s.label}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-700">{s.label}</span>
+                            <span className="text-gray-400">{s.pct}%</span>
+                          </div>
+                          <div className="h-2 bg-[#FFF0E0] rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${s.pct}%`, background: s.color }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1437,6 +1794,238 @@ function PaymentDetailModal({
   );
 }
 
+/* ── User Detail Modal ───────────────────────────────────────────── */
+
+function UserDetailModal({
+  user,
+  data,
+  loading,
+  onClose,
+}: {
+  user: AppUser;
+  data: {
+    user: any;
+    pets: any[];
+    bookings: any[];
+    payments: any[];
+    reviews: any[];
+  } | null;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const fmtDate = (ts?: string | number | null) => {
+    if (!ts) return '—';
+    try { return new Date(ts as string).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }); } catch { return String(ts); }
+  };
+
+  const statusBadge = (status?: string | null) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-amber-50 text-amber-700 border-amber-200',
+      confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      completed: 'bg-emerald-500/10 text-emerald-600',
+      cancelled: 'bg-rose-50 text-rose-700 border-rose-200',
+    };
+    if (!status) return null;
+    return (
+      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${colors[status] || 'bg-gray-500/10 text-gray-500'}`}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
+    );
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#FFF8F0] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-[#F0E4D8]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ── Header ── */}
+        <div className="sticky top-0 bg-[#FFF8F0] z-10 flex items-center justify-between px-6 py-5 border-b border-[#F0E4D8]">
+          <h2 className="text-lg font-bold text-[#2C3E50] flex items-center gap-2">
+            👤 {user.name || 'Unnamed'}
+          </h2>
+          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        {loading ? (
+          <div className="p-6 space-y-4 animate-pulse">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-16 bg-gray-200 rounded-xl" />
+            ))}
+          </div>
+        ) : data ? (
+          <div className="p-6 space-y-6">
+            {/* ── Section A: Contact Details ── */}
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">📞 Contact Details</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Email</span>
+                  <span className="text-[#2C3E50] font-medium break-all">{data.user?.email || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Phone</span>
+                  <span className="text-[#2C3E50]">{data.user?.phone || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Role</span>
+                  <span className={`text-xs px-2 py-1 rounded-full font-semibold ${data.user?.role === 'provider' ? 'bg-blue-500/10 text-blue-500' : 'bg-emerald-500/10 text-emerald-600'}`}>
+                    {(data.user?.role || 'owner').charAt(0).toUpperCase() + (data.user?.role || 'owner').slice(1)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Auth Method</span>
+                  <span className="text-[#2C3E50] capitalize">{data.user?.authMethod || 'email'}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Join Date</span>
+                  <span className="text-[#2C3E50]">{fmtDate(data.user?.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Section B: Pets ── */}
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">🐾 Pets ({data.pets.length})</h3>
+              {data.pets.length === 0 ? (
+                <p className="text-sm text-gray-400">No pets registered.</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.pets.map((pet: any) => (
+                    <div key={pet.id} className="flex items-center justify-between border-b border-[#F0E4D8]/60 pb-2 last:border-0">
+                      <div>
+                        <span className="text-sm font-semibold text-[#2C3E50]">{pet.name || 'Unnamed Pet'}</span>
+                        {pet.breed && <span className="text-xs text-gray-400 ml-2">{pet.breed}</span>}
+                      </div>
+                      <span className="text-xs text-gray-400 capitalize">{pet.type || '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Section C: Bookings ── */}
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">📅 Bookings ({data.bookings.length})</h3>
+              {data.bookings.length === 0 ? (
+                <p className="text-sm text-gray-400">No bookings found.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-[#F0E4D8]">
+                        <th className="text-left px-2 py-2 font-semibold text-gray-400 uppercase">Service</th>
+                        <th className="text-left px-2 py-2 font-semibold text-gray-400 uppercase">Provider</th>
+                        <th className="text-left px-2 py-2 font-semibold text-gray-400 uppercase">Date/Time</th>
+                        <th className="text-left px-2 py-2 font-semibold text-gray-400 uppercase">Price</th>
+                        <th className="text-left px-2 py-2 font-semibold text-gray-400 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.bookings.map((b: any) => (
+                        <tr key={b.id} className="border-b border-[#F0E4D8]/60">
+                          <td className="px-2 py-2.5 text-[#2C3E50] capitalize">{b.serviceType || '—'}</td>
+                          <td className="px-2 py-2.5 text-gray-500">{b.providerName || '—'}</td>
+                          <td className="px-2 py-2.5 text-gray-500">
+                            {b.date ? new Date(b.date).toLocaleDateString('en-GB') : '—'}
+                            {b.time ? ` ${b.time}` : ''}
+                          </td>
+                          <td className="px-2 py-2.5 text-[#2C3E50] font-medium">
+                            {b.price ? `$${Number(b.price).toFixed(2)}` : '—'}
+                          </td>
+                          <td className="px-2 py-2.5">{statusBadge(b.status)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* ── Section D: Payments ── */}
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">💳 Payments ({data.payments.length})</h3>
+              {data.payments.length === 0 ? (
+                <p className="text-sm text-gray-400">No payments found.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-[#F0E4D8]">
+                        <th className="text-left px-2 py-2 font-semibold text-gray-400 uppercase">Amount</th>
+                        <th className="text-left px-2 py-2 font-semibold text-gray-400 uppercase">Fee</th>
+                        <th className="text-left px-2 py-2 font-semibold text-gray-400 uppercase">Status</th>
+                        <th className="text-left px-2 py-2 font-semibold text-gray-400 uppercase">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.payments.map((p: any) => (
+                        <tr key={p.id} className="border-b border-[#F0E4D8]/60">
+                          <td className="px-2 py-2.5 text-[#2C3E50] font-medium">
+                            {p.amount ? `$${Number(p.amount).toFixed(2)}` : '—'}
+                          </td>
+                          <td className="px-2 py-2.5 text-gray-500">
+                            {p.platformFee ? `$${Number(p.platformFee).toFixed(2)}` : '—'}
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${p.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-500/10 text-gray-500'}`}>
+                              {p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : '—'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2.5 text-gray-500">{fmtDate(p.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* ── Section E: Reviews ── */}
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">⭐ Reviews ({data.reviews.length})</h3>
+              {data.reviews.length === 0 ? (
+                <p className="text-sm text-gray-400">No reviews left.</p>
+              ) : (
+                <div className="space-y-3">
+                  {data.reviews.map((r: any) => (
+                    <div key={r.id} className="border border-[#F0E4D8] rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-semibold text-[#2C3E50]">
+                          {'★'.repeat(Math.min(5, Math.max(1, Number(r.rating) || 0)))}
+                          {'☆'.repeat(Math.max(0, 5 - Math.min(5, Math.max(1, Number(r.rating) || 0))))}
+                        </span>
+                        <span className="text-[10px] text-gray-400">{fmtDate(r.createdAt)}</span>
+                      </div>
+                      {r.comment && <p className="text-xs text-gray-600 leading-relaxed">{r.comment}</p>}
+                      <p className="text-[10px] text-gray-400 mt-1">Provider ID: {r.providerId || '—'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 text-center text-sm text-gray-400">Failed to load user details.</div>
+        )}
+
+        {/* ── Footer ── */}
+        <div className="sticky bottom-0 bg-[#FFF8F0] border-t border-[#F0E4D8] px-6 py-4 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 bg-[#E86A33] text-white text-sm font-semibold rounded-xl hover:bg-[#d55a24] transition-all"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Provider Detail Modal ─────────────────────────────────────────── */
 
 function ProviderDetailModal({
@@ -1446,9 +2035,141 @@ function ProviderDetailModal({
   provider: ServiceProvider;
   onClose: () => void;
 }) {
+  // ── Financial tracking state ────────────────────────────────
+  const [payments, setPayments] = useState<PaymentDoc[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<'30d' | 'month' | 'custom'>('30d');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const PLATFORM_FEE_PCT = 0.10;
+
   const formatDate = (ts?: string) => {
     if (!ts) return '—';
     try { return new Date(ts).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }); } catch { return ts; }
+  };
+
+  // Fetch payments for this provider on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setPaymentsLoading(true);
+        const all = await getAllPaymentsRest();
+        const filtered = all.filter(p => p.providerId === provider.id);
+        if (!cancelled) setPayments(filtered);
+      } catch (err) {
+        console.error('Failed to fetch provider payments:', err);
+      } finally {
+        if (!cancelled) setPaymentsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [provider.id]);
+
+  // ── Date range helpers ───────────────────────────────────────
+  const now = new Date();
+  const rangeStart = () => {
+    if (dateRange === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
+    if (dateRange === 'custom') {
+      const s = customStart ? new Date(customStart + 'T00:00:00') : new Date(0);
+      return isNaN(s.getTime()) ? new Date(0) : s;
+    }
+    const d = new Date(now);
+    d.setDate(d.getDate() - 30);
+    return d;
+  };
+  const rangeEnd = () => {
+    if (dateRange === 'custom') {
+      if (!customEnd) return now;
+      const e = new Date(customEnd + 'T23:59:59');
+      return isNaN(e.getTime()) ? now : e;
+    }
+    return now;
+  };
+
+  // Filter payments by date range
+  const filteredPayments = payments.filter(p => {
+    if (!p.createdAt) return false;
+    const d = new Date(p.createdAt);
+    return d >= rangeStart() && d <= rangeEnd();
+  });
+
+  // Metrics
+  const grossRevenue = filteredPayments
+    .filter(p => p.status === 'paid' || p.status === 'completed')
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
+  const platformFees = grossRevenue * PLATFORM_FEE_PCT;
+
+  // ── Toggle single checkbox ───────────────────────────────────
+  const toggleId = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // ── Select all currently filtered & visible payments ──────────
+  const toggleSelectAll = () => {
+    const allVisible = filteredPayments.map(p => p.id);
+    const allSelected = allVisible.every(id => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allVisible));
+    }
+  };
+
+  // ── Bulk fee collection ──────────────────────────────────────
+  const handleBulkFeeCollect = async (collected: boolean) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkUpdating(true);
+    try {
+      const { auth } = getFirebaseAuth();
+      if (!auth?.currentUser) throw new Error('Not authenticated');
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/admin/payments/batch-fee-collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ paymentIds: ids, collected }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(`Batch update failed: ${res.status} — ${(errData as any).message || ''}`);
+      }
+      setPayments(prev =>
+        prev.map(p => (ids.includes(p.id) ? { ...p, feeCollected: collected } : p)),
+      );
+      setSelectedIds(new Set());
+    } catch (err) {
+      console.error('Batch fee collect failed:', err);
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  // ── Single fee collection (inline toggle) ────────────────────
+  const handleToggleFeeCollected = async (paymentId: string, current: boolean) => {
+    try {
+      const { auth } = getFirebaseAuth();
+      if (!auth?.currentUser) throw new Error('Not authenticated');
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/admin/payments/batch-fee-collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ paymentIds: [paymentId], collected: !current }),
+      });
+      if (!res.ok) throw new Error(`Toggle failed: ${res.status}`);
+      setPayments(prev =>
+        prev.map(p => (p.id === paymentId ? { ...p, feeCollected: !current } : p)),
+      );
+    } catch (err) {
+      console.error('Failed to toggle feeCollected:', err);
+    }
   };
 
   return (
@@ -1659,6 +2380,163 @@ function ProviderDetailModal({
               </div>
             </div>
           )}
+
+          {/* ── Section H: Financial Tracking ───────────────────────── */}
+          <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-[#2C3E50] flex items-center gap-2">💰 Financial Tracking</h3>
+
+              {/* Date Range Selector */}
+              <div className="flex items-center gap-2 text-xs">
+                <select
+                  value={dateRange}
+                  onChange={(e) => setDateRange(e.target.value as '30d' | 'month' | 'custom')}
+                  className="border border-[#F0E4D8] rounded-lg px-3 py-1.5 bg-white text-[#2C3E50] font-medium focus:outline-none focus:ring-2 focus:ring-[#E86A33]/20"
+                >
+                  <option value="30d">Last 30 Days</option>
+                  <option value="month">This Month</option>
+                  <option value="custom">Custom</option>
+                </select>
+                {dateRange === 'custom' && (
+                  <>
+                    <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
+                      className="border border-[#F0E4D8] rounded-lg px-2 py-1.5 bg-white text-[#2C3E50] focus:outline-none focus:ring-2 focus:ring-[#E86A33]/20" />
+                    <span className="text-gray-400">→</span>
+                    <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
+                      className="border border-[#F0E4D8] rounded-lg px-2 py-1.5 bg-white text-[#2C3E50] focus:outline-none focus:ring-2 focus:ring-[#E86A33]/20" />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {paymentsLoading ? (
+              <div className="animate-pulse space-y-3">
+                <div className="h-16 bg-gray-200 rounded-xl" />
+                <div className="h-16 bg-gray-100 rounded-xl" />
+              </div>
+            ) : (
+              <>
+                {/* Metrics Cards */}
+                <div className="grid grid-cols-2 gap-4 mb-5">
+                  <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                    <span className="text-xs text-emerald-600 font-semibold uppercase tracking-wider">Gross Revenue</span>
+                    <p className="text-2xl font-bold text-[#2C3E50] mt-1">
+                      ${grossRevenue.toFixed(2)}
+                    </p>
+                    <span className="text-[10px] text-gray-400">
+                      {filteredPayments.filter(p => p.status === 'paid' || p.status === 'completed').length} paid/{filteredPayments.length} total
+                    </span>
+                  </div>
+                  <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                    <span className="text-xs text-amber-600 font-semibold uppercase tracking-wider">Platform Fees ({(PLATFORM_FEE_PCT * 100).toFixed(0)}%)</span>
+                    <p className="text-2xl font-bold text-[#2C3E50] mt-1">
+                      ${platformFees.toFixed(2)}
+                    </p>
+                    <span className="text-[10px] text-gray-400">
+                      {filteredPayments.filter(p => p.feeCollected).length}/{filteredPayments.length} collected
+                    </span>
+                  </div>
+                </div>
+
+                {/* Payment Table with Checkboxes */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Payments in Period ({filteredPayments.length})
+                    </h4>
+                    {selectedIds.size > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-400">{selectedIds.size} selected</span>
+                        <button
+                          onClick={() => handleBulkFeeCollect(true)}
+                          disabled={bulkUpdating}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-all"
+                        >
+                          {bulkUpdating ? '⏳ Updating...' : '✅ Mark as Fee Collected'}
+                        </button>
+                        <button
+                          onClick={() => handleBulkFeeCollect(false)}
+                          disabled={bulkUpdating}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-gray-500 text-white font-semibold hover:bg-gray-600 disabled:opacity-50 transition-all"
+                        >
+                          Mark as Pending
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {filteredPayments.length === 0 ? (
+                    <p className="text-sm text-gray-400 py-4 text-center">No payments found for this period.</p>
+                  ) : (
+                    <div className="overflow-x-auto border border-[#F0E4D8] rounded-xl">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-[#FFF8F0] border-b border-[#F0E4D8]">
+                            <th className="px-3 py-3 w-10">
+                              <input
+                                type="checkbox"
+                                checked={filteredPayments.length > 0 && filteredPayments.every(p => selectedIds.has(p.id))}
+                                onChange={toggleSelectAll}
+                                className="accent-[#E86A33] rounded"
+                              />
+                            </th>
+                            <th className="text-left px-3 py-3 font-semibold text-gray-400 uppercase">Amount</th>
+                            <th className="text-left px-3 py-3 font-semibold text-gray-400 uppercase">Status</th>
+                            <th className="text-left px-3 py-3 font-semibold text-gray-400 uppercase">Fee</th>
+                            <th className="text-left px-3 py-3 font-semibold text-gray-400 uppercase">Date</th>
+                            <th className="px-3 py-3"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredPayments.map(p => (
+                            <tr key={p.id} className={`border-b border-[#F0E4D8]/60 ${p.feeCollected ? 'bg-emerald-50/40' : ''}`}>
+                              <td className="px-3 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(p.id)}
+                                  onChange={() => toggleId(p.id)}
+                                  className="accent-[#E86A33] rounded"
+                                />
+                              </td>
+                              <td className="px-3 py-3 text-[#2C3E50] font-medium">${(p.amount || 0).toFixed(2)}</td>
+                              <td className="px-3 py-3">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                  p.status === 'paid' || p.status === 'completed'
+                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                    : 'bg-gray-500/10 text-gray-500'
+                                }`}>
+                                  {p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : '—'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 whitespace-nowrap">
+                                <span className="text-[#2C3E50] font-medium text-xs">${((p.amount || 0) * 0.10).toFixed(2)}</span>{' '}
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                  p.feeCollected
+                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {p.feeCollected ? '✓ Collected' : '⏳ Pending'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 text-gray-500">{formatDate(p.createdAt)}</td>
+                              <td className="px-3 py-3">
+                                <button
+                                  onClick={() => handleToggleFeeCollected(p.id, !!p.feeCollected)}
+                                  className="text-[10px] px-2 py-1 rounded-lg border border-[#F0E4D8] hover:bg-[#FFF8F0] transition-all"
+                                >
+                                  {p.feeCollected ? '⏳ Mark Pending' : '✅ Collect'}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
         </div>
 

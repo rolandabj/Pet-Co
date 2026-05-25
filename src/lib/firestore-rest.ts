@@ -1014,6 +1014,7 @@ export interface PaymentDoc {
   amount: number;
   status: string;
   createdAt?: string;
+  feeCollected?: boolean;
 }
 
 function mapPaymentDoc(doc: { id: string; data: Record<string, any> }): PaymentDoc {
@@ -1028,6 +1029,7 @@ function mapPaymentDoc(doc: { id: string; data: Record<string, any> }): PaymentD
     amount: doc.data.amount ?? 0,
     status: doc.data.status ?? '',
     createdAt: doc.data.createdAt ?? undefined,
+    feeCollected: doc.data.feeCollected === true,
   };
 }
 
@@ -1115,6 +1117,18 @@ export async function updatePaymentRest(paymentId: string, status: string): Prom
     headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok) throw new Error(`Failed to update payment: ${res.status}`);
+}
+
+/** Set feeCollected on a single payment document via Firestore REST API. */
+export async function setPaymentFeeCollectedRest(paymentId: string, collected: boolean): Promise<void> {
+  const res = await authFetch(docUrl('payments', paymentId) + `?updateMask.fieldPaths=feeCollected`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      fields: { feeCollected: { booleanValue: collected } },
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Failed to update feeCollected for payment ${paymentId}: ${res.status}`);
 }
 
 export async function deletePaymentRest(paymentId: string): Promise<void> {
