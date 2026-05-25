@@ -84,6 +84,8 @@ export default function AdminPage() {
   const [selectedBooking, setSelectedBooking] = useState<BookingDoc | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<PaymentDoc | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<ServiceProvider | null>(null);
+  const [showProviderModal, setShowProviderModal] = useState(false);
 
   const admin = isAdminUser(user);
 
@@ -715,13 +717,17 @@ export default function AdminPage() {
                   {providers.length === 0 ? (
                     <tr><td colSpan={6} className="text-center py-10 text-gray-400 text-sm">No providers found.</td></tr>
                   ) : providers.map(p => (
-                    <tr key={p.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0]">
+                    <tr
+                      key={p.id}
+                      className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0] cursor-pointer"
+                      onClick={() => { setSelectedProvider(p); setShowProviderModal(true); }}
+                    >
                       <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">{p.emoji} {p.businessName || p.name}</td>
                       <td className="px-5 py-4 text-sm text-gray-500">{p.category}</td>
-                      <td className="px-5 py-4 text-sm text-yellow-500">★ {p.rating}</td>
+                      <td className="px-5 py-4 text-sm text-yellow-500">★ {p.rating} <span className="text-gray-400 font-normal">({p.reviews})</span></td>
                       <td className="px-5 py-4 text-sm text-gray-500">{p.price}</td>
                       <td className="px-5 py-4"><span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 font-semibold">Active</span></td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleDeleteProvider(p)}
                           className="text-xs text-red-500 hover:text-red-700"
@@ -1022,6 +1028,14 @@ export default function AdminPage() {
             bookings={bookings}
             onClose={() => { setShowPaymentModal(false); setSelectedPayment(null); }}
           />}
+
+          {/* ── Provider Detail Modal ── */}
+          {showProviderModal && selectedProvider && (
+            <ProviderDetailModal
+              provider={selectedProvider}
+              onClose={() => { setShowProviderModal(false); setSelectedProvider(null); }}
+            />
+          )}
 
           {/* Reviews management tab */}
           {activeTab === 'reviews' && (
@@ -1406,6 +1420,245 @@ function PaymentDetailModal({
               </p>
             )}
           </div>
+
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="sticky bottom-0 bg-[#FFF8F0] border-t border-[#F0E4D8] px-6 py-4 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 bg-[#E86A33] text-white text-sm font-semibold rounded-xl hover:bg-[#d55a24] transition-all"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Provider Detail Modal ─────────────────────────────────────────── */
+
+function ProviderDetailModal({
+  provider,
+  onClose,
+}: {
+  provider: ServiceProvider;
+  onClose: () => void;
+}) {
+  const formatDate = (ts?: string) => {
+    if (!ts) return '—';
+    try { return new Date(ts).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }); } catch { return ts; }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#FFF8F0] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-[#F0E4D8]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ── Header ── */}
+        <div className="sticky top-0 bg-[#FFF8F0] z-10 flex items-center justify-between px-6 py-5 border-b border-[#F0E4D8]">
+          <h2 className="text-lg font-bold text-[#2C3E50] flex items-center gap-2">
+            {provider.emoji || '🏪'} {provider.businessName || provider.name}
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-[#F0E4D8] text-gray-400 hover:text-[#E86A33] hover:border-[#E86A33] transition-all text-lg"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+
+          {/* ── Section A: Identity & Contact ── */}
+          <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">📇 Identity & Contact</h3>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+              <div className="sm:col-span-2">
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Business Name</span>
+                <span className="text-[#2C3E50] font-semibold text-base">{provider.businessName || provider.name}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Provider ID</span>
+                <span className="text-[#2C3E50] font-mono text-xs break-all">{provider.id}</span>
+              </div>
+              {provider._firestoreId && (
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Firestore Doc ID</span>
+                  <span className="text-[#2C3E50] font-mono text-xs break-all">{provider._firestoreId}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Category</span>
+                <span className="inline-block text-xs px-3 py-1 rounded-full bg-[#FFF0E0] text-[#E86A33] font-semibold">{provider.category}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Type</span>
+                <span className="text-[#2C3E50]">{provider.type}</span>
+              </div>
+              {provider.email && (
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Email</span>
+                  <a href={`mailto:${provider.email}`} className="text-[#E86A33] hover:underline">{provider.email}</a>
+                </div>
+              )}
+              {provider.contactEmail && (
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Contact Email</span>
+                  <a href={`mailto:${provider.contactEmail}`} className="text-[#E86A33] hover:underline">{provider.contactEmail}</a>
+                </div>
+              )}
+              {provider.phone && (
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Phone</span>
+                  <a href={`tel:${provider.phone}`} className="text-[#2C3E50] hover:text-[#E86A33]">{provider.phone}</a>
+                </div>
+              )}
+              {provider.contactPhone && (
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Contact Phone</span>
+                  <a href={`tel:${provider.contactPhone}`} className="text-[#2C3E50] hover:text-[#E86A33]">{provider.contactPhone}</a>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Section B: Location & Details ── */}
+          <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">📍 Location & Details</h3>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+              {provider.location && (
+                <div>
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Location</span>
+                  <span className="text-[#2C3E50]">{provider.location}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Rating</span>
+                <span className="text-yellow-500 font-semibold">★ {provider.rating} <span className="text-gray-400 font-normal">({provider.reviews} reviews)</span></span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Price</span>
+                <span className="text-[#2C3E50]">{provider.price}</span>
+              </div>
+              {provider.since && (
+                <div className="sm:col-span-2">
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Member Since</span>
+                  <span className="text-[#2C3E50]">{formatDate(provider.since)}</span>
+                </div>
+              )}
+              {provider.desc && (
+                <div className="sm:col-span-2">
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Description</span>
+                  <p className="text-[#2C3E50] text-sm leading-relaxed">{provider.desc}</p>
+                </div>
+              )}
+              {provider.googleMapsUrl && (
+                <div className="sm:col-span-2">
+                  <span className="text-xs text-gray-400 block uppercase font-semibold tracking-wider">Google Maps</span>
+                  <a href={provider.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-[#E86A33] hover:underline text-sm">Open in Google Maps →</a>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Section C: Tags ── */}
+          {provider.tags && provider.tags.length > 0 && (
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">🏷️ Tags</h3>
+              <div className="flex flex-wrap gap-2">
+                {provider.tags.map((tag, i) => (
+                  <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-[#FFF0E0] text-[#2C3E50] font-medium">{tag}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Section D: Services Offered ── */}
+          {provider.services && provider.services.length > 0 && (
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">🛠️ Services Offered</h3>
+              <div className="space-y-3">
+                {provider.services.map((svc, i) => (
+                  <div key={i} className="flex items-center justify-between border-b border-[#F0E4D8]/60 pb-2 last:border-0">
+                    <div>
+                      <span className="text-sm font-semibold text-[#2C3E50]">{svc.name}</span>
+                      {svc.description && <p className="text-xs text-gray-500 mt-0.5">{svc.description}</p>}
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <span className="text-sm font-bold text-[#E86A33]">{svc.price} {svc.currency || 'USD'}</span>
+                      {svc.duration && <p className="text-[10px] text-gray-400">{svc.duration} min</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Section E: Products ── */}
+          {provider.products && provider.products.length > 0 && (
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">📦 Products</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {provider.products.map((prod) => (
+                  <div key={prod.id} className="border border-[#F0E4D8] rounded-xl p-3">
+                    <h4 className="text-sm font-semibold text-[#2C3E50] truncate">{prod.name}</h4>
+                    {prod.description && <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{prod.description}</p>}
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs font-bold text-[#E86A33]">${prod.price.toFixed(2)} {prod.currency || 'USD'}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${prod.inStock ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-500/10 text-gray-500'}`}>
+                        {prod.inStock ? 'In Stock' : 'Out'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Section F: Social Media ── */}
+          {provider.socialMedia && (
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">🌐 Social Media</h3>
+              <div className="flex flex-wrap gap-3">
+                {provider.socialMedia.website && (
+                  <a href={provider.socialMedia.website} target="_blank" rel="noopener noreferrer" className="text-sm text-[#E86A33] hover:underline flex items-center gap-1">
+                    🌍 Website
+                  </a>
+                )}
+                {provider.socialMedia.instagram && (
+                  <a href={provider.socialMedia.instagram} target="_blank" rel="noopener noreferrer" className="text-sm text-[#E86A33] hover:underline flex items-center gap-1">
+                    📷 Instagram
+                  </a>
+                )}
+                {provider.socialMedia.facebook && (
+                  <a href={provider.socialMedia.facebook} target="_blank" rel="noopener noreferrer" className="text-sm text-[#E86A33] hover:underline flex items-center gap-1">
+                    👍 Facebook
+                  </a>
+                )}
+                {provider.socialMedia.twitter && (
+                  <a href={provider.socialMedia.twitter} target="_blank" rel="noopener noreferrer" className="text-sm text-[#E86A33] hover:underline flex items-center gap-1">
+                    🐦 Twitter
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Section G: Logo ── */}
+          {provider.logoUrl && (
+            <div className="bg-white rounded-xl border border-[#F0E4D8] p-5">
+              <h3 className="text-sm font-semibold text-[#2C3E50] mb-4 flex items-center gap-2">🖼️ Logo</h3>
+              <div className="w-24 h-24 rounded-xl border border-[#F0E4D8] overflow-hidden">
+                <img src={provider.logoUrl} alt={`${provider.businessName || provider.name} logo`} className="w-full h-full object-cover" />
+              </div>
+            </div>
+          )}
 
         </div>
 

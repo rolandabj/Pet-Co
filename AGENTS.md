@@ -4,6 +4,16 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Workspace Setup (run on every new conversation)
+
+Before coding, run the setup script to install deps and configure `.env.local`:
+
+```bash
+bash scripts/setup.sh
+```
+
+The script reads from environment variables. If you're in an OpenHands session without those vars set, create `.env.local` manually from `.env.local.example` and fill in the Firebase config values.
+
 # Firestore-REST Debug Notes
 
 ## Write Operations (addPetRest / addFavoriteRest)
