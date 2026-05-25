@@ -311,7 +311,8 @@ PORT=12000
 | `npm run build` | Production build (Webpack) |
 | `npm run start` | Production server |
 | `npm run lint` | ESLint check |
-| `scripts/setup.sh` | Full workspace bootstrap |
+| `scripts/setup.sh` | Full workspace bootstrap (install deps + configure .env.local) |
+| `scripts/dev.sh` | Start dev server with auto-detected ALLOWED_DEV_ORIGINS for proxy domains |
 | `scripts/seed-firestore.ts` | Seed Firestore with sample data |
 | `scripts/make-admin.ts` | Grant admin role to a user |
 | `scripts/migrate-user-id.ts` | Migrate user ID format |

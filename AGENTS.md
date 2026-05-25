@@ -17,10 +17,12 @@ This installs npm dependencies and creates `.env.local` from injected environmen
 ## 2. Start the dev server
 
 ```bash
-rm -rf .next && PORT=12000 npm run dev > server.log 2>&1 &
+bash scripts/dev.sh &
 ```
 
-The server runs in the background. Check it with `curl -s -o /dev/null -w "%{http_code}" http://localhost:12000`.
+This auto-detects the preview domain(s) from the container hostname, sets `ALLOWED_DEV_ORIGINS` accordingly (so Next.js Turbopack HMR works through the proxy), and starts the server in the background on port 12000.
+
+Check it with `curl -s -o /dev/null -w "%{http_code}" http://localhost:12000`.
 
 ## 3. Google Sign-In — the ONLY manual step
 
