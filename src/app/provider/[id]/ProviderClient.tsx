@@ -9,7 +9,6 @@ import { formatProductPrice } from '@/lib/formatProductPrice';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import {
-  addReviewRest,
   getReviewsByProviderRest,
   updateProviderDocRest,
 } from '@/lib/firestore-rest';
@@ -17,6 +16,7 @@ import {
   fetchMyFavorites,
   addMyFavorite,
   removeMyFavoriteByProvider,
+  addMyReview,
 } from '@/lib/me-api';
 import type { ReviewDoc } from '@/lib/firestore-rest';
 
@@ -137,15 +137,12 @@ export default function ProviderClient({ provider: initialProvider, reviews: ini
     }
     setSubmitting(true);
     try {
-      const reviewPayload = {
+      await addMyReview({
         providerId,
-        userId: uid,
-        userName: user?.name || user?.email?.split('@')[0] || 'Anonymous',
         rating: newRating,
         comment: newComment.trim(),
         userRole: user?.role,
-      };
-      await addReviewRest(reviewPayload);
+      });
 
       // Sync provider rating/reviewCount aggregates
       try {

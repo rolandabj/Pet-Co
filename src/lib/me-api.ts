@@ -152,3 +152,31 @@ export async function removeMyFavoriteByProvider(providerId: string) {
 
   return true;
 }
+
+// ─── Reviews ───────────────────────────────────────────────────
+
+export async function addMyReview(review: {
+  providerId: string;
+  rating: number;
+  comment: string;
+  userRole?: string;
+}) {
+  const res = await fetch('/api/reviews', {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify(review),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    console.error('🐛 API ERROR BODY', {
+      url: res.url,
+      status: res.status,
+      text,
+    });
+    throw new Error(`Failed to add review: ${res.status}${text ? ` — ${text}` : ''}`);
+  }
+
+  const data = await res.json();
+  return data.review;
+}

@@ -6,26 +6,17 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 329ms
+✓ Ready in 348ms
 
-[browser] 🐛 API ERROR BODY {
-  status: [33m502[39m,
-  text: [32m'Bad Gateway'[39m,
-  url: [32m'https://work-1-nptqcdmiggcojatv.prod-runtime.all-hands.dev/api/me/favorites?providerId=wxYK5d51I2VaK2pc4N4QkfaFzkG2'[39m
-} 
-    at fetchMyFavorites (src/lib/me-api.ts:95:13)
-    at async ProviderClient.useCallback[checkFavorite] (src/app/provider/[id]/ProviderClient.tsx:78:25)
-  93 |   if (!res.ok) {
-  94 |     const text = await res.text().catch(() => '');
-> 95 |     console.error('🐛 API ERROR BODY', {
-     |             ^
-  96 |       url: res.url,
-  97 |       status: res.status,
-  98 |       text, (src/lib/me-api.ts:95:13)
- GET /login 200 in 651ms (next.js: 194ms, application-code: 457ms)
- GET /provider/wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 679ms (next.js: 525ms, application-code: 154ms)
-[browser] Image with src "https://firebasestorage.googleapis.com/v0/b/pet-co-fc4d6.firebasestorage.app/o/providers%2FwxYK5d51I2VaK2pc4N4QkfaFzkG2%2Fproducts%2F1779703414904_image.png?alt=media&token=2fe10b09-33b5-426b-85ec-915c245431d0" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
-Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+ GET /login 200 in 585ms (next.js: 216ms, application-code: 369ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 83ms (next.js: 15ms, application-code: 68ms)
 🐛 API AUTH HEADER DEBUG {
   hasAuthHeader: true,
   startsWithBearer: true,
@@ -39,10 +30,22 @@ Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
   hasPrivateKey: true,
   privateKeyStartsCorrectly: true
 }
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
 🐛 API TOKEN VERIFIED {
   uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
   email: 'rolandabj123@gmail.com',
   aud: 'pet-co-fc4d6',
   iss: 'https://securetoken.google.com/pet-co-fc4d6'
 }
- GET /api/me/favorites?providerId=wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 488ms (next.js: 292ms, application-code: 196ms)
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites 200 in 193ms (next.js: 32ms, application-code: 161ms)
+ GET /api/me/pets 200 in 523ms (next.js: 302ms, application-code: 221ms)
