@@ -198,6 +198,7 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
   const [bizInsta, setBizInsta] = useState('');
   const [bizFacebook, setBizFacebook] = useState('');
   const [bizWebsite, setBizWebsite] = useState('');
+  const [bizType, setBizType] = useState('walkers');
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // ── Availability / Operational Hours state ──────────────────────
@@ -233,6 +234,7 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
         setBizInsta(p.socialMedia?.instagram ?? '');
         setBizFacebook(p.socialMedia?.facebook ?? '');
         setBizWebsite(p.socialMedia?.website ?? '');
+        setBizType(p.type ?? 'walkers');
         if (p.availability) {
           setAvailability(prev => ({ ...prev, ...p.availability }));
         } else {
@@ -722,6 +724,9 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
       location: bizLocation.trim(),
       googleMapsUrl: bizGoogleMapsUrl.trim(),
       logoUrl: provider?.logoUrl || '',
+      type: bizType,
+      category: categoryLabels[bizType] || 'Dog Walker',
+      emoji: categoryEmojis[bizType] || '🏪',
       socialMedia: {
         instagram: bizInsta.trim(),
         facebook: bizFacebook.trim(),
@@ -738,7 +743,7 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
       }
       const providerDocRef = doc(db, 'providers', targetDocId);
       await updateDoc(providerDocRef, updates);
-      setProvider({ ...provider!, ...updates } as ServiceProvider);
+      setProvider({ ...provider!, ...updates, type: bizType, category: categoryLabels[bizType] || 'Dog Walker', emoji: categoryEmojis[bizType] || '🏪' } as ServiceProvider);
       showToast('✅ Business profile updated!', 'success');
     } catch (error) {
       console.error('[ProviderDashboard] FIRESTORE WRITE CRASHED:', error);
@@ -1873,6 +1878,20 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
                     placeholder="Your business name"
                     className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
                   />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-semibold text-secondary mb-1.5">
+                    Category
+                  </label>
+                  <select
+                    value={bizType}
+                    onChange={(e) => setBizType(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-primary focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm"
+                  >
+                    {categoryOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-semibold text-secondary mb-1.5">

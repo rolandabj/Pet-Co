@@ -2659,3 +2659,174 @@ Import traces:
 ✓ Compiled in 64ms
  GET /api/bookings?providerId=ov1tjmewYlWKyRagtvssilVJeaF3&date=2026-05-26 200 in 55ms (next.js: 2ms, application-code: 53ms)
  GET / 200 in 61ms (next.js: 5ms, application-code: 56ms)
+ GET /booking?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 48ms (next.js: 5ms, application-code: 43ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 61ms (next.js: 1554µs, application-code: 59ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 56ms (next.js: 4ms, application-code: 52ms)
+ GET /booking?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 49ms (next.js: 2ms, application-code: 47ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 49ms (next.js: 1628µs, application-code: 48ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 50ms (next.js: 1828µs, application-code: 48ms)
+ GET /api/bookings?providerId=ov1tjmewYlWKyRagtvssilVJeaF3&date=2026-05-26 200 in 56ms (next.js: 2ms, application-code: 54ms)
+ GET /api/bookings?providerId=ov1tjmewYlWKyRagtvssilVJeaF3&date=2026-05-27 200 in 56ms (next.js: 3ms, application-code: 52ms)
+ GET / 200 in 17ms (next.js: 4ms, application-code: 13ms)
+ GET /login 200 in 17ms (next.js: 2ms, application-code: 15ms)
+ GET /login 200 in 20ms (next.js: 2ms, application-code: 18ms)
+ GET /login 200 in 46ms (next.js: 2ms, application-code: 44ms)
+ GET /login 200 in 48ms (next.js: 2ms, application-code: 46ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 55ms (next.js: 3ms, application-code: 52ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 60ms (next.js: 1912µs, application-code: 58ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 129ms (next.js: 1489µs, application-code: 127ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 50ms (next.js: 1656µs, application-code: 48ms)
+ GET /services 200 in 124ms (next.js: 2ms, application-code: 121ms)
+✓ Compiled in 100ms
+✓ Compiled in 64ms
+✓ Compiled in 61ms
+✓ Compiled in 77ms
+ GET /dashboard 200 in 20ms (next.js: 4ms, application-code: 16ms)
+ GET /services 200 in 185ms (next.js: 2ms, application-code: 183ms)
+ GET /dashboard 200 in 19ms (next.js: 2ms, application-code: 17ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 55ms (next.js: 2ms, application-code: 53ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 59ms (next.js: 1683µs, application-code: 57ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 163ms (next.js: 1335µs, application-code: 162ms)
+ GET /api/payments?role=provider 200 in 45ms (next.js: 1410µs, application-code: 43ms)
+✓ Compiled in 108ms
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 48ms (next.js: 2ms, application-code: 46ms)
+ GET / 200 in 48ms (next.js: 2ms, application-code: 46ms)
