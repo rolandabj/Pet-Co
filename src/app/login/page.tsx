@@ -6,10 +6,21 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/Toast';
 import type { UserRole } from '@/lib/types';
 
+// Provider category options shown when role === 'provider'
+const providerTypes = [
+  { value: 'walkers', icon: '🐕', title: 'Dog Walker', desc: 'Dog walking services' },
+  { value: 'vets', icon: '🏥', title: 'Veterinarian', desc: 'Medical pet care' },
+  { value: 'hotels', icon: '🏨', title: 'Dog Hotel', desc: 'Pet boarding & daycare' },
+  { value: 'sitters', icon: '🛋️', title: 'Pet Sitter', desc: 'In-home pet sitting' },
+  { value: 'grooming', icon: '✂️', title: 'Groomer', desc: 'Pet grooming & styling' },
+  { value: 'shops', icon: '🛍️', title: 'Pet Shop', desc: 'Pet supplies & retail' },
+];
+
 export default function LoginPage() {
   const { login, googleLogin } = useAuth();
   const { showToast } = useToast();
   const [role, setRole] = useState<UserRole>('owner');
+  const [providerType, setProviderType] = useState<string>('walkers');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,7 +45,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setError('');
     setGoogleLoading(true);
-    const result = await googleLogin(role);
+    const result = await googleLogin(role, role === 'provider' ? providerType : undefined);
     setGoogleLoading(false);
     if (result.error) {
       if (result.error === 'cancelled') return; // user closed popup — no-op
@@ -70,7 +81,10 @@ export default function LoginPage() {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setRole(opt.value)}
+                  onClick={() => {
+                    setRole(opt.value);
+                    if (opt.value === 'owner') setProviderType('walkers');
+                  }}
                   className={`p-4 border-2 rounded-xl text-center cursor-pointer transition-all ${
                     role === opt.value
                       ? 'border-[#E86A33] bg-orange-500/5'
@@ -87,6 +101,31 @@ export default function LoginPage() {
               Returning users: your saved role will be used instead.
             </p>
           </div>
+
+          {/* Provider type selector — shown when Service Provider is selected */}
+          {role === 'provider' && (
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-[#2C3E50] mb-3">What type of service do you offer?</label>
+              <div className="grid grid-cols-2 gap-2.5">
+                {providerTypes.map((pt) => (
+                  <button
+                    key={pt.value}
+                    type="button"
+                    onClick={() => setProviderType(pt.value)}
+                    className={`p-3 border-2 rounded-xl text-center cursor-pointer transition-all ${
+                      providerType === pt.value
+                        ? 'border-[#E86A33] bg-orange-500/5'
+                        : 'border-[#F0E4D8] bg-[#FFF8F0] hover:border-[#F5A07A]'
+                    }`}
+                  >
+                    <div className="text-xl mb-1">{pt.icon}</div>
+                    <h4 className="text-xs font-semibold text-[#2C3E50]">{pt.title}</h4>
+                    <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{pt.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Google */}
           <button

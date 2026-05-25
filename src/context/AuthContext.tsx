@@ -213,7 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name: string, role: UserRole) => {
+  const register = useCallback(async (email: string, password: string, name: string, role: UserRole, providerType?: string) => {
     // 1) Try Firebase Auth first — persists across devices (F3)
     try {
       const { auth } = getFirebaseAuth();
@@ -240,17 +240,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           await updateUserDocRest(userId, { role, name });
           if (role === 'provider') {
+            const providerCategories: Record<string, { category: string; emoji: string }> = {
+              walkers: { category: 'Dog Walker', emoji: '🐕' },
+              vets: { category: 'Veterinarian', emoji: '🏥' },
+              hotels: { category: 'Dog Hotel', emoji: '🏨' },
+              sitters: { category: 'Pet Sitter', emoji: '🛋️' },
+              grooming: { category: 'Groomer', emoji: '✂️' },
+              shops: { category: 'Pet Shop', emoji: '🛍️' },
+            };
+            const typeKey = providerType && providerCategories[providerType] ? providerType : 'walkers';
+            const meta = providerCategories[typeKey];
             try {
               const { createProviderRest } = await import('@/lib/firestore-rest');
               await createProviderRest({
                 email: userEmail,
                 name,
-                businessName: `${name.split(' ')[0]}'s Pet Business`,
+                businessName: `${name.split(' ')[0]}'s ${meta.category}`,
                 contactEmail: userEmail,
-                type: 'walkers',
-                category: 'Dog Walker',
-                emoji: '🏪',
-                desc: 'New pet service provider',
+                type: typeKey,
+                category: meta.category,
+                emoji: meta.emoji,
+                desc: `New ${meta.category.toLowerCase()}`,
                 location: '',
                 documentId: userId,
               });
@@ -316,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, []);
 
-  const googleLogin = useCallback(async (role?: UserRole) => {
+  const googleLogin = useCallback(async (role?: UserRole, providerType?: string) => {
     try {
       const { auth, googleProvider } = getFirebaseAuth();
 
@@ -359,23 +369,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return appUser;
       };
 
+      // Provider category metadata — used when auto-creating provider docs
+      const providerCategories: Record<string, { category: string; emoji: string }> = {
+        walkers: { category: 'Dog Walker', emoji: '🐕' },
+        vets: { category: 'Veterinarian', emoji: '🏥' },
+        hotels: { category: 'Dog Hotel', emoji: '🏨' },
+        sitters: { category: 'Pet Sitter', emoji: '🛋️' },
+        grooming: { category: 'Groomer', emoji: '✂️' },
+        shops: { category: 'Pet Shop', emoji: '🛍️' },
+      };
+
       // Persist a NEW user's role to Firestore (only called for first-time users)
-      const persistNewUser = async (appUser: AppUser) => {
+      // Uses providerType to set the correct category/emoji instead of hardcoded defaults.
+      const persistNewUser = async (appUser: AppUser, providerType?: string) => {
         try {
           await updateUserDocRest(appUser.id, { role: appUser.role, name: appUser.name });
           // Auto-create a minimal provider doc for new provider registrations
           if (appUser.role === 'provider') {
+            const typeKey = providerType && providerCategories[providerType] ? providerType : 'walkers';
+            const meta = providerCategories[typeKey];
             try {
               const { createProviderRest } = await import('@/lib/firestore-rest');
               await createProviderRest({
                 email: appUser.email,
                 name: appUser.name,
-                businessName: `${appUser.name.split(' ')[0]}'s Pet Business`,
+                businessName: `${appUser.name.split(' ')[0]}'s ${meta.category}`,
                 contactEmail: appUser.email,
-                type: 'walkers',
-                category: 'Dog Walker',
-                emoji: '🏪',
-                desc: 'New pet service provider',
+                type: typeKey,
+                category: meta.category,
+                emoji: meta.emoji,
+                desc: `New ${meta.category.toLowerCase()}`,
                 location: '',
                 documentId: appUser.id,
               });
@@ -389,7 +412,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       // ── Common handler for popup & redirect results ──────────────
-      const handleCredential = async (credential: FirebaseUser) => {
+      const handleCredential = async (credential: FirebaseUser, providerType?: string) => {
         // 1) Check Firestore for an existing, immutable role
         const existingRole = await getExistingRole(credential.uid);
 
@@ -405,7 +428,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         //    the dashboard from rendering before the user's role is persisted
         //    — avoiding a brief flash of the wrong layout.
         if (!existingRole) {
-          await persistNewUser(appUser);
+          await persistNewUser(appUser, providerType);
         }
 
         // 4) NOW it's safe to set the user — the Firestore doc is committed
@@ -423,7 +446,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           'getRedirectResult'
         );
         if (redirectResult?.user) {
-          return handleCredential(redirectResult.user);
+          return handleCredential(redirectResult.user, providerType);
         }
       } catch {
         // No pending redirect result — ignore
@@ -436,7 +459,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         60000,
         'signInWithPopup'
       );
-      return handleCredential(popupResult.user);
+      return handleCredential(popupResult.user, providerType);
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };
       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
