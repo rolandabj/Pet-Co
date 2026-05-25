@@ -77,61 +77,52 @@ export async function DELETE(request: Request) {
       ...favoriteDocs.map((d) => ({ collection: 'favorites' as const, docId: d.id })),
     ];
 
-    try {
+    if (relationalDocs.length > 0) {
+      console.log('🧹 DELETE ACCOUNT — batch deleting', relationalDocs.length, 'relational docs');
       await deleteDocsBatch(relationalDocs);
       console.log('🧹 DELETE ACCOUNT — relational docs batch deleted');
-    } catch (err) {
-      console.error('🧹 DELETE ACCOUNT — batch delete failed:', err);
     }
 
     // ── 4. Delete the provider document ───────────────────────
-    try {
-      await deleteDocRest('providers', providerId);
-      console.log('🧹 DELETE ACCOUNT — provider doc deleted');
-    } catch (err) {
-      console.error('🧹 DELETE ACCOUNT — failed to delete provider doc:', err);
-    }
+    await deleteDocRest('providers', providerId);
+    console.log('🧹 DELETE ACCOUNT — provider doc deleted');
 
     // ── 5. Downgrade user role ────────────────────────────────
     if (userEmail) {
-      try {
-        const users = await runQueryRest<{ role?: string }>('users', 'email', 'EQUAL', userEmail);
-        if (users.length > 0) {
-          const accessToken = await getAccessToken();
-          const base = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
-          const url = `${base}/users/${encodeURIComponent(users[0].id)}?updateMask.fieldPaths=role`;
-          const patchRes = await fetch(url, {
-            method: 'PATCH',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
+      const users = await runQueryRest<{ role?: string }>('users', 'email', 'EQUAL', userEmail);
+      if (users.length > 0) {
+        const accessToken = await getAccessToken();
+        const base = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+        const url = `${base}/users/${encodeURIComponent(users[0].id)}?updateMask.fieldPaths=role`;
+        const patchRes = await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fields: {
+              role: { stringValue: 'owner' },
             },
-            body: JSON.stringify({
-              fields: {
-                role: { stringValue: 'owner' },
-              },
-            }),
-          });
-          if (patchRes.ok) {
-            console.log('🧹 DELETE ACCOUNT — user doc downgraded to owner');
-          } else {
-            console.error('🧹 DELETE ACCOUNT — failed to update user role:', await patchRes.text());
-          }
+          }),
+        });
+        if (!patchRes.ok) {
+          const body = await patchRes.text().catch(() => '');
+          console.error('🧹 DELETE ACCOUNT — failed to update user role:', patchRes.status, body);
         } else {
-          console.log('🧹 DELETE ACCOUNT — no user doc found for email:', userEmail);
+          console.log('🧹 DELETE ACCOUNT — user doc downgraded to owner');
         }
-      } catch (err) {
-        console.error('🧹 DELETE ACCOUNT — failed to query/update user role:', err);
+      } else {
+        console.log('🧹 DELETE ACCOUNT — no user doc found for email:', userEmail);
       }
     }
 
     // ── 6. Delete the Firebase Auth user ──────────────────────
-    try {
-      await auth.deleteUser(decoded.uid);
-      console.log('🧹 DELETE ACCOUNT — Firebase Auth user deleted');
-    } catch (err) {
-      console.error('🧹 DELETE ACCOUNT — failed to delete Firebase Auth user:', err);
-    }
+    // NOTE: If this fails, the client will get a 500 and the overall
+    // deletion is considered failed — the provider doc and related data
+    // have already been deleted above, so re-running is safe.
+    await auth.deleteUser(decoded.uid);
+    console.log('🧹 DELETE ACCOUNT — Firebase Auth user deleted');
 
     return NextResponse.json({
       deleted: true,

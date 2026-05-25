@@ -37,6 +37,19 @@ The script reads from environment variables. If you're in an OpenHands session w
 - **Cannot deploy from this environment** — workload identity has no access to `pet-co-fc4d6` project.
 - To deploy: `npx firebase deploy --only firestore:rules --project pet-co-fc4d6` from local machine.
 
+## Admin SDK Firestore gRPC issue
+- The Admin SDK's `getFirestore()` uses **gRPC** transport, which can silently fail in sandboxed/container environments (gRPC native C++ bindings may not load correctly).
+- **Fix**: Use `src/lib/firestore-admin-rest.ts` for server-side Firestore operations instead. This module authenticates via `google-auth-library` (OAuth2) and makes direct REST API calls via `fetch` — no gRPC involved.
+- `getAdminAuth()` (Firebase Auth Admin SDK) still works fine — it uses a different API with reliable transport.
+
+## Server-only Firestore REST helpers (`firestore-admin-rest.ts`)
+- `getAccessToken()` — cached OAuth2 token for the service account (auto-refreshes before expiry)
+- `getDocRest(collection, docId)` — GET a single document; returns `fields` object or `null`
+- `deleteDocRest(collection, docId)` — DELETE a single document; returns `true` if existed
+- `deleteDocsBatch(docs)` — batch DELETE up to 500 docs via `:commit`
+- `runQueryRest(collection, field, op, value)` — structured queries via `:runQuery`
+- All functions throw on non-404 errors, making failures visible
+
 ## Debug Logging Added
 - `console.log('OUTGOING PAYLOAD:')` right before each fetch
 - `console.log('data.userId:')` to verify userId value
