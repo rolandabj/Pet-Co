@@ -13,7 +13,8 @@ const serviceTypes = [
   { value: 'grooming', label: '✂️ Grooming', price: 35 },
   { value: 'shop', label: '🛍️ Pet Shop', price: 0 },
 ];
-import { getAllProvidersRest, getProviderByIdRest, getUserPetsRest, addBookingRest, addPaymentRest, getBookingsForProviderDateRest, getUserByIdRest } from '@/lib/firestore-rest';
+import { getAllProvidersRest, getProviderByIdRest, addBookingRest, addPaymentRest, getBookingsForProviderDateRest, getUserByIdRest } from '@/lib/firestore-rest';
+import { fetchMyPets } from '@/lib/me-api';
 import { ServiceProvider, ServiceItem, AppUser } from '@/lib/types';
 import Link from 'next/link';
 
@@ -64,11 +65,14 @@ function BookingFormAuthenticated({ user, firebaseUser }: { user: AppUser; fireb
     const uid = firebaseUser?.uid || user?.id;
     if (!uid) return;
     setPetsLoading(true);
-    getUserPetsRest(uid)
+    fetchMyPets()
       .then(list => {
-        setPets(list.map(p => ({ id: p.id, name: p.name, type: p.type })));
+        setPets(list.map((p: any) => ({ id: p.id, name: p.name, type: p.type })));
       })
-      .catch(err => console.error('Failed to fetch pets:', err))
+      .catch(err => {
+        console.error('Failed to fetch pets via API:', err);
+        setPets([]);
+      })
       .finally(() => setPetsLoading(false));
 
     // Fetch user's saved profile phone number for the booking snapshot
@@ -346,9 +350,9 @@ function BookingFormAuthenticated({ user, firebaseUser }: { user: AppUser; fireb
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Time</label>
-                  {!provider || !date || !serviceType ? (
+                  {!provider || !date || !serviceType || !providerData ? (
                     <div className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-gray-50 text-sm text-gray-400">
-                      Select a date and service first.
+                      {!providerData ? 'Loading provider schedule...' : 'Select a date and service first.'}
                     </div>
                   ) : timeSlots.length === 0 ? (
                     <div className="w-full px-4 py-3.5 border-2 border-[#F0E4D8] rounded-xl bg-amber-50 text-sm text-amber-700">
