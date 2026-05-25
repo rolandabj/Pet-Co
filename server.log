@@ -6,7 +6,39 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 336ms
+✓ Ready in 321ms
 
- GET /login 200 in 607ms (next.js: 239ms, application-code: 368ms)
- GET /services 200 in 167ms (next.js: 17ms, application-code: 150ms)
+ GET /login 200 in 564ms (next.js: 188ms, application-code: 376ms)
+ GET /booking?providerId=wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 62ms (next.js: 15ms, application-code: 47ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 FIREBASE ADMIN ENV DEBUG {
+  hasProjectId: true,
+  projectId: 'pet-co-fc4d6',
+  hasClientEmail: true,
+  clientEmail: 'firebase-adminsdk-fbsvc@pet-co-fc4d6.iam.gserviceaccount.com',
+  hasPrivateKey: true,
+  privateKeyStartsCorrectly: true
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 493ms (next.js: 293ms, application-code: 200ms)
+ GET /api/me/pets 200 in 178ms (next.js: 4ms, application-code: 174ms)

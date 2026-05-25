@@ -215,7 +215,7 @@ function BookingFormAuthenticated({ user, firebaseUser }: { user: AppUser; fireb
       slots.push({ label, value });
     }
     return slots;
-  }, [providerData, serviceType]);
+  }, [providerData, serviceType, date]);
 
   const finalTotal = serviceFee + platformFee;
   const selectedService = availableServiceTypes.find(s => s.value === serviceType);
