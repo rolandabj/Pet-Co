@@ -153,6 +153,46 @@ export async function removeMyFavoriteByProvider(providerId: string) {
   return true;
 }
 
+// ─── Payments ──────────────────────────────────────────────────
+
+/** Fetch payments for the current user (role: 'provider' | 'customer'). */
+export async function fetchMyPayments(role: 'provider' | 'customer' = 'customer') {
+  const res = await fetch(`/api/payments?role=${role}`, {
+    headers: await getAuthHeaders(),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`Failed to fetch payments: ${res.status}`);
+  const data = await res.json();
+  return data.payments || [];
+}
+
+/** Update a payment's status by bookingId. */
+export async function updatePaymentStatus(bookingId: string, status: string) {
+  const res = await fetch('/api/payments', {
+    method: 'PATCH',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify({ bookingId, status }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Failed to update payment: ${res.status}${text ? ` — ${text}` : ''}`);
+  }
+  return res.json();
+}
+
+/** Delete a payment by bookingId (cascade). */
+export async function deletePaymentByBookingId(bookingId: string) {
+  const res = await fetch(`/api/payments?bookingId=${encodeURIComponent(bookingId)}`, {
+    method: 'DELETE',
+    headers: await getAuthHeaders(),
+  });
+  if (!res.ok && res.status !== 404) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Failed to delete payment: ${res.status}${text ? ` — ${text}` : ''}`);
+  }
+  return true;
+}
+
 // ─── Bookings ──────────────────────────────────────────────────
 
 export async function fetchBookedSlots(providerId: string, date: string): Promise<string[]> {

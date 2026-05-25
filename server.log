@@ -6,14 +6,10 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 329ms
+✓ Ready in 328ms
 
- GET /login 200 in 613ms (next.js: 243ms, application-code: 370ms)
-🐛 DASHBOARD UID DEBUG {
-  appUserId: undefined,
-  firebaseUid: undefined,
-  effectiveUserId: null,
-  dashboardUserId: undefined,
-  same: true
-}
- GET /dashboard 200 in 104ms (next.js: 16ms, application-code: 88ms)
+ GET /login 200 in 597ms (next.js: 236ms, application-code: 361ms)
+ GET /admin 200 in 70ms (next.js: 16ms, application-code: 54ms)
+🐛 API AUTH HEADER DEBUG { hasAuthHeader: false, startsWithBearer: false, headerStart: null }
+GET /api/payments failed { message: 'Missing Authorization Bearer token', code: undefined }
+ GET /api/payments?role=provider 401 in 469ms (next.js: 455ms, application-code: 14ms)

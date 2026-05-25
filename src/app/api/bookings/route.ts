@@ -117,7 +117,7 @@ export async function POST(request: Request) {
       providerName: body.providerName || 'Unknown Provider',
       category: body.category || body.serviceType,
       amount: body.total || 0,
-      status: 'paid',
+      status: 'pending',
       createdAt: new Date().toISOString(),
     });
 

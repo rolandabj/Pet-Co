@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/components/Toast';
 import {
-  getUserPaymentsRest,
   getUserReviewsRest,
   getAllProvidersRest,
   updateBookingRest,
@@ -17,7 +16,7 @@ import {
   deletePetRest,
   removeFavoriteRest,
 } from '@/lib/firestore-rest';
-import { fetchMyPets, addMyPet, fetchMyFavorites } from '@/lib/me-api';
+import { fetchMyPets, addMyPet, fetchMyFavorites, fetchMyPayments } from '@/lib/me-api';
 import type { BookingDoc, PaymentDoc, PetDoc, FavoriteDoc, ReviewDoc } from '@/lib/firestore-rest';
 import type { ServiceProvider } from '@/lib/types';
 import ProviderDashboard from './ProviderDashboard';
@@ -134,19 +133,17 @@ export default function DashboardPage() {
 
   const fetchPayments = useCallback(async () => {
     if (!user) return;
-    const uid = dashboardUserId;
-    if (!uid) return;
     setPaymentsLoading(true);
     try {
-      const role = user.role || 'owner';
-      const list = await getUserPaymentsRest(uid, role);
+      const role = user.role === 'provider' ? 'provider' : 'customer';
+      const list = await fetchMyPayments(role);
       setPayments(list);
     } catch (err) {
       console.error('Failed to fetch payments:', err);
     } finally {
       setPaymentsLoading(false);
     }
-  }, [dashboardUserId, user, firebaseUser]);
+  }, [user]);
 
   const fetchPets = useCallback(async () => {
     if (!isInitialized || !user) return;

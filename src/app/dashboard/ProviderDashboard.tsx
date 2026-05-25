@@ -14,11 +14,15 @@ import {
   deleteProviderAccountRest,
   getAllUsersRest,
   updateUserDocRest,
-  getUserPaymentsRest,
   getReviewsByProviderRest,
   updateBookingRest,
   getUserByIdRest,
 } from '@/lib/firestore-rest';
+import {
+  fetchMyPayments,
+  updatePaymentStatus,
+  deletePaymentByBookingId,
+} from '@/lib/me-api';
 import type { BookingDoc, PaymentDoc, ReviewDoc, UserDoc } from '@/lib/firestore-rest';
 import type { ServiceProvider, ServiceItem, ProductItem } from '@/lib/types';
 import { formatProductPrice } from '@/lib/formatProductPrice';
@@ -38,6 +42,9 @@ const statusColors: Record<string, string> = {
   completed: 'bg-emerald-500/10 text-emerald-600',
   cancelled: 'bg-rose-50 text-rose-700 border-rose-200',
   declined: 'bg-rose-50 text-rose-700 border-rose-200',
+  // Payment-specific colors
+  paid: 'bg-emerald-500/10 text-emerald-600',
+  unpaid: 'bg-rose-500/10 text-rose-600',
 };
 
 const tabConfig: { key: ProviderTab; icon: string; label: string }[] = [
@@ -294,14 +301,14 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
   const fetchPayments = useCallback(async () => {
     setPaymentsLoading(true);
     try {
-      const list = await getUserPaymentsRest(userId, 'provider');
+      const list = await fetchMyPayments('provider');
       setPayments(list);
     } catch (err) {
       console.error('Failed to fetch payments:', err);
     } finally {
       setPaymentsLoading(false);
     }
-  }, [userId]);
+  }, []);
 
   // ── Fetch reviews ──────────────────────────────────────────────
   const fetchReviews = useCallback(async () => {
@@ -345,9 +352,16 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
       ? reviews.reduce((sum, r) => sum + (r.rating ?? 0), 0) / reviews.length
       : 0;
 
-  // ── Booking status transition ──────────────────────────────────
+  // ── Booking status transition + cascade payment delete ──────────
   const handleBookingStatus = async (bookingId: string, status: string) => {
     try {
+      // If cancelling or declining, delete the associated payment first
+      // to prevent orphaned payment records.
+      if (status === 'cancelled' || status === 'declined') {
+        await deletePaymentByBookingId(bookingId);
+        setPayments((prev) => prev.filter((p) => p.bookingId !== bookingId));
+      }
+
       await updateBookingRest(bookingId, { status } as Partial<BookingDoc>);
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status } : b)),
@@ -355,6 +369,22 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
       showToast(`✅ Booking ${status}!`, 'success');
     } catch {
       showToast('❌ Failed to update booking.', 'error');
+    }
+  };
+
+  // ── Payment status toggle (provider) ───────────────────────────
+  const handlePaymentStatus = async (bookingId: string, status: string) => {
+    try {
+      const result = await updatePaymentStatus(bookingId, status);
+      // Update local state
+      setPayments((prev) =>
+        prev.map((p) =>
+          p.bookingId === bookingId ? { ...p, status: result.status } : p,
+        ),
+      );
+      showToast(`💰 Payment marked as ${status}!`, 'success');
+    } catch {
+      showToast('❌ Failed to update payment status.', 'error');
     }
   };
 
@@ -1720,6 +1750,35 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
                           <option value="declined">🚫 Declined</option>
                           <option value="completed">🎉 Completed</option>
                         </select>
+
+                        {/* Payment status toggle */}
+                        {(() => {
+                          const payment = payments.find((p) => p.bookingId === b.id);
+                          if (!payment) {
+                            return (
+                              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-400 bg-gray-50 border border-gray-100 rounded-xl">
+                                💳 No Active Payment
+                              </span>
+                            );
+                          }
+                          return (
+                            <select
+                              value={payment.status}
+                              onChange={(e) => handlePaymentStatus(b.id, e.target.value)}
+                              className={`bg-white border rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all cursor-pointer ${
+                                payment.status === 'paid'
+                                  ? 'text-emerald-600 border-emerald-200'
+                                  : payment.status === 'unpaid'
+                                    ? 'text-rose-600 border-rose-200'
+                                    : 'text-amber-600 border-amber-200'
+                              }`}
+                            >
+                              <option value="pending">💳 Pending</option>
+                              <option value="paid">✅ Paid</option>
+                              <option value="unpaid">❌ Unpaid</option>
+                            </select>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
