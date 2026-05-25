@@ -6,6 +6,7 @@ import { getFirestoreDb } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/context/AuthContext';
+import { localAuth } from '@/lib/localAuth';
 import {
   getProviderByEmailRest,
   updateProviderDocRest,
@@ -666,6 +667,9 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
           // Non-critical
         }
       }
+
+      // 3. Remove from localAuth user store so the admin panel stops showing it
+      localAuth.deleteUser(targetDocId);
 
       const summary = [
         result.deletedBookings > 0 && `${result.deletedBookings} booking(s)`,

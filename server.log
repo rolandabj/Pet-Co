@@ -933,3 +933,144 @@ Admin deleteUser failed: Error: There is no user record corresponding to the pro
 ✓ Compiled in 58ms
  GET /login 200 in 66ms (next.js: 5ms, application-code: 61ms)
  GET / 200 in 62ms (next.js: 15ms, application-code: 48ms)
+ GET /admin 200 in 57ms (next.js: 3ms, application-code: 54ms)
+🐛 FIREBASE ADMIN ENV DEBUG {
+  hasProjectId: true,
+  projectId: 'pet-co-fc4d6',
+  hasClientEmail: true,
+  clientEmail: 'firebase-adminsdk-fbsvc@pet-co-fc4d6.iam.gserviceaccount.com',
+  hasPrivateKey: true,
+  privateKeyStartsCorrectly: true
+}
+Admin deleteUser failed: Error: There is no user record corresponding to the provided identifier.
+    at async handleDeleteUser (src/app/api/auth/delete-user/route.ts:46:5)
+  44 |     // --- Perform the deletion via Admin SDK ---
+  45 |     const adminAuth = getAdminAuth();
+> 46 |     await adminAuth.deleteUser(uid);
+     |     ^
+  47 |
+  48 |     return NextResponse.json({ success: true, uid });
+  49 |   } catch (err: unknown) { {
+  errorInfo: {
+    code: 'auth/user-not-found',
+    message: 'There is no user record corresponding to the provided identifier.'
+  },
+  codePrefix: 'auth'
+}
+ POST /api/auth/delete-user 200 in 515ms (next.js: 44ms, application-code: 471ms)
+ GET / 200 in 20ms (next.js: 3ms, application-code: 17ms)
+ GET /login 200 in 15ms (next.js: 1648µs, application-code: 13ms)
+ GET /login 200 in 17ms (next.js: 2ms, application-code: 15ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 79ms (next.js: 13ms, application-code: 66ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'OBFDCDM86FNDiMTvMZuREiKhhLp1',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 97ms (next.js: 24ms, application-code: 73ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'OBFDCDM86FNDiMTvMZuREiKhhLp1',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 75ms (next.js: 1485µs, application-code: 74ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'OBFDCDM86FNDiMTvMZuREiKhhLp1',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 44ms (next.js: 1518µs, application-code: 42ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'OBFDCDM86FNDiMTvMZuREiKhhLp1',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🧹 DELETE ACCOUNT — providerId: OBFDCDM86FNDiMTvMZuREiKhhLp1 uid: OBFDCDM86FNDiMTvMZuREiKhhLp1
+🧹 DELETE ACCOUNT — documents found { bookings: [], payments: [], reviews: [], favorites: [] }
+🧹 DELETE ACCOUNT — provider doc exists: true
+🧹 DELETE ACCOUNT — provider doc deleted
+🧹 DELETE ACCOUNT — user doc downgraded to owner
+🧹 DELETE ACCOUNT — Firebase Auth user deleted
+ DELETE /api/me/account 200 in 935ms (next.js: 49ms, application-code: 886ms)
+ GET / 200 in 45ms (next.js: 2ms, application-code: 43ms)
+ GET /login 200 in 15ms (next.js: 2ms, application-code: 13ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 41ms (next.js: 1903µs, application-code: 39ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=customer 200 in 52ms (next.js: 1804µs, application-code: 50ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites 200 in 66ms (next.js: 22ms, application-code: 44ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 81ms (next.js: 21ms, application-code: 60ms)
+ GET /admin 200 in 16ms (next.js: 1868µs, application-code: 14ms)
+ GET / 200 in 46ms (next.js: 2ms, application-code: 44ms)
+✓ Compiled in 84ms
+✓ Compiled in 139ms
+ GET / 200 in 44ms (next.js: 2ms, application-code: 41ms)

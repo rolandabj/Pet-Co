@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAdminAuth } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
-import { deleteDocRest, deleteDocsBatch, getAccessToken, getDocRest, runQueryRest } from '@/lib/firestore-admin-rest';
+import { deleteDocRest, deleteDocsBatch, getDocRest, runQueryRest } from '@/lib/firestore-admin-rest';
 
 /**
  * DELETE /api/me/account
@@ -81,33 +81,12 @@ export async function DELETE(request: Request) {
     await deleteDocRest('providers', providerId);
     console.log('🧹 DELETE ACCOUNT — provider doc deleted');
 
-    // ── 5. Downgrade user role ────────────────────────────────
-    // Look up the user doc by its document ID (= Firebase Auth UID = providerId)
-    // instead of querying by email, because user docs created via
-    // updateUserDocRest do not have an 'email' field.
+    // ── 5. Delete the user document from the users collection ──
+    // This ensures the admin panel stops showing the user entirely.
     const userDocFields = await getDocRest('users', providerId);
     if (userDocFields) {
-      const accessToken = await getAccessToken();
-      const base = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
-      const url = `${base}/users/${encodeURIComponent(providerId)}?updateMask.fieldPaths=role`;
-      const patchRes = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fields: {
-            role: { stringValue: 'owner' },
-          },
-        }),
-      });
-      if (!patchRes.ok) {
-        const body = await patchRes.text().catch(() => '');
-        console.error('🧹 DELETE ACCOUNT — failed to update user role:', patchRes.status, body);
-      } else {
-        console.log('🧹 DELETE ACCOUNT — user doc downgraded to owner');
-      }
+      await deleteDocRest('users', providerId);
+      console.log('🧹 DELETE ACCOUNT — user doc deleted');
     } else {
       console.log('🧹 DELETE ACCOUNT — no user doc found for providerId:', providerId);
     }
