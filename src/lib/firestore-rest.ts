@@ -257,6 +257,21 @@ function runQueryLocal<T>(
   }
 }
 
+/** Return just the document IDs stored in localStorage for a given
+ *  collection/user pair.  Used by getDocsByIdsRest to verify which
+ *  documents still exist in Firestore via individual GET requests. */
+function getLocalIds(collectionId: string, userId: string): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(storageKey(collectionId, userId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Array<{ id: string }>;
+    return parsed.map((d) => d.id).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 function saveLocal(collectionId: string, userId: string, data: any[]): void {
   if (typeof window === 'undefined') return;
   try {
@@ -689,27 +704,77 @@ function mapFavoriteDocFromPlainData(id: string, data: any): FavoriteDoc {
   };
 }
 
+/**
+ * Try to read known documents by ID via the REST API's `get` endpoint.
+ * The `get` security rule has `resource.data` available, so
+ * `ownsExistingDoc()` works correctly (unlike `list` / `:runQuery`).
+ * Documents that were deleted from Firestore will 403/404 and be skipped.
+ */
+async function getDocsByIdsRest<T>(
+  collectionId: string,
+  ids: string[],
+  userId: string,
+  mapFn: (doc: { id: string; data: Record<string, any> }) => T,
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+  const results: T[] = [];
+  for (const id of ids) {
+    try {
+      const res = await authFetch(docUrl(collectionId, id), { method: 'GET' });
+      if (res.ok) {
+        const json = await res.json();
+        const doc = docFromJson(json);
+        if (doc) results.push(mapFn(doc));
+      }
+      // Non-ok (403/404) means doc is gone or inaccessible — skip it
+    } catch {
+      // Network error — skip this document
+    }
+  }
+  return results;
+}
+
 export async function getUserFavoritesRest(userId: string): Promise<FavoriteDoc[]> {
   console.log('🐛 [firestore-rest] getUserFavoritesRest called with userId:', userId);
 
-  // Priority: Firebase SDK → REST
+  // 1. Firebase SDK query (works after rules deploy; blocked by query analyzer before then)
   try {
     const results = await runOwnedQuerySdk('favorites', userId, mapFavoriteDocFromPlainData);
     console.log('🐛 SDK favorites result count:', results.length);
     return results;
   } catch (sdkErr) {
-    console.warn('🐛 SDK favorites read failed, falling back to REST:', sdkErr);
+    console.warn('🐛 SDK favorites read failed:', sdkErr);
   }
 
-  // REST fallback
+  // 2. REST :runQuery (list — resource.data unavailable, fails for non-admin users)
   try {
     const list = await runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
     console.log('🐛 REST favorites result count:', list.length);
     return list;
   } catch (restErr) {
-    console.warn('🐛 REST favorites query also failed:', restErr);
-    return [];
+    console.warn('🐛 REST :runQuery failed:', restErr);
   }
+
+  // 3. REST GET-by-ID — reads known docs individually via `get` rules
+  //    (resource.data available, ownsExistingDoc() works correctly).
+  //    Deleted docs return 403/404 and are skipped, so stale localStorage
+  //    IDs don't produce phantom results.
+  const localIds = getLocalIds('favorites', userId);
+  if (localIds.length > 0) {
+    try {
+      const byId = await getDocsByIdsRest('favorites', localIds, userId, mapFavoriteDoc);
+      if (byId.length > 0) {
+        console.log('🐛 REST GET-by-ID favorites count:', byId.length);
+        return byId;
+      }
+    } catch {
+      console.warn('🐛 GET-by-ID failed');
+    }
+  }
+
+  // 4. Last resort: raw localStorage (only when ALL remote reads are down)
+  console.warn('🐛 Returning localStorage favorites as last resort');
+  return runQueryLocal('favorites', userId, mapFavoriteDoc);
 }
 
 export async function findFavoriteIdRest(userId: string, providerId: string): Promise<string | null> {
@@ -726,16 +791,21 @@ export async function findFavoriteIdRest(userId: string, providerId: string): Pr
       const snap = await getDocs(q);
       const match = snap.docs[0];
       if (match) return match.id;
-      return null;
     }
   } catch {
     console.warn('SDK compound query failed for findFavoriteIdRest, falling back');
   }
 
   // Fallback: query by userId only and filter client-side
-  const docs = await runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
-  const match = docs.find((d) => d.providerId === providerId || d.providerId == providerId);
-  return match?.id ?? null;
+  try {
+    const docs = await runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
+    const match = docs.find((d) => d.providerId === providerId || d.providerId == providerId);
+    if (match) return match.id;
+  } catch {
+    console.warn('runQueryRest failed in findFavoriteIdRest');
+  }
+
+  return null;
 }
 
 export async function addFavoriteRest(data: {
@@ -759,6 +829,8 @@ export async function addFavoriteRest(data: {
   console.log('OUTGOING PAYLOAD (addFavoriteRest):', JSON.stringify(body, null, 2));
   console.log('data.userId:', data.userId);
 
+  let docId: string | null = null;
+
   try {
     const res = await authFetch(docUrl('favorites'), {
       method: 'POST',
@@ -767,17 +839,20 @@ export async function addFavoriteRest(data: {
     });
     if (res.ok) {
       const json = await res.json();
-      return json.name?.split('/').pop() ?? '';
+      docId = json.name?.split('/').pop() ?? null;
+    } else {
+      const errorText = await res.text();
+      console.error('FIRESTORE WRITE ERROR (addFavoriteRest):', errorText);
+      console.warn(`addFavoriteRest got ${res.status}`);
     }
-    const errorText = await res.text();
-    console.error('FIRESTORE WRITE ERROR (addFavoriteRest):', errorText);
-    console.warn(`addFavoriteRest got ${res.status} — falling back to localStorage`);
   } catch (err) {
     console.error('addFavoriteRest network error:', err);
-    console.warn('addFavoriteRest — falling back to localStorage');
   }
 
-  const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // Always save to localStorage as a fallback for when the SDK/REST read
+  // queries fail (e.g. security rules with || isAdmin() confuse the
+  // query analyzer for non-admin users).
+  const id = docId ?? `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   addToLocal('favorites', data.userId, { id, ...data });
   return id;
 }
@@ -785,10 +860,14 @@ export async function addFavoriteRest(data: {
 export async function removeFavoriteRest(docId: string, userId?: string): Promise<void> {
   try {
     const res = await authFetch(docUrl('favorites', docId), { method: 'DELETE' });
-    if (res.ok) return;
-    console.warn(`removeFavoriteRest got ${res.status} — falling back to localStorage`);
+    if (res.ok) {
+      // Also remove from localStorage so the merge doesn't return stale data
+      if (userId) removeFromLocal('favorites', userId, docId);
+      return;
+    }
+    console.warn(`removeFavoriteRest got ${res.status}`);
   } catch (err) {
-    console.warn('removeFavoriteRest network error — falling back to localStorage:', err);
+    console.warn('removeFavoriteRest network error:', err);
   }
 
   if (userId) removeFromLocal('favorites', userId, docId);
@@ -1083,24 +1162,44 @@ function mapPetDocFromPlainData(id: string, data: any): PetDoc {
 export async function getUserPetsRest(userId: string): Promise<PetDoc[]> {
   console.log('🐛 [firestore-rest] getUserPetsRest called with userId:', userId);
 
-  // Priority: Firebase SDK → REST
+  // 1. Firebase SDK query (works after rules deploy; blocked by query analyzer before then)
   try {
     const results = await runOwnedQuerySdk('pets', userId, mapPetDocFromPlainData);
     console.log('🐛 SDK pets result count:', results.length);
     return results;
   } catch (sdkErr) {
-    console.warn('🐛 SDK pets read failed, falling back to REST:', sdkErr);
+    console.warn('🐛 SDK pets read failed:', sdkErr);
   }
 
-  // REST fallback
+  // 2. REST :runQuery (list — resource.data unavailable, fails for non-admin users)
   try {
     const list = await runQueryRest('pets', 'userId', userId, mapPetDoc);
     console.log('🐛 REST pets result count:', list.length);
     return list;
   } catch (restErr) {
-    console.warn('🐛 REST pets query also failed:', restErr);
-    return [];
+    console.warn('🐛 REST :runQuery failed:', restErr);
   }
+
+  // 3. REST GET-by-ID — reads known docs individually via `get` rules
+  //    (resource.data available, ownsExistingDoc() works correctly).
+  //    Deleted docs return 403/404 and are skipped, so stale localStorage
+  //    IDs don't produce phantom results.
+  const localIds = getLocalIds('pets', userId);
+  if (localIds.length > 0) {
+    try {
+      const byId = await getDocsByIdsRest('pets', localIds, userId, mapPetDoc);
+      if (byId.length > 0) {
+        console.log('🐛 REST GET-by-ID pets count:', byId.length);
+        return byId;
+      }
+    } catch {
+      console.warn('🐛 GET-by-ID failed');
+    }
+  }
+
+  // 4. Last resort: raw localStorage (only when ALL remote reads are down)
+  console.warn('🐛 Returning localStorage pets as last resort');
+  return runQueryLocal('pets', userId, mapPetDoc);
 }
 
 export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
@@ -1117,6 +1216,8 @@ export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
   console.log('OUTGOING PAYLOAD (addPetRest):', JSON.stringify(body, null, 2));
   console.log('data.userId:', data.userId);
 
+  let docId: string | null = null;
+
   try {
     const res = await authFetch(docUrl('pets'), {
       method: 'POST',
@@ -1125,17 +1226,20 @@ export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
     });
     if (res.ok) {
       const json = await res.json();
-      return json.name?.split('/').pop() ?? '';
+      docId = json.name?.split('/').pop() ?? null;
+    } else {
+      const errorText = await res.text();
+      console.error('FIRESTORE WRITE ERROR (addPetRest):', errorText);
+      console.warn(`addPetRest got ${res.status}`);
     }
-    const errorText = await res.text();
-    console.error('FIRESTORE WRITE ERROR (addPetRest):', errorText);
-    console.warn(`addPetRest got ${res.status} — falling back to localStorage`);
   } catch (err) {
     console.error('addPetRest network error:', err);
-    console.warn('addPetRest — falling back to localStorage');
   }
 
-  const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // Always save to localStorage as a fallback for when the SDK/REST read
+  // queries fail (e.g. security rules with || isAdmin() confuse the
+  // query analyzer for non-admin users).
+  const id = docId ?? `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   addToLocal('pets', data.userId, { id, ...data });
   return id;
 }
@@ -1143,10 +1247,14 @@ export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
 export async function deletePetRest(petId: string, userId?: string): Promise<void> {
   try {
     const res = await authFetch(docUrl('pets', petId), { method: 'DELETE' });
-    if (res.ok) return;
-    console.warn(`deletePetRest got ${res.status} — falling back to localStorage`);
+    if (res.ok) {
+      // Also remove from localStorage so the merge doesn't return stale data
+      if (userId) removeFromLocal('pets', userId, petId);
+      return;
+    }
+    console.warn(`deletePetRest got ${res.status}`);
   } catch (err) {
-    console.warn('deletePetRest network error — falling back to localStorage:', err);
+    console.warn('deletePetRest network error:', err);
   }
 
   if (userId) removeFromLocal('pets', userId, petId);

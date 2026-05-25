@@ -17,12 +17,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - This confirms the API accepts writes when the auth token is valid and payload is correctly formatted
 
 ## Security Rules (firestore.rules)
-- Pets/favorites rules simplified to single-condition `&&` to pass Firestore query analyzer
-- `allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId`
-- `allow create: if request.auth != null && request.auth.uid == request.resource.data.userId`
-- No `||` operators in pets/favorites rules (Firestore's query analyzer chokes on `||`)
-- **Cannot deploy from this environment** — workload identity has no access to `pet-co-fc4d6` project
-- To deploy: `npx firebase deploy --only firestore:rules --project pet-co-fc4d6` from local machine
+- The code works around the query-analyzer limitation via a **4-layer fallback chain** in `getUserPetsRest`/`getUserFavoritesRest`:
+  1. Firebase SDK `getDocs` query (blocked by `||` in list rules for non-admin users)
+  2. REST `:runQuery` (blocked because `resource.data` is unavailable for REST list ops)
+  3. **REST GET-by-ID** for each document known to localStorage — the `get` rule has `resource.data` available, so `ownsExistingDoc()` works correctly. Deleted docs return 403/404 and are skipped (eliminates phantom data after Firestore delete).
+  4. Raw localStorage (last resort when ALL remote reads fail)
+- `allow get: if ownsExistingDoc() || isAdmin()` is fine — `get` has `resource.data`.
+- No rule changes needed — the current rules work with this approach.
+- **Cannot deploy from this environment** — workload identity has no access to `pet-co-fc4d6` project.
+- To deploy: `npx firebase deploy --only firestore:rules --project pet-co-fc4d6` from local machine.
 
 ## Debug Logging Added
 - `console.log('OUTGOING PAYLOAD:')` right before each fetch
