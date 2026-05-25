@@ -110,13 +110,16 @@ function BookingFormAuthenticated({ user, firebaseUser }: { user: AppUser; fireb
 
   // Build the service type options from the provider's custom services if available,
   // otherwise fall back to the global serviceTypes list.
+  // When a specific provider is preselected (via URL) and has no services, show nothing.
   const availableServiceTypes = providerServices
     ? providerServices.map(s => ({
         value: s.name,
         label: `🐾 ${s.name}`,
         price: parseCleanPrice(s.price),
       }))
-    : serviceTypes;
+    : isProviderLocked
+      ? [] // Provider has no services — don't show global fallback
+      : serviceTypes;
 
   // Sync pricing as soon as providerData + selectedService both resolve
   // (handles the multi-service case where no auto-select fires on mount)

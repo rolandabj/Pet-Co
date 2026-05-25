@@ -2304,3 +2304,358 @@ Import traces:
 ⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
  GET / 200 in 58ms (next.js: 2ms, application-code: 56ms)
  GET / 200 in 55ms (next.js: 3ms, application-code: 52ms)
+ GET / 200 in 52ms (next.js: 1840µs, application-code: 50ms)
+ GET /register 200 in 63ms (next.js: 13ms, application-code: 50ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 73ms (next.js: 13ms, application-code: 60ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 FIREBASE ADMIN ENV DEBUG {
+  hasProjectId: true,
+  projectId: 'pet-co-fc4d6',
+  hasClientEmail: true,
+  clientEmail: 'firebase-adminsdk-fbsvc@pet-co-fc4d6.iam.gserviceaccount.com',
+  hasPrivateKey: true,
+  privateKeyStartsCorrectly: true
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 110ms (next.js: 47ms, application-code: 63ms)
+ GET /api/payments?role=provider 200 in 51ms (next.js: 1507µs, application-code: 50ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 38ms (next.js: 1769µs, application-code: 37ms)
+ GET /services 200 in 106ms (next.js: 13ms, application-code: 93ms)
+ GET / 200 in 14ms (next.js: 2ms, application-code: 12ms)
+ GET /services 200 in 162ms (next.js: 2ms, application-code: 160ms)
+ GET /dashboard 200 in 18ms (next.js: 1979µs, application-code: 16ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 47ms (next.js: 1937µs, application-code: 45ms)
+ GET /api/payments?role=provider 200 in 57ms (next.js: 1729µs, application-code: 55ms)
+ GET /api/payments?role=provider 200 in 122ms (next.js: 2ms, application-code: 120ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 45ms (next.js: 1477µs, application-code: 44ms)
+ GET /services 200 in 103ms (next.js: 2ms, application-code: 100ms)
+ GET /services 200 in 7ms (next.js: 3ms, application-code: 4ms)
+ GET /services 200 in 309ms (next.js: 2ms, application-code: 306ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 44ms (next.js: 2ms, application-code: 42ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 65ms (next.js: 1922µs, application-code: 63ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 150ms (next.js: 2ms, application-code: 148ms)
+ GET /api/payments?role=provider 200 in 66ms (next.js: 1901µs, application-code: 64ms)
+ GET /services 200 in 74ms (next.js: 2ms, application-code: 72ms)
+ GET /provider/ov1tjmewYlWKyRagtvssilVJeaF3 200 in 470ms (next.js: 402ms, application-code: 68ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ov1tjmewYlWKyRagtvssilVJeaF3',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 86ms (next.js: 25ms, application-code: 61ms)
+ GET /api/me/favorites?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 48ms (next.js: 6ms, application-code: 42ms)
+ GET / 200 in 16ms (next.js: 2ms, application-code: 14ms)
+ GET /login 200 in 23ms (next.js: 3ms, application-code: 20ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 48ms (next.js: 2ms, application-code: 46ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites 200 in 49ms (next.js: 2ms, application-code: 47ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 77ms (next.js: 26ms, application-code: 51ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=customer 200 in 39ms (next.js: 1727µs, application-code: 37ms)
+ GET /services 200 in 133ms (next.js: 2ms, application-code: 130ms)
+ GET /provider/ov1tjmewYlWKyRagtvssilVJeaF3 200 in 216ms (next.js: 44ms, application-code: 172ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 43ms (next.js: 2ms, application-code: 41ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 44ms (next.js: 2ms, application-code: 42ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ POST /api/reviews 200 in 360ms (next.js: 31ms, application-code: 329ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 68ms (next.js: 1968µs, application-code: 66ms)
+ GET /booking?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 35ms (next.js: 18ms, application-code: 17ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 43ms (next.js: 1485µs, application-code: 41ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 40ms (next.js: 2ms, application-code: 38ms)
+ GET /api/bookings?providerId=ov1tjmewYlWKyRagtvssilVJeaF3&date=2026-05-26 200 in 81ms (next.js: 27ms, application-code: 53ms)
+ GET /services 200 in 116ms (next.js: 2ms, application-code: 114ms)
+ GET /provider/ov1tjmewYlWKyRagtvssilVJeaF3 200 in 221ms (next.js: 45ms, application-code: 175ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 43ms (next.js: 2ms, application-code: 41ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 49ms (next.js: 2ms, application-code: 46ms)
+ GET /booking?providerId=ov1tjmewYlWKyRagtvssilVJeaF3 200 in 20ms (next.js: 2ms, application-code: 18ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 47ms (next.js: 2ms, application-code: 45ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
+  email: 'rolandabj123@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 159ms (next.js: 1544µs, application-code: 157ms)
+✓ Compiled in 64ms
+ GET /api/bookings?providerId=ov1tjmewYlWKyRagtvssilVJeaF3&date=2026-05-26 200 in 55ms (next.js: 2ms, application-code: 53ms)
+ GET / 200 in 61ms (next.js: 5ms, application-code: 56ms)
