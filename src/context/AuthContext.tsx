@@ -238,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         // Persist role to Firestore
         try {
-          await updateUserDocRest(userId, { role, name });
+          await updateUserDocRest(userId, { role, name, email: userEmail });
           if (role === 'provider') {
             const providerCategories: Record<string, { category: string; emoji: string }> = {
               walkers: { category: 'Dog Walker', emoji: '🐕' },
@@ -298,7 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       try {
         // Persist role to Firestore users collection
-        await updateUserDocRest(result.user.id, { role, name });
+        await updateUserDocRest(result.user.id, { role, name, email: result.user.email });
         // Auto-create a minimal provider doc for new provider registrations
         if (role === 'provider') {
           try {
@@ -383,7 +383,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Uses providerType to set the correct category/emoji instead of hardcoded defaults.
       const persistNewUser = async (appUser: AppUser, providerType?: string) => {
         try {
-          await updateUserDocRest(appUser.id, { role: appUser.role, name: appUser.name });
+          await updateUserDocRest(appUser.id, { role: appUser.role, name: appUser.name, email: appUser.email });
           // Auto-create a minimal provider doc for new provider registrations
           if (appUser.role === 'provider') {
             const typeKey = providerType && providerCategories[providerType] ? providerType : 'walkers';

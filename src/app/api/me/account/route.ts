@@ -52,22 +52,16 @@ export async function DELETE(request: Request) {
     );
 
     // ── 2. Get provider doc info ──────────────────────────────
-    let userEmail: string | null = null;
-    let userName: string | null = null;
     let providerDocExists = false;
 
     try {
       const fields = await getDocRest('providers', providerId);
-      if (fields) {
-        providerDocExists = true;
-        userEmail = fields.email?.stringValue ?? fields.contactEmail?.stringValue ?? null;
-        userName = fields.name?.stringValue ?? fields.businessName?.stringValue ?? null;
-      }
+      providerDocExists = !!fields;
     } catch (err) {
       console.error('🧹 DELETE ACCOUNT — failed to fetch provider doc:', err);
     }
 
-    console.log('🧹 DELETE ACCOUNT — provider doc exists:', providerDocExists, { userEmail, userName });
+    console.log('🧹 DELETE ACCOUNT — provider doc exists:', providerDocExists);
 
     // ── 3. Delete relational documents in batch ──────────────
     const relationalDocs = [
@@ -88,33 +82,34 @@ export async function DELETE(request: Request) {
     console.log('🧹 DELETE ACCOUNT — provider doc deleted');
 
     // ── 5. Downgrade user role ────────────────────────────────
-    if (userEmail) {
-      const users = await runQueryRest<{ role?: string }>('users', 'email', 'EQUAL', userEmail);
-      if (users.length > 0) {
-        const accessToken = await getAccessToken();
-        const base = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
-        const url = `${base}/users/${encodeURIComponent(users[0].id)}?updateMask.fieldPaths=role`;
-        const patchRes = await fetch(url, {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+    // Look up the user doc by its document ID (= Firebase Auth UID = providerId)
+    // instead of querying by email, because user docs created via
+    // updateUserDocRest do not have an 'email' field.
+    const userDocFields = await getDocRest('users', providerId);
+    if (userDocFields) {
+      const accessToken = await getAccessToken();
+      const base = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+      const url = `${base}/users/${encodeURIComponent(providerId)}?updateMask.fieldPaths=role`;
+      const patchRes = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fields: {
+            role: { stringValue: 'owner' },
           },
-          body: JSON.stringify({
-            fields: {
-              role: { stringValue: 'owner' },
-            },
-          }),
-        });
-        if (!patchRes.ok) {
-          const body = await patchRes.text().catch(() => '');
-          console.error('🧹 DELETE ACCOUNT — failed to update user role:', patchRes.status, body);
-        } else {
-          console.log('🧹 DELETE ACCOUNT — user doc downgraded to owner');
-        }
+        }),
+      });
+      if (!patchRes.ok) {
+        const body = await patchRes.text().catch(() => '');
+        console.error('🧹 DELETE ACCOUNT — failed to update user role:', patchRes.status, body);
       } else {
-        console.log('🧹 DELETE ACCOUNT — no user doc found for email:', userEmail);
+        console.log('🧹 DELETE ACCOUNT — user doc downgraded to owner');
       }
+    } else {
+      console.log('🧹 DELETE ACCOUNT — no user doc found for providerId:', providerId);
     }
 
     // ── 6. Delete the Firebase Auth user ──────────────────────
@@ -132,8 +127,6 @@ export async function DELETE(request: Request) {
       deletedPayments: paymentDocs.length,
       deletedReviews: reviewDocs.length,
       deletedFavorites: favoriteDocs.length,
-      userEmail,
-      userName,
     });
   } catch (error: any) {
     console.error('DELETE /api/me/account failed:', {

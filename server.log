@@ -517,3 +517,419 @@ Admin deleteUser failed: Error: There is no user record corresponding to the pro
  GET /admin 200 in 17ms (next.js: 1759µs, application-code: 15ms)
  GET /admin 200 in 17ms (next.js: 1796µs, application-code: 15ms)
  GET /admin 200 in 21ms (next.js: 5ms, application-code: 16ms)
+ GET / 200 in 255ms (next.js: 13ms, application-code: 242ms)
+ GET /login 200 in 32ms (next.js: 4ms, application-code: 28ms)
+ GET / 200 in 32ms (next.js: 19ms, application-code: 13ms)
+ GET /admin 200 in 59ms (next.js: 1737µs, application-code: 58ms)
+ GET /login 200 in 14ms (next.js: 1819µs, application-code: 12ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 69ms (next.js: 11ms, application-code: 58ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 FIREBASE ADMIN ENV DEBUG {
+  hasProjectId: true,
+  projectId: 'pet-co-fc4d6',
+  hasClientEmail: true,
+  clientEmail: 'firebase-adminsdk-fbsvc@pet-co-fc4d6.iam.gserviceaccount.com',
+  hasPrivateKey: true,
+  privateKeyStartsCorrectly: true
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'tHbkv9dlVOZN09EBntcccOTeGSf1',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'tHbkv9dlVOZN09EBntcccOTeGSf1',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 148ms (next.js: 49ms, application-code: 98ms)
+ GET /api/payments?role=provider 200 in 94ms (next.js: 7ms, application-code: 87ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'tHbkv9dlVOZN09EBntcccOTeGSf1',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 39ms (next.js: 1370µs, application-code: 38ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'tHbkv9dlVOZN09EBntcccOTeGSf1',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🧹 DELETE ACCOUNT — providerId: tHbkv9dlVOZN09EBntcccOTeGSf1 uid: tHbkv9dlVOZN09EBntcccOTeGSf1
+🧹 DELETE ACCOUNT — documents found { bookings: [], payments: [], reviews: [], favorites: [] }
+🧹 DELETE ACCOUNT — provider doc exists: true { userEmail: 'odayhamade90@gmail.com', userName: 'Oday Hamade' }
+🧹 DELETE ACCOUNT — provider doc deleted
+🧹 DELETE ACCOUNT — no user doc found for email: odayhamade90@gmail.com
+🧹 DELETE ACCOUNT — Firebase Auth user deleted
+ DELETE /api/me/account 200 in 856ms (next.js: 48ms, application-code: 808ms)
+ GET / 200 in 45ms (next.js: 2ms, application-code: 43ms)
+ GET /login 200 in 18ms (next.js: 2ms, application-code: 16ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 44ms (next.js: 2ms, application-code: 42ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 76ms (next.js: 22ms, application-code: 55ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites 200 in 70ms (next.js: 21ms, application-code: 49ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=customer 200 in 31ms (next.js: 1693µs, application-code: 30ms)
+ GET /admin 200 in 14ms (next.js: 2ms, application-code: 12ms)
+ GET /login 200 in 197ms (next.js: 77ms, application-code: 120ms)
+ GET /login 200 in 94ms (next.js: 1713µs, application-code: 92ms)
+ GET /login 200 in 108ms (next.js: 1927µs, application-code: 106ms)
+ GET /login 200 in 111ms (next.js: 2ms, application-code: 109ms)
+ GET /login 200 in 131ms (next.js: 2ms, application-code: 129ms)
+ GET /login 200 in 134ms (next.js: 3ms, application-code: 131ms)
+ GET /login 200 in 123ms (next.js: 3ms, application-code: 120ms)
+ GET /login 200 in 132ms (next.js: 3ms, application-code: 129ms)
+ GET /login 200 in 128ms (next.js: 2ms, application-code: 126ms)
+ GET /login 200 in 126ms (next.js: 2ms, application-code: 124ms)
+ GET /login 200 in 105ms (next.js: 2ms, application-code: 103ms)
+ GET /login 200 in 116ms (next.js: 3ms, application-code: 113ms)
+ GET /login 200 in 113ms (next.js: 2ms, application-code: 110ms)
+ GET /login 200 in 132ms (next.js: 2ms, application-code: 129ms)
+ GET /login 200 in 155ms (next.js: 3ms, application-code: 152ms)
+ GET /login 200 in 146ms (next.js: 3ms, application-code: 142ms)
+ GET /login 200 in 160ms (next.js: 3ms, application-code: 157ms)
+ GET /login 200 in 143ms (next.js: 3ms, application-code: 140ms)
+ GET /login 200 in 100ms (next.js: 3ms, application-code: 97ms)
+ GET /login 200 in 96ms (next.js: 3ms, application-code: 93ms)
+ GET /login 200 in 119ms (next.js: 3ms, application-code: 117ms)
+ GET /login 200 in 122ms (next.js: 2ms, application-code: 120ms)
+ GET /login 200 in 124ms (next.js: 4ms, application-code: 120ms)
+ GET /login 200 in 122ms (next.js: 3ms, application-code: 119ms)
+ GET /login 200 in 153ms (next.js: 2ms, application-code: 151ms)
+ GET /login 200 in 133ms (next.js: 2ms, application-code: 130ms)
+ GET /login 200 in 105ms (next.js: 4ms, application-code: 101ms)
+ GET /login 200 in 101ms (next.js: 2ms, application-code: 99ms)
+ GET /login 200 in 99ms (next.js: 3ms, application-code: 97ms)
+ GET /admin 200 in 99ms (next.js: 32ms, application-code: 67ms)
+ GET /login 200 in 122ms (next.js: 5ms, application-code: 117ms)
+ GET /login 200 in 128ms (next.js: 2ms, application-code: 126ms)
+ GET /login 200 in 110ms (next.js: 7ms, application-code: 103ms)
+ GET /login 200 in 112ms (next.js: 2ms, application-code: 110ms)
+ GET /login 200 in 105ms (next.js: 2ms, application-code: 103ms)
+ GET /login 200 in 100ms (next.js: 3ms, application-code: 98ms)
+ GET /login 200 in 113ms (next.js: 3ms, application-code: 109ms)
+ GET /login 200 in 109ms (next.js: 4ms, application-code: 105ms)
+ GET /login 200 in 108ms (next.js: 2ms, application-code: 105ms)
+ GET /login 200 in 117ms (next.js: 2ms, application-code: 114ms)
+ GET /login 200 in 111ms (next.js: 2ms, application-code: 109ms)
+ GET /login 200 in 128ms (next.js: 3ms, application-code: 125ms)
+ GET /login 200 in 136ms (next.js: 2ms, application-code: 134ms)
+ GET /login 200 in 116ms (next.js: 2ms, application-code: 114ms)
+ GET /login 200 in 94ms (next.js: 3ms, application-code: 91ms)
+ GET /login 200 in 75ms (next.js: 3ms, application-code: 72ms)
+ GET /admin 200 in 59ms (next.js: 3ms, application-code: 56ms)
+ GET /login 200 in 41ms (next.js: 7ms, application-code: 34ms)
+ GET /admin 200 in 17ms (next.js: 1787µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 2ms, application-code: 15ms)
+ GET /admin 200 in 23ms (next.js: 1858µs, application-code: 21ms)
+ GET /admin 200 in 19ms (next.js: 1854µs, application-code: 17ms)
+ GET /admin 200 in 18ms (next.js: 1864µs, application-code: 16ms)
+ GET /admin 200 in 20ms (next.js: 1827µs, application-code: 18ms)
+ GET /admin 200 in 21ms (next.js: 1746µs, application-code: 20ms)
+ GET /admin 200 in 17ms (next.js: 2ms, application-code: 14ms)
+ GET /admin 200 in 16ms (next.js: 1751µs, application-code: 15ms)
+ GET /admin 200 in 20ms (next.js: 1825µs, application-code: 18ms)
+ GET /admin 200 in 16ms (next.js: 1806µs, application-code: 14ms)
+ GET /admin 200 in 16ms (next.js: 1851µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 2ms, application-code: 15ms)
+ GET /admin 200 in 21ms (next.js: 1761µs, application-code: 20ms)
+ GET /admin 200 in 17ms (next.js: 2ms, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1983µs, application-code: 15ms)
+ GET /admin 200 in 19ms (next.js: 2ms, application-code: 17ms)
+ GET /admin 200 in 22ms (next.js: 1938µs, application-code: 20ms)
+ GET /admin 200 in 17ms (next.js: 1823µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1826µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 1905µs, application-code: 16ms)
+ GET /admin 200 in 17ms (next.js: 1649µs, application-code: 15ms)
+ GET /admin 200 in 16ms (next.js: 1778µs, application-code: 14ms)
+ GET /admin 200 in 17ms (next.js: 1873µs, application-code: 15ms)
+ GET /admin 200 in 21ms (next.js: 1791µs, application-code: 19ms)
+ GET /admin 200 in 19ms (next.js: 1864µs, application-code: 17ms)
+ GET /admin 200 in 16ms (next.js: 1742µs, application-code: 15ms)
+ GET /admin 200 in 16ms (next.js: 1770µs, application-code: 15ms)
+ GET /admin 200 in 23ms (next.js: 1790µs, application-code: 21ms)
+ GET /admin 200 in 17ms (next.js: 1719µs, application-code: 16ms)
+ GET /admin 200 in 17ms (next.js: 1808µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1691µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1803µs, application-code: 15ms)
+ GET /admin 200 in 26ms (next.js: 4ms, application-code: 22ms)
+ GET /admin 200 in 18ms (next.js: 1788µs, application-code: 16ms)
+ GET /api/test-firestore-delete 200 in 559ms (next.js: 276ms, application-code: 283ms)
+ GET /admin 200 in 17ms (next.js: 1649µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1783µs, application-code: 15ms)
+ GET /admin 200 in 23ms (next.js: 1760µs, application-code: 22ms)
+ GET /admin 200 in 17ms (next.js: 1771µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1812µs, application-code: 15ms)
+ GET /admin 200 in 26ms (next.js: 2ms, application-code: 23ms)
+ GET /admin 200 in 19ms (next.js: 1938µs, application-code: 17ms)
+ GET /admin 200 in 24ms (next.js: 2ms, application-code: 22ms)
+ GET /admin 200 in 16ms (next.js: 1620µs, application-code: 14ms)
+ GET /login 200 in 257ms (next.js: 115ms, application-code: 142ms)
+ GET /login 200 in 137ms (next.js: 2ms, application-code: 135ms)
+ GET /login 200 in 135ms (next.js: 1835µs, application-code: 133ms)
+ GET /login 200 in 157ms (next.js: 6ms, application-code: 152ms)
+ GET /login 200 in 119ms (next.js: 1948µs, application-code: 117ms)
+ GET /login 200 in 127ms (next.js: 1997µs, application-code: 125ms)
+ GET /login 200 in 108ms (next.js: 2ms, application-code: 106ms)
+ GET /login 200 in 112ms (next.js: 2ms, application-code: 110ms)
+ GET /login 200 in 139ms (next.js: 2ms, application-code: 137ms)
+ GET /login 200 in 136ms (next.js: 2ms, application-code: 134ms)
+ GET /login 200 in 134ms (next.js: 3ms, application-code: 130ms)
+ GET /login 200 in 141ms (next.js: 4ms, application-code: 137ms)
+ GET /login 200 in 128ms (next.js: 3ms, application-code: 125ms)
+ GET /login 200 in 105ms (next.js: 2ms, application-code: 102ms)
+ GET /login 200 in 106ms (next.js: 2ms, application-code: 104ms)
+ GET /login 200 in 111ms (next.js: 3ms, application-code: 109ms)
+ GET /login 200 in 107ms (next.js: 3ms, application-code: 104ms)
+ GET /login 200 in 110ms (next.js: 3ms, application-code: 106ms)
+ GET /login 200 in 111ms (next.js: 3ms, application-code: 107ms)
+ GET /login 200 in 87ms (next.js: 10ms, application-code: 77ms)
+ GET /login 200 in 55ms (next.js: 3ms, application-code: 51ms)
+ GET /login 200 in 77ms (next.js: 4ms, application-code: 73ms)
+ GET /login 200 in 122ms (next.js: 5ms, application-code: 117ms)
+ GET /login 200 in 122ms (next.js: 2ms, application-code: 120ms)
+ GET /login 200 in 129ms (next.js: 2ms, application-code: 126ms)
+ GET /login 200 in 165ms (next.js: 1912µs, application-code: 163ms)
+ GET /login 200 in 167ms (next.js: 3ms, application-code: 164ms)
+ GET /login 200 in 165ms (next.js: 4ms, application-code: 162ms)
+ GET /login 200 in 162ms (next.js: 2ms, application-code: 160ms)
+ GET /login 200 in 139ms (next.js: 2ms, application-code: 136ms)
+ GET /admin 200 in 150ms (next.js: 13ms, application-code: 136ms)
+ GET /login 200 in 115ms (next.js: 3ms, application-code: 113ms)
+ GET /login 200 in 95ms (next.js: 4ms, application-code: 91ms)
+ GET /login 200 in 67ms (next.js: 3ms, application-code: 64ms)
+ GET /login 200 in 40ms (next.js: 5ms, application-code: 35ms)
+ GET /login 200 in 84ms (next.js: 1699µs, application-code: 82ms)
+ GET /login 200 in 86ms (next.js: 2ms, application-code: 83ms)
+ GET /login 200 in 111ms (next.js: 1881µs, application-code: 109ms)
+ GET /login 200 in 90ms (next.js: 1886µs, application-code: 88ms)
+ GET /login 200 in 112ms (next.js: 3ms, application-code: 109ms)
+ GET /login 200 in 110ms (next.js: 3ms, application-code: 107ms)
+ GET /login 200 in 119ms (next.js: 2ms, application-code: 117ms)
+ GET /login 200 in 132ms (next.js: 3ms, application-code: 129ms)
+ GET /login 200 in 112ms (next.js: 2ms, application-code: 110ms)
+ GET /login 200 in 114ms (next.js: 2ms, application-code: 112ms)
+ GET /login 200 in 118ms (next.js: 2ms, application-code: 116ms)
+ GET /login 200 in 91ms (next.js: 3ms, application-code: 88ms)
+ GET /admin 200 in 91ms (next.js: 20ms, application-code: 71ms)
+ GET /login 200 in 55ms (next.js: 4ms, application-code: 51ms)
+ GET /login 200 in 34ms (next.js: 8ms, application-code: 25ms)
+ GET /admin 200 in 18ms (next.js: 1840µs, application-code: 16ms)
+ GET /admin 200 in 19ms (next.js: 2ms, application-code: 17ms)
+ GET /admin 200 in 31ms (next.js: 2ms, application-code: 29ms)
+ GET /admin 200 in 18ms (next.js: 2ms, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 1894µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 2ms, application-code: 16ms)
+ GET /admin 200 in 23ms (next.js: 1775µs, application-code: 21ms)
+ GET /admin 200 in 18ms (next.js: 1932µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 1831µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 1802µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 1862µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 1815µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 2ms, application-code: 16ms)
+ GET /admin 200 in 24ms (next.js: 5ms, application-code: 20ms)
+ GET /admin 200 in 18ms (next.js: 1808µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 1965µs, application-code: 16ms)
+ GET /admin 200 in 21ms (next.js: 2ms, application-code: 19ms)
+ GET /admin 200 in 42ms (next.js: 1762µs, application-code: 40ms)
+ GET /admin 200 in 18ms (next.js: 1779µs, application-code: 16ms)
+ GET /admin 200 in 17ms (next.js: 1690µs, application-code: 15ms)
+ GET /admin 200 in 18ms (next.js: 1735µs, application-code: 16ms)
+ GET /admin 200 in 20ms (next.js: 1773µs, application-code: 18ms)
+ GET /admin 200 in 17ms (next.js: 1763µs, application-code: 16ms)
+ GET /admin 200 in 17ms (next.js: 1881µs, application-code: 16ms)
+ GET /admin 200 in 17ms (next.js: 1810µs, application-code: 15ms)
+ GET /admin 200 in 23ms (next.js: 8ms, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1794µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 2ms, application-code: 16ms)
+ GET /admin 200 in 22ms (next.js: 1876µs, application-code: 20ms)
+ GET /admin 200 in 17ms (next.js: 1760µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1768µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1724µs, application-code: 15ms)
+ GET /admin 200 in 21ms (next.js: 1671µs, application-code: 19ms)
+ GET /admin 200 in 18ms (next.js: 1784µs, application-code: 16ms)
+ GET /admin 200 in 22ms (next.js: 2ms, application-code: 20ms)
+ GET /admin 200 in 18ms (next.js: 1734µs, application-code: 16ms)
+ GET /admin 200 in 23ms (next.js: 1643µs, application-code: 21ms)
+ GET /admin 200 in 23ms (next.js: 2ms, application-code: 20ms)
+ GET /admin 200 in 17ms (next.js: 1698µs, application-code: 15ms)
+ GET /admin 200 in 22ms (next.js: 2ms, application-code: 20ms)
+ GET /admin 200 in 18ms (next.js: 2ms, application-code: 16ms)
+ GET /admin 200 in 16ms (next.js: 1756µs, application-code: 14ms)
+ GET /admin 200 in 17ms (next.js: 1794µs, application-code: 15ms)
+ GET /admin 200 in 22ms (next.js: 1809µs, application-code: 20ms)
+ GET /admin 200 in 17ms (next.js: 1785µs, application-code: 15ms)
+ GET /admin 200 in 18ms (next.js: 2ms, application-code: 16ms)
+ GET /api/test-firestore-list 200 in 520ms (next.js: 288ms, application-code: 232ms)
+ GET /login 200 in 231ms (next.js: 105ms, application-code: 126ms)
+ GET /login 200 in 128ms (next.js: 2ms, application-code: 126ms)
+ GET /login 200 in 126ms (next.js: 2ms, application-code: 124ms)
+ GET /login 200 in 123ms (next.js: 1991µs, application-code: 121ms)
+ GET /admin 200 in 123ms (next.js: 12ms, application-code: 111ms)
+ GET /login 200 in 122ms (next.js: 33ms, application-code: 90ms)
+ GET /login 200 in 118ms (next.js: 5ms, application-code: 113ms)
+ GET /login 200 in 97ms (next.js: 2ms, application-code: 95ms)
+ GET /login 200 in 78ms (next.js: 3ms, application-code: 75ms)
+ GET /login 200 in 99ms (next.js: 3ms, application-code: 95ms)
+ GET /login 200 in 100ms (next.js: 2ms, application-code: 97ms)
+ GET /login 200 in 132ms (next.js: 3ms, application-code: 129ms)
+ GET /login 200 in 116ms (next.js: 2ms, application-code: 113ms)
+ GET /login 200 in 144ms (next.js: 3ms, application-code: 142ms)
+ GET /login 200 in 150ms (next.js: 3ms, application-code: 147ms)
+ GET /login 200 in 150ms (next.js: 19ms, application-code: 131ms)
+ GET /admin 200 in 151ms (next.js: 3ms, application-code: 149ms)
+ GET /login 200 in 146ms (next.js: 4ms, application-code: 142ms)
+ GET /login 200 in 137ms (next.js: 2ms, application-code: 134ms)
+ GET /login 200 in 132ms (next.js: 4ms, application-code: 129ms)
+ GET /login 200 in 109ms (next.js: 2ms, application-code: 106ms)
+ GET /login 200 in 107ms (next.js: 2ms, application-code: 105ms)
+ GET /login 200 in 122ms (next.js: 3ms, application-code: 119ms)
+ GET /login 200 in 122ms (next.js: 3ms, application-code: 119ms)
+ GET /login 200 in 154ms (next.js: 4ms, application-code: 150ms)
+ GET /login 200 in 130ms (next.js: 4ms, application-code: 126ms)
+ GET /admin 200 in 149ms (next.js: 23ms, application-code: 126ms)
+ GET /login 200 in 131ms (next.js: 3ms, application-code: 128ms)
+ GET /login 200 in 114ms (next.js: 4ms, application-code: 110ms)
+ GET /login 200 in 106ms (next.js: 3ms, application-code: 103ms)
+ GET /login 200 in 104ms (next.js: 4ms, application-code: 100ms)
+ GET /login 200 in 105ms (next.js: 2ms, application-code: 103ms)
+ GET /login 200 in 126ms (next.js: 9ms, application-code: 117ms)
+ GET /login 200 in 143ms (next.js: 3ms, application-code: 141ms)
+ GET /login 200 in 146ms (next.js: 4ms, application-code: 142ms)
+ GET /login 200 in 163ms (next.js: 4ms, application-code: 159ms)
+ GET /login 200 in 126ms (next.js: 24ms, application-code: 102ms)
+ GET /admin 200 in 128ms (next.js: 4ms, application-code: 124ms)
+ GET /login 200 in 105ms (next.js: 4ms, application-code: 101ms)
+ GET /login 200 in 102ms (next.js: 3ms, application-code: 99ms)
+ GET /login 200 in 78ms (next.js: 3ms, application-code: 75ms)
+ GET /login 200 in 101ms (next.js: 4ms, application-code: 98ms)
+ GET /login 200 in 99ms (next.js: 3ms, application-code: 96ms)
+ GET /login 200 in 141ms (next.js: 3ms, application-code: 137ms)
+ GET /login 200 in 134ms (next.js: 2ms, application-code: 132ms)
+ GET /login 200 in 142ms (next.js: 2ms, application-code: 140ms)
+ GET /login 200 in 124ms (next.js: 3ms, application-code: 121ms)
+ GET /admin 200 in 126ms (next.js: 8ms, application-code: 118ms)
+ GET /login 200 in 104ms (next.js: 2ms, application-code: 102ms)
+ GET /login 200 in 83ms (next.js: 2ms, application-code: 81ms)
+ GET /login 200 in 64ms (next.js: 4ms, application-code: 60ms)
+ GET /login 200 in 33ms (next.js: 3ms, application-code: 29ms)
+ GET /admin 200 in 18ms (next.js: 1779µs, application-code: 16ms)
+ GET /admin 200 in 28ms (next.js: 2ms, application-code: 26ms)
+ GET /admin 200 in 21ms (next.js: 1982µs, application-code: 19ms)
+ GET /admin 200 in 18ms (next.js: 1966µs, application-code: 16ms)
+ GET /admin 200 in 21ms (next.js: 2ms, application-code: 19ms)
+ GET /admin 200 in 26ms (next.js: 1753µs, application-code: 24ms)
+ GET /admin 200 in 17ms (next.js: 1895µs, application-code: 16ms)
+ GET /admin 200 in 16ms (next.js: 1659µs, application-code: 14ms)
+ GET /admin 200 in 31ms (next.js: 1755µs, application-code: 29ms)
+ GET /admin 200 in 22ms (next.js: 1960µs, application-code: 20ms)
+ GET /admin 200 in 17ms (next.js: 1702µs, application-code: 15ms)
+ GET /admin 200 in 16ms (next.js: 1743µs, application-code: 14ms)
+ GET /admin 200 in 20ms (next.js: 1815µs, application-code: 18ms)
+ GET /admin 200 in 17ms (next.js: 1745µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1952µs, application-code: 15ms)
+ GET /admin 200 in 16ms (next.js: 1699µs, application-code: 15ms)
+ GET /admin 200 in 22ms (next.js: 1663µs, application-code: 21ms)
+ GET /admin 200 in 17ms (next.js: 2ms, application-code: 15ms)
+ GET /admin 200 in 18ms (next.js: 1781µs, application-code: 16ms)
+ GET /admin 200 in 17ms (next.js: 1797µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1847µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1924µs, application-code: 15ms)
+ GET /admin 200 in 17ms (next.js: 1871µs, application-code: 16ms)
+ GET /admin 200 in 20ms (next.js: 2ms, application-code: 18ms)
+ GET /admin 200 in 16ms (next.js: 1696µs, application-code: 14ms)
+ GET /admin 200 in 16ms (next.js: 1727µs, application-code: 14ms)
+ GET /admin 200 in 18ms (next.js: 2ms, application-code: 16ms)
+ GET /admin 200 in 23ms (next.js: 2ms, application-code: 21ms)
+ GET /admin 200 in 19ms (next.js: 1941µs, application-code: 17ms)
+ GET /admin 200 in 18ms (next.js: 2ms, application-code: 16ms)
+ GET /admin 200 in 19ms (next.js: 1969µs, application-code: 17ms)
+ GET /admin 200 in 19ms (next.js: 1917µs, application-code: 17ms)
+ GET /admin 200 in 18ms (next.js: 2ms, application-code: 16ms)
+ GET /admin 200 in 17ms (next.js: 1594µs, application-code: 16ms)
+ GET /admin 200 in 22ms (next.js: 1936µs, application-code: 20ms)
+ GET /admin 200 in 18ms (next.js: 1898µs, application-code: 16ms)
+ GET /admin 200 in 18ms (next.js: 1896µs, application-code: 16ms)
+ GET /admin 200 in 19ms (next.js: 1999µs, application-code: 17ms)
+ GET /admin 200 in 23ms (next.js: 1928µs, application-code: 21ms)
+ GET /admin 200 in 16ms (next.js: 1650µs, application-code: 15ms)
+ GET /admin 200 in 21ms (next.js: 1837µs, application-code: 19ms)
+ GET /admin 200 in 28ms (next.js: 2ms, application-code: 26ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 106ms
+ GET /login 200 in 264ms (next.js: 5ms, application-code: 260ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 58ms
+ GET /login 200 in 54ms (next.js: 5ms, application-code: 49ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 58ms
+ GET /login 200 in 66ms (next.js: 5ms, application-code: 61ms)
+ GET / 200 in 62ms (next.js: 15ms, application-code: 48ms)
