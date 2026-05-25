@@ -6,11 +6,60 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 341ms
+✓ Ready in 349ms
 
- GET /login 200 in 704ms (next.js: 316ms, application-code: 388ms)
- GET / 200 in 66ms (next.js: 15ms, application-code: 51ms)
- GET /login 200 in 48ms (next.js: 4ms, application-code: 44ms)
- GET /login 200 in 41ms (next.js: 3ms, application-code: 39ms)
- GET /login 200 in 46ms (next.js: 3ms, application-code: 43ms)
- GET /register 200 in 64ms (next.js: 17ms, application-code: 47ms)
+ GET /login 200 in 724ms (next.js: 332ms, application-code: 392ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 76ms (next.js: 15ms, application-code: 61ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 FIREBASE ADMIN ENV DEBUG {
+  hasProjectId: true,
+  projectId: 'pet-co-fc4d6',
+  hasClientEmail: true,
+  clientEmail: 'firebase-adminsdk-fbsvc@pet-co-fc4d6.iam.gserviceaccount.com',
+  hasPrivateKey: true,
+  privateKeyStartsCorrectly: true
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lDFQndvpnnYXfYcRnX7WZmnIOC92',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lDFQndvpnnYXfYcRnX7WZmnIOC92',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'lDFQndvpnnYXfYcRnX7WZmnIOC92',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 502ms (next.js: 298ms, application-code: 204ms)
+ GET /api/payments?role=provider 200 in 196ms (next.js: 7ms, application-code: 189ms)
+ GET /api/payments?role=provider 200 in 211ms (next.js: 17ms, application-code: 194ms)
+ GET /login 200 in 54ms (next.js: 3ms, application-code: 50ms)
+ GET /login 200 in 42ms (next.js: 1935µs, application-code: 40ms)

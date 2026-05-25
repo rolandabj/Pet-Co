@@ -2,16 +2,16 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
+import { getAdminAuth } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
+import { deleteDocRest, deleteDocsBatch, getAccessToken, getDocRest, runQueryRest } from '@/lib/firestore-admin-rest';
 
 /**
  * DELETE /api/me/account
  *
  * Cascading account deletion for provider accounts.
- * Uses Admin SDK — no Firestore security rule restrictions.
- *
- * Body: { providerId: string }
+ * Uses Firestore REST API (not Admin SDK Firestore client) to avoid
+ * gRPC transport issues that can silently fail in container environments.
  */
 export async function DELETE(request: Request) {
   try {
@@ -26,111 +26,106 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const db = getAdminDb();
     const auth = getAdminAuth();
-
     console.log('🧹 DELETE ACCOUNT — providerId:', providerId, 'uid:', decoded.uid);
 
-    // ── Sanity: verify Admin SDK Firestore is reachable ──────────────
-    try {
-      const probe = await db.collection('_probes').doc('_ping').get();
-      console.log('🧹 DELETE ACCOUNT — Admin SDK Firestore reachable, probe exists:', probe.exists);
-    } catch (probeErr) {
-      console.error('🧹 DELETE ACCOUNT — Admin SDK Firestore UNREACHABLE:', probeErr);
-      return NextResponse.json(
-        { error: 'Admin SDK Firestore is not reachable', message: String(probeErr) },
-        { status: 500 },
-      );
-    }
-
-    // 1. Collect all relational documents
-    const [bookingSnap, paymentSnap, reviewSnap] = await Promise.all([
-      db.collection('bookings').where('providerId', '==', providerId).get(),
-      db.collection('payments').where('providerId', '==', providerId).get(),
-      db.collection('reviews').where('providerId', '==', providerId).get(),
+    // ── 1. Query relational documents ─────────────────────────
+    const [bookingDocs, paymentDocs, reviewDocs, allFavDocs] = await Promise.all([
+      runQueryRest<{ providerId?: string }>('bookings', 'providerId', 'EQUAL', providerId),
+      runQueryRest<{ providerId?: string }>('payments', 'providerId', 'EQUAL', providerId),
+      runQueryRest<{ providerId?: string }>('reviews', 'providerId', 'EQUAL', providerId),
+      runQueryRest<{ providerId?: string; targetId?: string }>('favorites', 'providerId', 'EQUAL', providerId)
+        .catch(() => runQueryRest<{ providerId?: string; targetId?: string }>('favorites', 'targetId', 'EQUAL', providerId))
+        .catch(() => []),
     ]);
 
     console.log('🧹 DELETE ACCOUNT — documents found', {
-      bookings: bookingSnap.docs.map((d) => d.id),
-      payments: paymentSnap.docs.map((d) => d.id),
-      reviews: reviewSnap.docs.map((d) => d.id),
+      bookings: bookingDocs.map((d) => d.id),
+      payments: paymentDocs.map((d) => d.id),
+      reviews: reviewDocs.map((d) => d.id),
+      favorites: allFavDocs.map((d) => d.id),
     });
 
-    // 2. Collect favorites (uses providerId or targetId)
-    const allFavs = await db.collection('favorites').get();
-    const favoriteDocs = allFavs.docs.filter(
-      (d) => d.data().providerId === providerId || d.data().targetId === providerId,
+    // favorites query may return docs where providerId matches OR targetId matches
+    const favoriteDocs = allFavDocs.filter(
+      (d) => d.data.providerId === providerId || d.data.targetId === providerId,
     );
 
-    console.log('🧹 DELETE ACCOUNT — favorites found:', favoriteDocs.map((d) => d.id));
-
-    // 3. Get provider doc info before deleting
-    let logoUrl: string | null = null;
+    // ── 2. Get provider doc info ──────────────────────────────
     let userEmail: string | null = null;
     let userName: string | null = null;
     let providerDocExists = false;
+
     try {
-      const providerDoc = await db.collection('providers').doc(providerId).get();
-      providerDocExists = providerDoc.exists;
-      if (providerDoc.exists) {
-        const data = providerDoc.data() || {};
-        logoUrl = data.logoUrl ?? null;
-        userEmail = data.email ?? data.contactEmail ?? null;
-        userName = data.name ?? data.businessName ?? null;
+      const fields = await getDocRest('providers', providerId);
+      if (fields) {
+        providerDocExists = true;
+        userEmail = fields.email?.stringValue ?? fields.contactEmail?.stringValue ?? null;
+        userName = fields.name?.stringValue ?? fields.businessName?.stringValue ?? null;
       }
     } catch (err) {
       console.error('🧹 DELETE ACCOUNT — failed to fetch provider doc:', err);
     }
 
-    console.log('🧹 DELETE ACCOUNT — provider doc exists:', providerDocExists, { logoUrl, userEmail, userName });
+    console.log('🧹 DELETE ACCOUNT — provider doc exists:', providerDocExists, { userEmail, userName });
 
-    // 4. Delete all relational documents in parallel
-    //    Use Promise.allSettled so one failure doesn't block others,
-    //    but log each failure for diagnostics.
-    const relationalDeleteResults = await Promise.allSettled([
-      ...bookingSnap.docs.map((d) => d.ref.delete()),
-      ...paymentSnap.docs.map((d) => d.ref.delete()),
-      ...reviewSnap.docs.map((d) => d.ref.delete()),
-      ...favoriteDocs.map((d) => d.ref.delete()),
-    ]);
-    const relationalRejections = relationalDeleteResults.filter((r) => r.status === 'rejected');
-    if (relationalRejections.length > 0) {
-      console.error('🧹 DELETE ACCOUNT — relational doc deletions failed:', relationalRejections);
+    // ── 3. Delete relational documents in batch ──────────────
+    const relationalDocs = [
+      ...bookingDocs.map((d) => ({ collection: 'bookings' as const, docId: d.id })),
+      ...paymentDocs.map((d) => ({ collection: 'payments' as const, docId: d.id })),
+      ...reviewDocs.map((d) => ({ collection: 'reviews' as const, docId: d.id })),
+      ...favoriteDocs.map((d) => ({ collection: 'favorites' as const, docId: d.id })),
+    ];
+
+    try {
+      await deleteDocsBatch(relationalDocs);
+      console.log('🧹 DELETE ACCOUNT — relational docs batch deleted');
+    } catch (err) {
+      console.error('🧹 DELETE ACCOUNT — batch delete failed:', err);
     }
 
-    // 5. Delete the provider document itself
+    // ── 4. Delete the provider document ───────────────────────
     try {
-      await db.collection('providers').doc(providerId).delete();
+      await deleteDocRest('providers', providerId);
       console.log('🧹 DELETE ACCOUNT — provider doc deleted');
     } catch (err) {
       console.error('🧹 DELETE ACCOUNT — failed to delete provider doc:', err);
     }
 
-    // 6. Downgrade the associated user to 'owner' role
+    // ── 5. Downgrade user role ────────────────────────────────
     if (userEmail) {
       try {
-        const userSnap = await db
-          .collection('users')
-          .where('email', '==', userEmail)
-          .limit(1)
-          .get();
-        if (!userSnap.empty) {
-          const userDoc = userSnap.docs[0];
-          await userDoc.ref.update({ role: 'owner' });
-          console.log('🧹 DELETE ACCOUNT — user doc downgraded to owner (by email)');
+        const users = await runQueryRest<{ role?: string }>('users', 'email', 'EQUAL', userEmail);
+        if (users.length > 0) {
+          const accessToken = await getAccessToken();
+          const base = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+          const url = `${base}/users/${encodeURIComponent(users[0].id)}?updateMask.fieldPaths=role`;
+          const patchRes = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              fields: {
+                role: { stringValue: 'owner' },
+              },
+            }),
+          });
+          if (patchRes.ok) {
+            console.log('🧹 DELETE ACCOUNT — user doc downgraded to owner');
+          } else {
+            console.error('🧹 DELETE ACCOUNT — failed to update user role:', await patchRes.text());
+          }
         } else {
-          await db
-            .collection('users')
-            .doc(decoded.uid)
-            .set({ role: 'owner', email: decoded.email }, { merge: true });
-          console.log('🧹 DELETE ACCOUNT — user doc set to owner (by uid)');
+          console.log('🧹 DELETE ACCOUNT — no user doc found for email:', userEmail);
         }
       } catch (err) {
-        console.error('🧹 DELETE ACCOUNT — failed to update user role:', err);
+        console.error('🧹 DELETE ACCOUNT — failed to query/update user role:', err);
       }
     }
 
-    // 7. Attempt to delete the Firebase Auth user
+    // ── 6. Delete the Firebase Auth user ──────────────────────
     try {
       await auth.deleteUser(decoded.uid);
       console.log('🧹 DELETE ACCOUNT — Firebase Auth user deleted');
@@ -142,11 +137,10 @@ export async function DELETE(request: Request) {
       deleted: true,
       providerDocDeleted: true,
       providerDocExists,
-      deletedBookings: bookingSnap.docs.length,
-      deletedPayments: paymentSnap.docs.length,
-      deletedReviews: reviewSnap.docs.length,
+      deletedBookings: bookingDocs.length,
+      deletedPayments: paymentDocs.length,
+      deletedReviews: reviewDocs.length,
       deletedFavorites: favoriteDocs.length,
-      logoUrl,
       userEmail,
       userName,
     });
