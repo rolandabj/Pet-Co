@@ -19,6 +19,7 @@ import {
   fetchMyPayments,
   updatePaymentStatus,
   deletePaymentByBookingId,
+  deleteMyAccount,
 } from '@/lib/me-api';
 import type { BookingDoc, PaymentDoc, ReviewDoc, UserDoc } from '@/lib/firestore-rest';
 import type { ServiceProvider, ServiceItem, ProductItem } from '@/lib/types';
@@ -645,18 +646,7 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
     setDeletingAccount(true);
     try {
       // 1. Call server-side API route (uses Admin SDK — no 403 risk)
-      const res = await fetch('/api/me/account', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ providerId: targetDocId }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error || `Server returned ${res.status}`);
-      }
-
-      const result = await res.json();
+      const result = await deleteMyAccount(targetDocId);
 
       // 2. Delete provider logo from Firebase Storage if it exists
       const logoUrl = result.logoUrl || provider?.logoUrl;

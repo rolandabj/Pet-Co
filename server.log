@@ -6,7 +6,7 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 343ms
+✓ Ready in 363ms
 
 🐛 DASHBOARD UID DEBUG {
   appUserId: undefined,
@@ -15,6 +15,8 @@
   dashboardUserId: undefined,
   same: true
 }
+ GET /dashboard 200 in 1051ms (next.js: 965ms, application-code: 86ms)
+ GET /login 200 in 1227ms (next.js: 773ms, application-code: 454ms)
 🐛 API AUTH HEADER DEBUG {
   hasAuthHeader: true,
   startsWithBearer: true,
@@ -56,58 +58,6 @@
   aud: 'pet-co-fc4d6',
   iss: 'https://securetoken.google.com/pet-co-fc4d6'
 }
- GET /login 200 in 1260ms (next.js: 297ms, application-code: 963ms)
- GET /dashboard 200 in 601ms (next.js: 27ms, application-code: 574ms)
- GET /api/payments?role=provider 200 in 630ms (next.js: 385ms, application-code: 245ms)
- GET /api/payments?role=provider 200 in 222ms (next.js: 15ms, application-code: 207ms)
- GET /api/payments?role=provider 200 in 231ms (next.js: 9ms, application-code: 221ms)
-🐛 API AUTH HEADER DEBUG {
-  hasAuthHeader: true,
-  startsWithBearer: true,
-  headerStart: 'Bearer eyJhbGciOiJSU'
-}
-🐛 API TOKEN VERIFIED {
-  uid: 'VS3dEAvLRcc3PHcIpS7IcG80rPl1',
-  email: 'odayhamade90@gmail.com',
-  aud: 'pet-co-fc4d6',
-  iss: 'https://securetoken.google.com/pet-co-fc4d6'
-}
- GET /api/payments?role=provider 200 in 90ms (next.js: 2ms, application-code: 87ms)
-🐛 API AUTH HEADER DEBUG {
-  hasAuthHeader: true,
-  startsWithBearer: true,
-  headerStart: 'Bearer eyJhbGciOiJSU'
-}
-🐛 API TOKEN VERIFIED {
-  uid: 'VS3dEAvLRcc3PHcIpS7IcG80rPl1',
-  email: 'odayhamade90@gmail.com',
-  aud: 'pet-co-fc4d6',
-  iss: 'https://securetoken.google.com/pet-co-fc4d6'
-}
- GET /api/payments?role=provider 200 in 79ms (next.js: 1465µs, application-code: 77ms)
-🐛 API AUTH HEADER DEBUG {
-  hasAuthHeader: true,
-  startsWithBearer: true,
-  headerStart: 'Bearer eyJhbGciOiJSU'
-}
-🐛 API TOKEN VERIFIED {
-  uid: 'VS3dEAvLRcc3PHcIpS7IcG80rPl1',
-  email: 'odayhamade90@gmail.com',
-  aud: 'pet-co-fc4d6',
-  iss: 'https://securetoken.google.com/pet-co-fc4d6'
-}
- GET /api/payments?role=provider 200 in 57ms (next.js: 1980µs, application-code: 55ms)
-🐛 API AUTH HEADER DEBUG { hasAuthHeader: false, startsWithBearer: false, headerStart: null }
-DELETE /api/me/account failed: { message: 'Missing Authorization Bearer token', code: undefined }
- DELETE /api/me/account 401 in 33ms (next.js: 27ms, application-code: 6ms)
-[browser] Failed to delete account: Error: Failed to delete account
-    at handleDeleteAccount (src/app/dashboard/ProviderDashboard.tsx:656:15)
-  654 |       if (!res.ok) {
-  655 |         const err = await res.json().catch(() => ({ error: res.statusText }));
-> 656 |         throw new Error(err.error || `Server returned ${res.status}`);
-      |               ^
-  657 |       }
-  658 |
-  659 |       const result = await res.json(); (src/app/dashboard/ProviderDashboard.tsx:695:15)
-Debugger listening on ws://127.0.0.1:9229/91b3efd9-3d59-488f-9cf1-64e5f921fcc0
-For help, see: https://nodejs.org/learn/getting-started/debugging
+ GET /api/payments?role=provider 200 in 534ms (next.js: 300ms, application-code: 234ms)
+ GET /api/payments?role=provider 200 in 213ms (next.js: 5ms, application-code: 207ms)
+ GET /api/payments?role=provider 200 in 220ms (next.js: 11ms, application-code: 209ms)

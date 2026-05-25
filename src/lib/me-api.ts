@@ -261,3 +261,29 @@ export async function addMyReview(review: {
     providerReviews: data.providerReviews,
   };
 }
+
+// ─── Account deletion ──────────────────────────────────────────
+
+export async function deleteMyAccount(providerId: string) {
+  const res = await fetch('/api/me/account', {
+    method: 'DELETE',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify({ providerId }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || `Server returned ${res.status}`);
+  }
+
+  return res.json() as Promise<{
+    deleted: boolean;
+    deletedBookings: number;
+    deletedPayments: number;
+    deletedReviews: number;
+    deletedFavorites: number;
+    logoUrl: string | null;
+    userEmail: string | null;
+    userName: string | null;
+  }>;
+}
