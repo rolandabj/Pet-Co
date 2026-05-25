@@ -1,405 +1,246 @@
-# Paws & Co. — Comprehensive System Architecture
+# Paws & Co. -- Comprehensive System Architecture
 
-> **Last updated:** 2026-05-24
-> **Next.js 16.2.6 · App Router · TypeScript 5 · Tailwind CSS 4 · Firebase Firestore REST + SDK + Admin SDK**
+> **Last updated:** 2026-05-25
+> **Next.js 16.2.6 . App Router . TypeScript 5 . Tailwind CSS 4 . Firebase Firestore (Client SDK + REST API + Admin SDK)**
 
 ---
 
 ## Table of Contents
 
-1. [Current State](#1-current-state)
-2. [System Architecture](#2-system-architecture)
-3. [Security Model](#3-security-model)
-4. [Resolved Issues](#4-resolved-issues)
-5. [Next Steps](#5-next-steps)
+1. [Project Overview & Core Audience](#1-project-overview--core-audience)
+2. [Tech Stack & Architecture](#2-tech-stack--architecture)
+3. [State & Data Flow](#3-state--data-flow)
+4. [Database Schema](#4-database-schema)
+5. [Workspace Setup & DevOps](#5-workspace-setup--devops)
+6. [Recent Milestones](#6-recent-milestones)
+7. [Upcoming Roadmap](#7-upcoming-roadmap)
 
 ---
 
-## 1. Current State
+## 1. Project Overview & Core Audience
 
-Paws & Co. is a production-ready digital pet-care marketplace with a **robust Auth-gated dashboard architecture**. The system is fully operational with:
+Paws & Co. is a **dual-sided pet-care marketplace** connecting Pet Owners with Service Providers.
 
-### 1.1 Core Milestones Delivered
+### Pet Owners
+- Browse/search/filter service providers (Dog Walkers, Vets, Groomers, Pet Hotels, Pet Sitters, Pet Shops)
+- View provider profiles with services, availability, ratings, and reviews
+- Book appointments with date/time/service selection
+- Manage pets profile (add/edit/remove pets)
+- Favorite providers for quick access
+- Leave reviews for completed bookings
 
-| Milestone | Status | Key Details |
-|---|---|---|
-| **Firestore REST API migration** | ✅ Complete | All CRUD operations migrated from Firebase SDK to REST API (`firestore-rest.ts`). Eliminates SDK hangs in sandboxed environments. |
-| **Firebase Admin SDK API routes** | ✅ Complete | Pets (`/api/me/pets`), Favorites (`/api/me/favorites`), and Auth deletion (`/api/auth/delete-user`) are server-side routes with `runtime = 'nodejs'`. Uses `getAdminAuth()` / `getAdminDb()` with lazy initialization. |
-| **Optimistic UI updates** | ✅ Complete | Pets/favorites mutations update local state immediately after successful API response, eliminating the need for fallback read paths. |
-| **Auth-gated dashboard** | ✅ Complete | All data fetches gated on `isInitialized` + `user` from `AuthContext`. No pre-auth 403s. |
-| **Environment variable guard** | ✅ Complete | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` required for Admin SDK. Quote-tolerant private key parsing. |
-| **Debug logging** | ✅ Complete | `🐛` prefixed logs at every auth and API boundary for rapid diagnosis. |
+### Service Providers
+- Manage business profile (name, description, logo, contact info, location, social media)
+- Set operational hours per day of the week
+- Manage services (add/edit/remove service listings with pricing and duration)
+- Manage products (add/edit/remove retail products with images)
+- View dashboard with earnings, active bookings, listings count, and average rating
+- Manage incoming bookings (confirm/complete/cancel)
+- Delete account (cascading delete of all associated data)
 
-### 1.2 Tech Stack
+### Admin
+- Central admin panel with tabs for users, providers, bookings, payments, and reviews
+- Monthly analytics (revenue MTD, booking count, active listings)
+- Delete user accounts from the admin panel
+
+---
+
+## 2. Tech Stack & Architecture
+
+### 2.1 Core Stack
 
 | Layer | Technology | Version / Config |
 |---|---|---|
-| **Framework** | Next.js (App Router) | `16.2.6` |
-| **Bundler** | Turbopack (dev), Webpack (production build) | — |
-| **Language** | TypeScript | `^5` |
-| **Styling** | Tailwind CSS | `^4` (`@import "tailwindcss"`, `@theme inline {}`, no `tailwind.config.ts`) |
-| **Typography** | DM Serif Display (headings), DM Sans (body) | Google Fonts |
-| **Auth** | Firebase Auth (Google OAuth 2.0) + custom email/password via `localAuth` | `firebase` `^12.13.0` |
-| **Database** | Cloud Firestore | Triple-access: REST API (client-side), Firebase SDK (real-time subscriptions), Admin SDK (server-side API routes) |
-| **Storage** | Firebase Storage | Provider logo images at `provider_logos/` |
-| **Linting** | ESLint 9 (flat config) | `eslint` `^9`, `eslint-config-next` `16.2.6` |
-| **PostCSS** | `@tailwindcss/postcss` | `^4` |
+| **Framework** | Next.js (App Router) | 16.2.6 |
+| **Bundler** | Turbopack (dev), Webpack (prod) | -- |
+| **Language** | TypeScript | ^5 |
+| **Styling** | Tailwind CSS | ^4 |
+| **Typography** | DM Serif Display + DM Sans | Google Fonts |
+| **Auth** | Firebase Auth (Google OAuth + Email/Password) | firebase ^12.13.0 |
+| **Database** | Cloud Firestore | Triple-access (see sec 3) |
+| **Storage** | Firebase Storage | Provider logos |
+| **Linting** | ESLint 9 | eslint ^9 |
 
-### 1.3 Deployed Endpoints
+### 2.2 API Routes Summary
 
-| Endpoint | Type | Runtime | Purpose |
-|---|---|---|---|
-| `/` through `/terms` | App Router (static/dynamic) | Edge/Node | Public pages |
-| `/api/me/pets` | Server Route | **Node.js** | Admin SDK: GET user pets, POST new pet |
-| `/api/me/favorites` | Server Route | **Node.js** | Admin SDK: GET/POST/DELETE favorites |
-| `/api/auth/delete-user` | Server Route | **Node.js** | Admin SDK: DELETE Firebase Auth user |
-| `/api/providers` | Server Route | Edge | Public API proxy for providers |
-
----
-
-## 2. System Architecture
-
-### 2.1 Data Flow Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        Data Flow Sequence                               │
-│                                                                         │
-│  ┌──────────┐   ┌───────────┐   ┌──────────┐   ┌────────────────┐      │
-│  │  Auth    │ → │  Auth-    │ → │  API     │ → │  Optimistic    │      │
-│  │  Init    │   │  Guarded  │   │  Request │   │  State Update  │      │
-│  │          │   │  Request  │   │          │   │                │      │
-│  └──────────┘   └───────────┘   └──────────┘   └────────────────┘      │
-│       │               │               │                │               │
-│       ▼               ▼               ▼                ▼               │
-│  onAuthState-   dashboard waits    Client (me-api.ts)  On success:     │
-│  Changed()      for isInitialized  → /api/me/pets      setPets(data)   │
-│  → setUser()    && user before     → /api/me/favorites setFavorites()  │
-│  → setIsInit()  dispatching fetch  → Bearer token      Append to list  │
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  Server-side (Node.js runtime)                                 │   │
-│  │                                                                 │   │
-│  │  /api/me/pets/route.ts     /api/me/favorites/route.ts          │   │
-│  │  ┌─────────────────────┐    ┌──────────────────────────────┐   │   │
-│  │  │requireFirebaseUser()│    │requireFirebaseUser()         │   │   │
-│  │  │→ verifyIdToken      │    │→ verifyIdToken               │   │   │
-│  │  │↓                    │    │↓                             │   │   │
-│  │  │getAdminDb()         │    │getAdminDb()                  │   │   │
-│  │  │.collection('pets')  │    │.collection('favorites')      │   │   │
-│  │  │.where('userId',...) │    │.where('userId',...)          │   │   │
-│  │  └─────────────────────┘    └──────────────────────────────┘   │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### 2.2 Authentication Flow
-
-```
-Browser                          Next.js API Route               Firestore/Firebase Auth
-│                                    │                                  │
-│  ┌─ Login (Google OAuth) ──────────┤                                  │
-│  │  signInWithPopup()              │                                  │
-│  │  ← Firebase ID token            │                                  │
-│  │                                 │                                  │
-│  ├─ Get ID Token ──────────────────┤                                  │
-│  │  auth.currentUser.getIdToken()  │                                  │
-│  │  ← Bearer token                 │                                  │
-│  │                                 │                                  │
-│  ├─ GET /api/me/pets ──────────────┼──────────────────────────────────┤
-│  │  Authorization: Bearer <tok>    │                                  │
-│  │                                 │                                  │
-│  │                    requireFirebaseUser(request)                     │
-│  │                    ├─ Extract Bearer token                         │
-│  │                    ├─ adminAuth.verifyIdToken(token) ──────────────►│
-│  │                    │  └─ decoded { uid, aud, email }               │
-│  │                    │                                   ◄───────────┤
-│  │                    ├─ decoded.uid → Firestore query                │
-│  │                    │  getAdminDb().collection('pets')              │
-│  │                    │  .where('userId', '==', decoded.uid) ────────►│
-│  │                    │                                   ◄───────────┤
-│  │  ◄── JSON { pets } ─────────────────────┤                          │
-│  │                                 │                                  │
-│  ├─ Optimistic UI update ─────────┤                                  │
-│  │  setPets(data)                 │                                  │
-```
-
-### 2.3 Module Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                               Client-side (Browser)                          │
-│                                                                              │
-│  src/context/AuthContext.tsx           src/app/dashboard/page.tsx            │
-│  ┌──────────────────────────────┐     ┌──────────────────────────────┐      │
-│  │ AuthProvider                 │     │ DashboardPage                 │      │
-│  │  ├─ firebaseUser             │     │  ├─ fetchMyPets()             │      │
-│  │  ├─ user (AppUser)           │◄────┤  ├─ fetchMyFavorites()        │      │
-│  │  ├─ isInitialized            │     │  ├─ getUserReviewsRest()      │      │
-│  │  ├─ loading                  │     │  ├─ getUserPaymentsRest()     │      │
-│  │  └─ effectiveUserId          │     │  └─ onSnapshot(bookings)      │      │
-│  └──────────────────────────────┘     └──────────────────────────────┘      │
-│              │                                    │                         │
-│              ▼                                    ▼                         │
-│  src/lib/firebase.ts                 src/lib/me-api.ts                     │
-│  ┌──────────────────────────────┐    ┌──────────────────────────────┐      │
-│  │ getFirebaseAuth()            │    │ fetchMyPets()                │      │
-│  │ getFirestoreDb()             │    │ addMyPet()                   │      │
-│  │ getStorageDb()               │    │ fetchMyFavorites()           │      │
-│  └──────────────────────────────┘    │ addMyFavorite()              │      │
-│                                      │ removeMyFavoriteByProvider() │      │
-│              ┌──────────────────┐    └──────────┬───────────────────┘      │
-│              │ firestore-rest.ts │               │                          │
-│              │ (REST API layer)  │               │                          │
-│              │ getAll*Rest()     │               ▼                          │
-│              │ get*Paginated()   │    /api/me/pets     /api/me/favorites    │
-│              │ updateDocRest()   │    (HTTP fetch with Bearer token)        │
-│              │ deleteDocRest()   │                    │                     │
-│              └──────────────────┘                    │                     │
-└──────────────────────────────────────────────────────┼─────────────────────┘
-                                                       │
-                    HTTPS with Bearer token             │
-                                                       ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                         Server-side (Node.js)                                │
-│                                                                              │
-│  src/app/api/me/pets/route.ts      src/app/api/me/favorites/route.ts         │
-│  ┌──────────────────────────────┐  ┌──────────────────────────────┐         │
-│  │ export runtime = 'nodejs'    │  │ export runtime = 'nodejs'    │         │
-│  │ export dynamic = force-dyn   │  │ export dynamic = force-dyn   │         │
-│  │                              │  │                              │         │
-│  │ import { getAdminDb }        │  │ import { getAdminDb }       │         │
-│  │ import { requireFirebaseUser }│  │ import { requireFirebaseUser }        │
-│  │                              │  │                              │         │
-│  │ GET:  .where('userId', uid)  │  │ GET:  .where('userId', uid) │         │
-│  │ POST: .add(pet)              │  │ POST: .add(favorite)         │         │
-│  │                              │  │ DELETE: .doc().delete()      │         │
-│  └──────────────────────────────┘  └──────────────────────────────┘         │
-│              │                                    │                         │
-│              ▼                                    ▼                         │
-│  src/lib/server-auth.ts           src/lib/firebase-admin.ts                 │
-│  ┌──────────────────────────────┐  ┌──────────────────────────────┐         │
-│  │ import { getAdminAuth }      │  │ import { cert, getApps,      │         │
-│  │                              │  │          initializeApp }      │         │
-│  │ requireFirebaseUser(request) │  │ import { getAuth }            │         │
-│  │  ├─ Bearer token extraction  │  │ import { getFirestore }       │         │
-│  │  ├─ adminAuth.verifyIdToken  │  │                              │         │
-│  │  └─ decoded token            │  │ Lazy init (build-safe):      │         │
-│  └──────────────────────────────┘  │ 1st call → cert() → getAuth  │         │
-│                                    │          → getFirestore()     │         │
-│                                    │ Quote-tolerant private key    │         │
-│                                    │ Env debug logging             │         │
-│                                    └──────────────────────────────┘         │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-### 2.4 Data Access Layers
-
-The system uses three complementary data access strategies:
-
-| Layer | Location | Auth Mechanism | When Used |
-|---|---|---|---|
-| **Firebase Admin SDK** | Server API routes (`/api/me/*`) | Service account credentials (`getAdminAuth()`, `getAdminDb()`) | Pets, Favorites, Auth deletion — guaranteed server-side Firestore access |
-| **Firestore REST API** | Client `firestore-rest.ts` | Bearer token from `auth.currentUser.getIdToken()` | Providers, Bookings, Payments, Reviews, Users — general CRUD |
-| **Firebase SDK** | Client `firebase.ts` | Firebase Auth SDK (`onAuthStateChanged`) | Real-time subscriptions (`onSnapshot` for bookings), `getDocs` for homepage, `addDoc` for contact form |
-
-### 2.5 Data Flow per Feature
-
-| Feature | Client Fetch | Server Route | Admin SDK Call | State Update |
+| Endpoint | Method(s) | Runtime | Auth | Purpose |
 |---|---|---|---|---|
-| Dashboard Favorites | `fetchMyFavorites()` → `GET /api/me/favorites` | `requireFirebaseUser()` → `getAdminDb().collection('favorites')` | `.where('userId', uid).get()` | `setFavorites(data)` |
-| Dashboard Pets | `fetchMyPets()` → `GET /api/me/pets` | `requireFirebaseUser()` → `getAdminDb().collection('pets')` | `.where('userId', uid).get()` | `setPets(data)` |
-| Add Pet | `addMyPet()` → `POST /api/me/pets` | `requireFirebaseUser()` → `getAdminDb().collection('pets')` | `.add(pet)` | `setPets(prev => [...prev, newPet])` |
-| Add Favorite | `addMyFavorite()` → `POST /api/me/favorites` | `requireFirebaseUser()` → `getAdminDb().collection('favorites')` | Check duplicate → `.add()` | `setFavorites(prev => [...prev, f])` |
-| Remove Favorite | `removeMyFavoriteByProvider()` → `DELETE /api/me/favorites?providerId=` | `requireFirebaseUser()` → `getAdminDb().collection('favorites')` | `.where(...).get()` → `.delete()` | `setFavorites(prev => prev.filter(...))` |
-| Dashboard Bookings | `onSnapshot` SDK listener | — | — | Real-time |
-| Dashboard Reviews | `getUserReviewsRest()` | — | — | `setUserReviews(data)` |
-| Dashboard Payments | `getUserPaymentsRest()` | — | — | `setPayments(data)` |
-| Booking Creation | `addBookingRest()` + `addPaymentRest()` | — | — | Router redirect |
-| Admin Panel | `getAll*Rest()` / `get*Paginated()` | — | — | Pagination state |
-
-### 2.6 Graceful Degradation Pattern
-
-The entire Firebase stack degrades gracefully when env vars are missing:
-
-```
-Env vars missing?
-├── getConfig() returns null
-│   ├── initFirebase() returns null
-│   │   ├── getFirebaseAuth()  → { auth: null, googleProvider: null }
-│   │   ├── getFirestoreDb()   → null
-│   │   └── getStorageDb()     → null
-│   └── Every consumer guards with if (!db) return / if (!auth) ...
-├── firebase-admin.ts: lazy init → throws at first call with clear error message
-│       └── API routes catch → return 401 with descriptive error
-└── Falls back to localAuth (localStorage) + REST API (which only needs apiKey + projectId)
-```
+| `/api/me/account` | DELETE | Node.js | Firebase ID token | Cascading delete of provider account |
+| `/api/me/pets` | GET, POST | Node.js | Firebase ID token | List/create user's pets |
+| `/api/me/favorites` | GET, POST, DELETE | Node.js | Firebase ID token | List/add/remove favorites |
+| `/api/auth/delete-user` | DELETE | Node.js | Firebase ID token | Delete Firebase Auth user (Admin SDK) |
+| `/api/bookings` | GET, POST | Node.js | Firebase ID token | List/create bookings |
+| `/api/payments` | GET, POST | Node.js | Firebase ID token | List/create payments |
+| `/api/providers` | GET | Edge | None (public) | List providers |
+| `/api/reviews` | GET, POST | Node.js | Firebase ID token | List/create reviews |
 
 ---
 
-## 3. Security Model
+## 3. State & Data Flow
 
-### 3.1 Authentication Layers
+### 3.1 Authentication Context
 
-| Layer | Mechanism | Scope |
-|---|---|---|
-| **Client-side Auth** | Firebase Auth SDK (`onAuthStateChanged`, `signInWithPopup`) | Browser session, ID token generation |
-| **Server-side Auth** | Firebase Admin SDK (`adminAuth.verifyIdToken`) | API route Bearer token validation |
-| **Local Auth Fallback** | `localAuth` (SHA-256, localStorage) | Offline / preview mode when Firebase unavailable |
-| **Role-based Access** | `user.role` field on Firestore `users` doc | Admin panel gating, RBAC UI |
+The `AuthContext` manages all auth state:
 
-### 3.2 API Route Security
+- `user: AppUser | null` -- Current user profile
+- `firebaseUser: FirebaseUser | null` -- Raw Firebase Auth user
+- `loading: boolean` -- True while initial auth state is resolving
+- `isInitialized: boolean` -- Set after first onAuthStateChanged fires
+- `effectiveUserId: string | null` -- Canonical ID for Firestore queries
+- `login(email, password)` -- Email/password sign-in
+- `register(email, password, name, role)` -- Registration + Firestore user doc creation
+- `googleLogin(role, providerType?)` -- Google OAuth with popup/redirect + retry logic
+- `logout()` -- Clear local session + Firebase sign-out
 
-```
-Client Request                          Server Validation
-┌─────────────────┐                    ┌──────────────────────────────┐
-│ GET /api/me/pets │                    │ requireFirebaseUser(request) │
-│ Authorization:   │───────────────────►│  ├─ Extracts Bearer token   │
-│ Bearer <JWT>     │                    │  ├─ verifyIdToken(token)     │
-└─────────────────┘                    │  │  ├─ Valid signature ✓     │
-                                        │  │  ├─ Not expired ✓        │
-                                        │  │  └─ aud matches ✓        │
-                                        │  ├─ Returns decoded token   │
-                                        │  └─ Throws on failure       │
-                                        │                              │
-                                        │ getAdminDb()                 │
-                                        │ .collection('pets')          │
-                                        │ .where('userId', uid)        │
-                                        │  └─ Server-side filter       │
-                                        │     (not security rule)      │
-                                        └──────────────────────────────┘
-```
+### 3.2 Firestore Access Patterns (Triple-Access)
 
-### 3.3 Admin SDK Initialization
+| Layer | Used Where | Auth Mechanism | When to Use |
+|---|---|---|---|
+| **Firebase Client SDK** | Client components | Firebase ID token (auto-attached) | Simple reads/writes (e.g., provider profiles) |
+| **Firestore REST API** | Client components | Bearer token from getIdToken() | Operations where SDK might hang |
+| **Firestore Admin REST API** | Server API routes | Google OAuth2 service account token | Operations bypassing security rules |
 
-```typescript
-// src/lib/firebase-admin.ts
-// Lazy init: only throws when first called, not at module import time.
-// This is critical — it prevents build failures during `next build` when
-// env vars are absent (static page generation imports this module).
+### 3.3 Data Fallback Chain
 
-function ensureInitialized() {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+For user-owned data (pets, favorites), 4-layer fallback:
+1. Firebase SDK getDocs query
+2. REST :runQuery
+3. REST GET-by-ID for each doc known to localStorage
+4. Raw localStorage (last resort)
 
-  // Quote-tolerant: strips surrounding "" if present, then converts \n
-  const privateKey = rawPrivateKey
-    ?.replace(/^"|"$/g, '')
-    .replace(/\\n/g, '\n');
+### 3.4 Account Deletion Flow
 
-  // Debug logging shows exactly which vars are missing
-  console.log('🐛 FIREBASE ADMIN ENV DEBUG', { ... });
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error('Missing Firebase Admin environment variables');
-  }
-
-  const app = getApps().length > 0
-    ? getApps()[0]
-    : initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
-
-  cachedAuth = getAuth(app);
-  cachedDb = getFirestore(app);
-}
-```
-
-### 3.4 Environment Variables
-
-| Variable | Required For | Example |
-|---|---|---|
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Client-side Firestore REST | `pet-co-fc4d6` |
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Client-side Firestore REST | `AIzaSy...` |
-| `FIREBASE_PROJECT_ID` | Admin SDK (server-side) | `pet-co-fc4d6` (must match public) |
-| `FIREBASE_CLIENT_EMAIL` | Admin SDK (server-side) | `firebase-adminsdk-...@...com` |
-| `FIREBASE_PRIVATE_KEY` | Admin SDK (server-side) | `"-----BEGIN PRIVATE KEY-----\n..."` |
-
-### 3.5 Security Rules Status
-
-Firestore Security Rules have been written (`firestore.rules`) with per-doc ownership checks for pets, favorites, reviews, and users collections, plus admin read access via `get()` lookup. These rules are **ready to deploy** via `firebase deploy --only firestore:rules`.
+DELETE /api/me/account:
+1. Authenticate via requireFirebaseUser(request)
+2. Query relational docs (bookings, payments, reviews, favorites)
+3. Batch delete relational docs
+4. Delete provider doc
+5. Delete user doc from Firestore
+6. Delete Firebase Auth user via Admin SDK
+7. Client: localAuth.deleteUser() + redirect
 
 ---
 
-## 4. Resolved Issues
+## 4. Database Schema
 
-### 4.1 Race Conditions
+### Collection: `users`
 
-| Issue | Root Cause | Resolution |
-|---|---|---|
-| **Pre-auth 403 on dashboard load** | Dashboard `useEffect` dispatched REST queries before `onAuthStateChanged` set the Firebase user. Requests had no Bearer token → Firestore rejected as unauthenticated. | Added `isInitialized` gate to `AuthContext`. Dashboard waits for both `isInitialized` and `user` before dispatching any fetch. |
-| **Auth sign-out race** | `onAuthStateChanged` fires during `firebaseSignOut()`, triggering localAuth session re-init. | Local session cleared **before** `firebaseSignOut()`. `setUser(null)` runs after both. |
+Document ID = Firebase Auth UID.
 
-### 4.2 403 Authorization Errors
+Fields: role (string), name (string), email (string?), photoURL (string?), phone (string?), createdAt (timestamp), authMethod (string).
 
-| Issue | Root Cause | Resolution |
-|---|---|---|
-| **REST :runQuery 403 for pets/favorites** | Firestore Security Rules treat `:runQuery` as a list operation where `resource.data` is unavailable, causing `ownsExistingDoc()` checks to fail. | Migrated pets/favorites to **Admin SDK API routes** — server-side routes bypass security rules entirely using service account credentials. |
-| **Token not ready** | `getAuthHeaders()` retry loop ran before auth state propagated. | Retry loop waits up to 2s for `auth.currentUser` before attempting token generation. |
+### Collection: `providers`
 
-### 4.3 UI State Synchronization
+Document ID = Firebase Auth UID.
 
-| Issue | Root Cause | Resolution |
-|---|---|---|
-| **Silent data loss on read failure** | `fetchPets`/`fetchFavorites` catch blocks logged errors but never called `setPets([])` or `setFavorites([])`, leaving stale empty arrays. Caused "No pets yet" / "No favorites yet" to render incorrectly. | Optimistic state updates: after write operations, append to local state immediately. After reads, always call setState (even on error, fallback to `[]`). |
-| **401 with generic message** | Firebase Admin env vars missing → `getAdminDb()` threw → catch block returned "Failed to fetch favorites: 401" | Added env var debug logging. Catch blocks now expose `message` + `code` from the real error. Error messages include the full server response body. |
-| **Private key rejected** | `.env.local` values had surrounding quotes or incorrect newline escaping | Added `.replace(/^"|"$/g, '')` to strip quotes before `\n` conversion. |
+Fields: name, type (walkers/vets/hotels/sitters/grooming/shops), category, emoji, businessName, desc, email, phone, location, googleMapsUrl, logoUrl, rating, reviews, price, since, tags[], socialMedia{}, availability{}, services[], products[].
 
-### 4.4 Auth Flow Issues
+### Collection: `bookings`
 
-| Issue | Status | Workaround |
-|---|---|---|
-| Google sign-in popup may not complete on preview domains | Environment-specific | User must authorize the domain in Firebase Console |
-| `localAuth.getAllUsers()` only sees users who logged in via this browser | By design | Firestore REST `getAllUsersRest()` returns all users across devices |
-| Firebase Auth user record not deleted on cascading delete | ✅ **Resolved** | Server endpoint `/api/auth/delete-user` with Admin SDK `adminAuth.deleteUser(uid)` integrated into cascading delete flow |
+Fields: serviceType, providerId, providerName, userId, userName, userEmail, date, time, status (pending/confirmed/completed/cancelled), price, platformFee, petName?, instructions?, phone?, createdAt.
 
-### 4.5 Pets/Favorites 401 (Latest Fix)
+### Collection: `payments`
 
-| Step | Fix | File |
-|---|---|---|
-| 1 | Added `🐛 FIREBASE ADMIN ENV DEBUG` logging showing which env vars are present/missing | `firebase-admin.ts` |
-| 2 | Catch blocks return `message` + `code` from error body instead of "Failed to fetch" | `me-api.ts` |
-| 3 | Direct SDK imports (`cert`, `getAuth`, `getFirestore`) with lazy init | `firebase-admin.ts` |
-| 4 | Server auth uses `getAdminAuth()` with clear error | `server-auth.ts` |
-| 5 | API routes use `runtime = 'nodejs'` + `dynamic = 'force-dynamic'` | `pets/route.ts`, `favorites/route.ts` |
-| 6 | Quote-tolerant private key parsing | `firebase-admin.ts` |
+Fields: bookingId, providerId, userId, amount, platformFee, status (pending/paid), createdAt.
+
+### Collection: `reviews`
+
+Fields: providerId, userId, userName, rating (1-5), comment?, createdAt.
+
+### Collection: `pets`
+
+Fields: userId, name, type (Dog/Cat/etc), breed?, age?, weight?, medicalNotes?.
+
+### Collection: `favorites`
+
+Fields: userId, providerId, targetId? (fallback).
 
 ---
 
-## 5. Next Steps
+## 5. Workspace Setup & DevOps
 
-### 5.1 Immediate (Pre-Deployment)
+### 5.1 One-Shot Setup
 
-1. **Deploy Firestore Security Rules** — `firebase deploy --only firestore:rules` (rules exist in `firestore.rules`, fully written and tested)
-2. **Verify Firebase Admin env vars in production** — Set `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` in deployment environment (Vercel/Firebase Hosting)
+```bash
+bash scripts/setup.sh
+```
 
-### 5.2 Production Deployment
+This script:
+1. Installs npm dependencies
+2. Creates .env.local from .env.local.example
+3. Overwrites with env-provided variables
+4. Cleans .next cache and starts dev server
 
-| Platform | Steps |
-|---|---|
-| **Vercel** | Connect GitHub repo → Set env vars in Vercel Dashboard (all `NEXT_PUBLIC_*` + `FIREBASE_*`) → Deploy |
-| **Firebase Hosting** | `firebase init hosting` → `npm run build` → `firebase deploy --only hosting` → Set env vars via Firebase Functions or Vercel |
+### 5.2 Required Environment Variables
 
-### 5.3 Post-Deployment Recommendations
+NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, NEXT_PUBLIC_FIREBASE_PROJECT_ID, NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, NEXT_PUBLIC_FIREBASE_APP_ID, NEXT_PUBLIC_GOOGLE_CLIENT_ID, NEXT_PUBLIC_GOOGLE_CLIENT_SECRET, FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, ALLOWED_DEV_ORIGINS.
 
-| Priority | Item | Notes |
-|---|---|---|
-| **High** | Remove hardcoded admin email fallback (`rolandabj@gmail.com`) in all UI guards | Migrate fully to `role === 'admin'` once RBAC migration is verified |
-| **Medium** | Add rate limiting to booking/review Firestore endpoints | Protect against spam |
-| **Medium** | Consolidate to REST-only data layer; remove legacy SDK files (`providers.ts`, `favorites.ts`, `reviews.ts`) | Clean up dead code |
-| **Medium** | Add pagination to admin tables | Scale to large datasets |
-| **Low** | Add email/password via Firebase Auth (not just `localAuth`) | Production-grade auth |
-| **Low** | Implement real payment gateway (Stripe) | Replace ledger-only bookkeeping |
-| **Low** | Add email notification for booking confirmation | User experience |
+### 5.3 AGENTS.md Init
 
-### 5.4 Scaling Considerations
+AGENTS.md is AI agent persistent memory. On each new conversation: read AGENTS.md, run setup.sh, review plan.md.
 
-| Concern | Mitigation |
-|---|---|
-| `fetchCollection` without pagination | Add `pageSize` + `pageToken` to `fetchCollection` for admin tables |
-| No request caching | Add `next: { revalidate: 60 }` or SWR for provider lists |
-| Client-side filtering | Use Firestore structured queries with composite indexes |
-| Legacy SDK files | Consolidate to REST-only; remove `providers.ts`, `favorites.ts`, `reviews.ts` |
+### 5.4 Firestore Security Rules
+
+Written in firestore.rules with per-doc ownership checks. Deploy: `npx firebase deploy --only firestore:rules --project pet-co-fc4d6`.
 
 ---
 
-*This document is the single source of truth for the Paws & Co. codebase. Keep it updated as the architecture evolves.*
+## 6. Recent Milestones
+
+### 6.1 Turbopack Hydration Resolution
+Fix: added allowedDevOrigins in next.config.ts for proxy-domain dev.
+
+### 6.2 Dynamic Google Auth Role-Gating
+Fix: role + providerType selection before sign-in; getExistingRole() lookup.
+
+### 6.3 Cascading Account Deletion
+Fix: gRPC -> REST API; step 5 deletes user doc entirely; localAuth cleanup.
+
+### 6.4 Service Provider Category Editing
+Fix: Category dropdown in Business Profile; type/category/emoji saved.
+
+### 6.5 Password Confirmation on Registration
+Fix: Confirm Password field with validation on mismatch.
+
+### 6.6 Booking Service Dropdown Empty State
+Fix: Empty dropdown when preselected provider has no services.
+
+### 6.7 Google Sign-In Network Error Retry
+Fix: Auto-retry signInWithPopup with 1.5s delay.
+
+### 6.8 Admin Panel User List Cleanup
+Fix: Delete user doc from Firestore; clear localStorage.
+
+---
+
+## 7. Upcoming Roadmap
+
+### Immediate: Admin Panel Enhancement
+- User Directory (High)
+- Financials (High)
+- Global Filtering (Medium)
+- Analytics with charts (Medium)
+- Admin Account Deletion (Medium)
+
+### Short-Term
+- Deploy Firestore Security Rules
+- Remove hardcoded admin email
+- Rate limiting
+- Pagination for admin tables
+
+### Medium-Term
+- REST-only data layer consolidation
+- Request caching
+- Stripe integration
+- Email notifications
+- Paginated queries
+
+### Long-Term
+- Mobile app
+- i18n
+- Real-time chat
+- Subscription plans
+
+---
+
+*This document is the single source of truth for the Paws & Co. codebase.*
