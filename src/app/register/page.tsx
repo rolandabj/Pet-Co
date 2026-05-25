@@ -28,7 +28,9 @@ function RegisterForm() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -45,6 +47,10 @@ function RegisterForm() {
     setError('');
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
     setLoading(true);
@@ -190,6 +196,16 @@ function RegisterForm() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">At least 8 characters</p>
+              </div>
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-[#2C3E50] mb-2">Confirm Password</label>
+                <div className="relative">
+                  <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter your password" required
+                    className="w-full px-4 py-3.5 pr-12 border-2 border-[#F0E4D8] rounded-xl bg-[#FFF8F0] focus:border-[#E86A33] focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all text-sm" />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                    {showConfirmPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
               </div>
               <button type="submit" disabled={loading}
                 className="w-full bg-[#E86A33] hover:bg-[#D4552A] text-white font-semibold py-3.5 px-6 rounded-full text-base transition-all disabled:opacity-60 disabled:cursor-not-allowed">
