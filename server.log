@@ -6,17 +6,10 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 327ms
+✓ Ready in 353ms
 
- GET /login 200 in 601ms (next.js: 230ms, application-code: 371ms)
-🐛 DASHBOARD UID DEBUG {
-  appUserId: undefined,
-  firebaseUid: undefined,
-  effectiveUserId: null,
-  dashboardUserId: undefined,
-  same: true
-}
- GET /dashboard 200 in 80ms (next.js: 15ms, application-code: 65ms)
+ GET /login 200 in 548ms (next.js: 199ms, application-code: 349ms)
+ GET /provider/wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 549ms (next.js: 379ms, application-code: 171ms)
 🐛 API AUTH HEADER DEBUG {
   hasAuthHeader: true,
   startsWithBearer: true,
@@ -30,22 +23,10 @@
   hasPrivateKey: true,
   privateKeyStartsCorrectly: true
 }
-🐛 API AUTH HEADER DEBUG {
-  hasAuthHeader: true,
-  startsWithBearer: true,
-  headerStart: 'Bearer eyJhbGciOiJSU'
-}
 🐛 API TOKEN VERIFIED {
   uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
   email: 'rolandabj123@gmail.com',
   aud: 'pet-co-fc4d6',
   iss: 'https://securetoken.google.com/pet-co-fc4d6'
 }
-🐛 API TOKEN VERIFIED {
-  uid: 'lILuYoIHE3OCS25oqZnUFnRKPIL2',
-  email: 'rolandabj123@gmail.com',
-  aud: 'pet-co-fc4d6',
-  iss: 'https://securetoken.google.com/pet-co-fc4d6'
-}
- GET /api/me/pets 200 in 539ms (next.js: 306ms, application-code: 233ms)
- GET /api/me/favorites 200 in 213ms (next.js: 37ms, application-code: 176ms)
+ GET /api/me/favorites?providerId=wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 507ms (next.js: 291ms, application-code: 215ms)

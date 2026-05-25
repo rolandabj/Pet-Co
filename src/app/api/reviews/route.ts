@@ -20,10 +20,21 @@ export async function POST(request: Request) {
 
     const db = getAdminDb();
 
+    // Look up the user's Firestore doc to get their profile name
+    let profileName = decoded.email?.split('@')[0] || 'Anonymous';
+    try {
+      const userSnap = await db.collection('users').doc(decoded.uid).get();
+      if (userSnap.exists && userSnap.data()?.name) {
+        profileName = userSnap.data()!.name;
+      }
+    } catch {
+      // Non-fatal — fall back to email prefix
+    }
+
     const review = {
       providerId: body.providerId,
       userId: decoded.uid,
-      userName: body.userName || decoded.email?.split('@')[0] || 'Anonymous',
+      userName: profileName,
       rating: body.rating,
       comment: body.comment || '',
       createdAt: new Date().toISOString(),
