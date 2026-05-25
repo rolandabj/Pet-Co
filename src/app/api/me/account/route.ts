@@ -30,13 +30,14 @@ export async function DELETE(request: Request) {
     console.log('🧹 DELETE ACCOUNT — providerId:', providerId, 'uid:', decoded.uid);
 
     // ── 1. Query relational documents ─────────────────────────
-    const [bookingDocs, paymentDocs, reviewDocs, allFavDocs] = await Promise.all([
+    const [bookingDocs, paymentDocs, reviewDocs, allFavDocs, petDocs] = await Promise.all([
       runQueryRest<{ providerId?: string }>('bookings', 'providerId', 'EQUAL', providerId),
       runQueryRest<{ providerId?: string }>('payments', 'providerId', 'EQUAL', providerId),
       runQueryRest<{ providerId?: string }>('reviews', 'providerId', 'EQUAL', providerId),
       runQueryRest<{ providerId?: string; targetId?: string }>('favorites', 'providerId', 'EQUAL', providerId)
         .catch(() => runQueryRest<{ providerId?: string; targetId?: string }>('favorites', 'targetId', 'EQUAL', providerId))
         .catch(() => []),
+      runQueryRest<{ userId?: string }>('pets', 'userId', 'EQUAL', decoded.uid),
     ]);
 
     console.log('🧹 DELETE ACCOUNT — documents found', {
@@ -44,6 +45,7 @@ export async function DELETE(request: Request) {
       payments: paymentDocs.map((d) => d.id),
       reviews: reviewDocs.map((d) => d.id),
       favorites: allFavDocs.map((d) => d.id),
+      pets: petDocs.map((d) => d.id),
     });
 
     // favorites query may return docs where providerId matches OR targetId matches
@@ -69,6 +71,7 @@ export async function DELETE(request: Request) {
       ...paymentDocs.map((d) => ({ collection: 'payments' as const, docId: d.id })),
       ...reviewDocs.map((d) => ({ collection: 'reviews' as const, docId: d.id })),
       ...favoriteDocs.map((d) => ({ collection: 'favorites' as const, docId: d.id })),
+      ...petDocs.map((d) => ({ collection: 'pets' as const, docId: d.id })),
     ];
 
     if (relationalDocs.length > 0) {
@@ -106,6 +109,7 @@ export async function DELETE(request: Request) {
       deletedPayments: paymentDocs.length,
       deletedReviews: reviewDocs.length,
       deletedFavorites: favoriteDocs.length,
+      deletedPets: petDocs.length,
     });
   } catch (error: any) {
     console.error('DELETE /api/me/account failed:', {

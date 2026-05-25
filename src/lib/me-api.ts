@@ -273,6 +273,7 @@ export async function deleteMyAccount(providerId: string) {
     deletedPayments: number;
     deletedReviews: number;
     deletedFavorites: number;
+    deletedPets: number;
     logoUrl: string | null;
     userEmail: string | null;
     userName: string | null;

@@ -477,7 +477,8 @@ export default function AdminPage() {
       showToast(
         `✅ User "${userName}" deleted: ${result.deletedPets} pet(s), ${result.deletedBookings} booking(s), ` +
         `${result.deletedPayments} payment(s), ${result.deletedReviews} review(s), ` +
-        `${result.deletedFavorites} favorite(s). ${result.recalculatedProviders} provider(s) updated.`,
+        `${result.deletedFavorites} favorite(s), ${result.deletedProviderDocs} provider doc(s). ` +
+        `${result.recalculatedProviders} provider(s) updated.`,
         'success',
       );
       fetchAllUsers(); // Refresh the merged list

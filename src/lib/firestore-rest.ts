@@ -1418,14 +1418,21 @@ async function touchCooldown(userId: string, field: string): Promise<void> {
 }
 
 /**
- * Cascading delete for a user (pet owner) account.
+ * Cascading delete for a user account.
+ *
+ * Handles BOTH pet owners and provider accounts:
+ * - Pet owner data is keyed by userId / customerId
+ * - Provider data is keyed by providerId
+ * - Both sets are queried, merged, and deduplicated by document ID
  *
  * 1. Queries all relational documents (pets, bookings, payments, reviews, favorites)
+ *    by userId and by providerId (if the user is also a provider)
  * 2. Deletes them all
- * 3. Recalculates provider ratings for any reviews that were removed
- * 4. Deletes the user document
- * 5. Deletes the Firebase Auth user record (S1/F1)
- * 6. Returns summary counts
+ * 3. Deletes the provider document if it exists
+ * 4. Recalculates provider ratings for any reviews that were removed
+ * 5. Deletes the user document
+ * 6. Deletes the Firebase Auth user record (S1/F1)
+ * 7. Returns summary counts
  */
 export async function deleteUserAccountRest(
   userId: string,
@@ -1437,12 +1444,13 @@ export async function deleteUserAccountRest(
   deletedPayments: number;
   deletedReviews: number;
   deletedFavorites: number;
+  deletedProviderDocs: number;
   recalculatedProviders: number;
 }> {
-  // 1. Collect all relational documents
-  const [pets, bookings, payments, reviews, favorites] = await Promise.all([
+  // 1a. Collect relational documents keyed by userId (pet owner role)
+  const [pets, bookingsAsUser, paymentsAsCustomer, reviewsAsUser, favoritesAsUser] = await Promise.all([
     fetchWhere('pets', 'userId', userId, (doc) => ({ id: doc.id })),
-    fetchWhere('bookings', 'userId', userId, (doc) => ({ id: doc.id })),
+    fetchWhere('bookings', 'userId', userId, (doc) => ({ id: doc.id, providerId: doc.data.providerId ?? '' })),
     fetchWhere('payments', 'customerId', userId, (doc) => ({ id: doc.id })),
     fetchWhere('reviews', 'userId', userId, (doc) => ({
       id: doc.id,
@@ -1452,8 +1460,37 @@ export async function deleteUserAccountRest(
     fetchWhere('favorites', 'userId', userId, (doc) => ({ id: doc.id })),
   ]);
 
-  // Collect unique provider IDs affected by review deletion
-  const affectedProviderIds = [...new Set(reviews.map((r) => r.providerId))];
+  // 1b. Collect relational documents keyed by providerId (provider role)
+  const [bookingsAsProvider, paymentsAsProvider, reviewsOfProvider, favoritesByTarget] = await Promise.all([
+    fetchWhere('bookings', 'providerId', userId, (doc) => ({ id: doc.id, providerId: userId })),
+    fetchWhere('payments', 'providerId', userId, (doc) => ({ id: doc.id })),
+    fetchWhere('reviews', 'providerId', userId, (doc) => ({
+      id: doc.id,
+      providerId: userId,
+      rating: doc.data.rating ?? 0,
+    })),
+    fetchWhere('favorites', 'targetId', userId, (doc) => ({ id: doc.id })),
+  ]);
+
+  // 1c. Merge and deduplicate by document ID
+  const bookingMap = new Map<string, { id: string; providerId: string }>();
+  for (const b of [...bookingsAsUser, ...bookingsAsProvider]) bookingMap.set(b.id, b);
+  const bookings = [...bookingMap.values()];
+
+  const paymentMap = new Map<string, { id: string }>();
+  for (const p of [...paymentsAsCustomer, ...paymentsAsProvider]) paymentMap.set(p.id, p);
+  const payments = [...paymentMap.values()];
+
+  const reviewMap = new Map<string, { id: string; providerId: string; rating: number }>();
+  for (const r of [...reviewsAsUser, ...reviewsOfProvider]) reviewMap.set(r.id, r);
+  const reviews = [...reviewMap.values()];
+
+  const favoriteMap = new Map<string, { id: string }>();
+  for (const f of [...favoritesAsUser, ...favoritesByTarget]) favoriteMap.set(f.id, f);
+  const favorites = [...favoriteMap.values()];
+
+  // Collect unique provider IDs affected by review deletion (for rating recalculation)
+  const affectedProviderIds = [...new Set(reviews.map((r) => r.providerId).filter(Boolean))];
 
   // 2. Delete all relational documents
   await Promise.allSettled([
@@ -1484,19 +1521,28 @@ export async function deleteUserAccountRest(
     ),
   ]);
 
-  // 3. Recalculate provider ratings for affected providers
+  // 3. Delete the provider document if this user is a provider
+  let deletedProviderDocs = 0;
+  try {
+    const res = await authFetch(docUrl('providers', userId), { method: 'DELETE' });
+    if (res.ok) deletedProviderDocs = 1;
+  } catch {
+    // Provider doc may not exist — proceed
+  }
+
+  // 4. Recalculate provider ratings for affected providers
   await Promise.allSettled(
     affectedProviderIds.map((pid) => recalculateProviderRating(pid)),
   );
 
-  // 4. Delete the user document
+  // 5. Delete the user document
   try {
     await deleteUserDocRest(userId);
   } catch {
     // User doc may already be gone — proceed
   }
 
-  // 5. Delete the Firebase Auth user record (S1/F1)
+  // 6. Delete the Firebase Auth user record (S1/F1)
   const uid = requesterUid || userId;
   const role = requesterRole || undefined;
   await deleteFirebaseAuthUser(userId, uid, role);
@@ -1507,6 +1553,7 @@ export async function deleteUserAccountRest(
     deletedPayments: payments.length,
     deletedReviews: reviews.length,
     deletedFavorites: favorites.length,
+    deletedProviderDocs,
     recalculatedProviders: affectedProviderIds.length,
   };
 }
