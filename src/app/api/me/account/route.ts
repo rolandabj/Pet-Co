@@ -31,6 +31,18 @@ export async function DELETE(request: Request) {
 
     console.log('🧹 DELETE ACCOUNT — providerId:', providerId, 'uid:', decoded.uid);
 
+    // ── Sanity: verify Admin SDK Firestore is reachable ──────────────
+    try {
+      const probe = await db.collection('_probes').doc('_ping').get();
+      console.log('🧹 DELETE ACCOUNT — Admin SDK Firestore reachable, probe exists:', probe.exists);
+    } catch (probeErr) {
+      console.error('🧹 DELETE ACCOUNT — Admin SDK Firestore UNREACHABLE:', probeErr);
+      return NextResponse.json(
+        { error: 'Admin SDK Firestore is not reachable', message: String(probeErr) },
+        { status: 500 },
+      );
+    }
+
     // 1. Collect all relational documents
     const [bookingSnap, paymentSnap, reviewSnap] = await Promise.all([
       db.collection('bookings').where('providerId', '==', providerId).get(),
@@ -75,15 +87,15 @@ export async function DELETE(request: Request) {
     // 4. Delete all relational documents in parallel
     //    Use Promise.allSettled so one failure doesn't block others,
     //    but log each failure for diagnostics.
-    const deleteResults = await Promise.allSettled([
+    const relationalDeleteResults = await Promise.allSettled([
       ...bookingSnap.docs.map((d) => d.ref.delete()),
       ...paymentSnap.docs.map((d) => d.ref.delete()),
       ...reviewSnap.docs.map((d) => d.ref.delete()),
       ...favoriteDocs.map((d) => d.ref.delete()),
     ]);
-    const rejections = deleteResults.filter((r) => r.status === 'rejected');
-    if (rejections.length > 0) {
-      console.error('🧹 DELETE ACCOUNT — relational doc deletions failed:', rejections);
+    const relationalRejections = relationalDeleteResults.filter((r) => r.status === 'rejected');
+    if (relationalRejections.length > 0) {
+      console.error('🧹 DELETE ACCOUNT — relational doc deletions failed:', relationalRejections);
     }
 
     // 5. Delete the provider document itself

@@ -134,9 +134,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // No Firebase user — clear firebaseUser so effectiveUserId doesn't
           // return a stale Firebase UID from a previous session.
           setFirebaseUser(null);
-          // Check local session as fallback
+
           const local = localAuth.getCurrentUser();
-          if (local) {
+
+          // Google sign-in ALWAYS goes through Firebase Auth. If Firebase
+          // says no user but localAuth has a Google session, the Firebase
+          // Auth account was deleted/revoked — the session is stale.
+          if (local && local.authMethod === 'google') {
+            localAuth.logout();
+            setUser(null);
+            setLoading(false);
+          } else if (local) {
+            // Fall back to localAuth session (email/password that may have
+            // originated from pure localAuth or Firebase — can't distinguish)
             initUser(local);
           } else {
             setUser(null);
