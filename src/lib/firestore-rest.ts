@@ -607,11 +607,11 @@ export async function addReviewRest(
     }),
     headers: { 'Content-Type': 'application/json' },
   });
-  if (!res.ok) throw new Error(`Failed to add review: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Failed to add review: ${res.status}${body ? ` — ${body}` : ''}`);
+  }
   const json = await res.json();
-
-  // Touch the user's cooldown timestamp for S3 rate limiting
-  touchCooldown(data.userId, 'lastReviewAt');
 
   return json.name?.split('/').pop() ?? '';
 }
