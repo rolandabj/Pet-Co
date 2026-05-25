@@ -472,6 +472,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error.code === 'auth/operation-not-supported-in-this-environment') {
         return { success: false, error: 'Google sign-in is not available in this preview environment. Please use email/password login instead.' };
       }
+      // OAuth code exchange failure — typically a Firebase Console / Google Cloud
+      // Console OAuth client ID or redirect URI mismatch. Try redirect as fallback
+      // since it uses a different redirect URI flow (`__/auth/handler`).
+      if (error.code === 'auth/invalid-credential' && error.message?.includes('CODE_EXCHANGE')) {
+        console.warn('Google OAuth code exchange failed — attempting redirect fallback:', error.message);
+        try {
+          const { auth, googleProvider } = getFirebaseAuth();
+          if (auth && googleProvider) {
+            await signInWithRedirect(auth, googleProvider);
+          }
+          return { success: false, error: 'redirecting' };
+        } catch {
+          const msg =
+            `⚠️ Google sign-in configuration error. ` +
+            `The OAuth code exchange with Google failed. ` +
+            `This usually means the Firebase project's Web client ID ` +
+            `doesn't match the Google Cloud Console OAuth client. ` +
+            `Please verify in the Firebase Console (Authentication → Sign-in method → Google) ` +
+            `that the "Web client ID" is correct, or use email/password login instead.`;
+          console.warn(msg);
+          return { success: false, error: msg };
+        }
+      }
       // 4. GENERAL FAILURE PATH: Return the error message safely
       console.error('Google login interaction failed:', err);
       return { success: false, error: error.message || 'An unknown authentication error occurred.' };
