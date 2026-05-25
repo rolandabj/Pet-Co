@@ -327,6 +327,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const googleLogin = useCallback(async (role?: UserRole, providerType?: string) => {
+    const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
     try {
       const { auth, googleProvider } = getFirebaseAuth();
 
@@ -454,16 +457,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Try popup with a timeout — 60s to allow for 2FA, password entry,
       // and any account-creation flows on the Google side.
-      const popupResult = await timeout(
-        signInWithPopup(auth, googleProvider),
-        60000,
-        'signInWithPopup'
-      );
+      // Retry once on network failure (common on cold proxy/staging domains).
+      let popupResult;
+      const MAX_RETRIES = 1;
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          popupResult = await timeout(
+            signInWithPopup(auth, googleProvider),
+            60000,
+            'signInWithPopup',
+          );
+          break;
+        } catch (e) {
+          const fbErr = e as { code?: string; message?: string };
+          // Only retry network errors — pass everything else up immediately
+          if (fbErr.code === 'auth/network-request-failed' && attempt < MAX_RETRIES) {
+            console.warn(
+              `Google sign-in network error (attempt ${attempt + 1}/${MAX_RETRIES + 1}) — retrying after short delay on ${domain}`,
+            );
+            await new Promise((r) => setTimeout(r, 1500));
+            continue;
+          }
+          throw e;
+        }
+      }
       return handleCredential(popupResult.user, providerType);
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };
-      const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
 
       // 3. CANCELLATION PATH: user closed the popup — not really an error
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {

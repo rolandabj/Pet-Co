@@ -45,10 +45,24 @@ The script reads from environment variables. If you're in an OpenHands session w
 ## Server-only Firestore REST helpers (`firestore-admin-rest.ts`)
 - `getAccessToken()` — cached OAuth2 token for the service account (auto-refreshes before expiry)
 - `getDocRest(collection, docId)` — GET a single document; returns `fields` object or `null`
-- `deleteDocRest(collection, docId)` — DELETE a single document; returns `true` if existed
+- `deleteDocRest(collection, docId)` — DELETE a single document; returns `true` if existed, `false` if 404
 - `deleteDocsBatch(docs)` — batch DELETE up to 500 docs via `:commit`
 - `runQueryRest(collection, field, op, value)` — structured queries via `:runQuery`
 - All functions throw on non-404 errors, making failures visible
+
+## Account deletion flow (`DELETE /api/me/account`)
+1. Query relational docs (bookings, payments, reviews, favorites) by `providerId`
+2. Fetch provider doc (for logging only)
+3. Batch delete relational docs via `deleteDocsBatch`
+4. Delete provider doc via `deleteDocRest('providers', providerId)`
+5. **Delete user doc** via `deleteDocRest('users', providerId)` (not just downgrade — ensures admin panel stops showing user)
+6. Delete Firebase Auth user via `auth.deleteUser(decoded.uid)` — **throws on failure**
+7. Returns JSON summary or 500 on failure
+
+## Known pitfalls
+- **Users docs lack `email` field**: `updateUserDocRest()` only stores `{ role, name }` — always look up by UID/docId, never by email
+- **Admin panel shows localAuth users too**: `admin/page.tsx` merges `getAllUsersRest()` + `localAuth.getAllUsers()` — deleting Firestore doc alone isn't enough if admin's localStorage has a stale entry. The ProviderDashboard now calls `localAuth.deleteUser()` after successful deletion
+- **gRPC silently fails in containers**: Admin SDK `getFirestore()` uses gRPC which can fail without error. Always use `firestore-admin-rest.ts` for server-side Firestore operations
 
 ## Debug Logging Added
 - `console.log('OUTGOING PAYLOAD:')` right before each fetch

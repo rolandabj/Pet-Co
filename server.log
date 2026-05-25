@@ -1074,3 +1074,1233 @@ Admin deleteUser failed: Error: There is no user record corresponding to the pro
 ✓ Compiled in 84ms
 ✓ Compiled in 139ms
  GET / 200 in 44ms (next.js: 2ms, application-code: 41ms)
+ GET /api/me/account 405 in 7ms (next.js: 3ms, application-code: 4ms)
+Admin deleteUser failed: Error: There is no user record corresponding to the provided identifier.
+    at async handleDeleteUser (src/app/api/auth/delete-user/route.ts:46:5)
+  44 |     // --- Perform the deletion via Admin SDK ---
+  45 |     const adminAuth = getAdminAuth();
+> 46 |     await adminAuth.deleteUser(uid);
+     |     ^
+  47 |
+  48 |     return NextResponse.json({ success: true, uid });
+  49 |   } catch (err: unknown) { {
+  errorInfo: {
+    code: 'auth/user-not-found',
+    message: 'There is no user record corresponding to the provided identifier.'
+  },
+  codePrefix: 'auth'
+}
+ POST /api/auth/delete-user 200 in 198ms (next.js: 1406µs, application-code: 197ms)
+ GET /admin 200 in 42ms (next.js: 2ms, application-code: 40ms)
+ GET /admin 200 in 38ms (next.js: 2ms, application-code: 35ms)
+ GET / 200 in 14ms (next.js: 1805µs, application-code: 12ms)
+ GET /login 200 in 16ms (next.js: 2ms, application-code: 14ms)
+[browser] Google login interaction failed: FirebaseError: Firebase: Error (auth/network-request-failed). (src/context/AuthContext.tsx:532:15)
+ GET /login 200 in 41ms (next.js: 1730µs, application-code: 39ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 43ms (next.js: 5ms, application-code: 39ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ppQ5x4AEuIchKCSNTmjv03HS9Oq2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ppQ5x4AEuIchKCSNTmjv03HS9Oq2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 64ms (next.js: 3ms, application-code: 60ms)
+ GET /api/payments?role=provider 200 in 68ms (next.js: 10ms, application-code: 58ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ppQ5x4AEuIchKCSNTmjv03HS9Oq2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 48ms (next.js: 1764µs, application-code: 46ms)
+ GET /services 200 in 112ms (next.js: 18ms, application-code: 95ms)
+ GET /dashboard 200 in 16ms (next.js: 1902µs, application-code: 14ms)
+ GET /dashboard 200 in 6ms (next.js: 1836µs, application-code: 4ms)
+ GET /dashboard 200 in 17ms (next.js: 2ms, application-code: 15ms)
+ GET / 200 in 14ms (next.js: 1817µs, application-code: 12ms)
+ GET /dashboard 200 in 15ms (next.js: 1919µs, application-code: 13ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ppQ5x4AEuIchKCSNTmjv03HS9Oq2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 58ms (next.js: 1627µs, application-code: 56ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ppQ5x4AEuIchKCSNTmjv03HS9Oq2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ppQ5x4AEuIchKCSNTmjv03HS9Oq2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 52ms (next.js: 1227µs, application-code: 50ms)
+ GET /api/payments?role=provider 200 in 142ms (next.js: 1003µs, application-code: 141ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ppQ5x4AEuIchKCSNTmjv03HS9Oq2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 46ms (next.js: 1294µs, application-code: 44ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'ppQ5x4AEuIchKCSNTmjv03HS9Oq2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🧹 DELETE ACCOUNT — providerId: ppQ5x4AEuIchKCSNTmjv03HS9Oq2 uid: ppQ5x4AEuIchKCSNTmjv03HS9Oq2
+🧹 DELETE ACCOUNT — documents found { bookings: [], payments: [], reviews: [], favorites: [] }
+🧹 DELETE ACCOUNT — provider doc exists: true
+🧹 DELETE ACCOUNT — provider doc deleted
+🧹 DELETE ACCOUNT — user doc deleted
+🧹 DELETE ACCOUNT — Firebase Auth user deleted
+ DELETE /api/me/account 200 in 711ms (next.js: 2ms, application-code: 709ms)
+ GET / 200 in 47ms (next.js: 2ms, application-code: 45ms)
+ GET /login 200 in 20ms (next.js: 3ms, application-code: 17ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 51ms (next.js: 4ms, application-code: 48ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=customer 200 in 55ms (next.js: 1695µs, application-code: 54ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites 200 in 50ms (next.js: 1321µs, application-code: 48ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 46ms (next.js: 1460µs, application-code: 45ms)
+ GET /admin 200 in 17ms (next.js: 2ms, application-code: 15ms)
+ GET /login 200 in 32ms (next.js: 3ms, application-code: 29ms)
+ GET / 200 in 32ms (next.js: 20ms, application-code: 12ms)
+[browser] Google login interaction failed: FirebaseError: Firebase: Error (auth/network-request-failed). (src/context/AuthContext.tsx:532:15)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 44ms (next.js: 1977µs, application-code: 42ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: '7aptywjE4De4vcd2ncP3CZsGDus2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 45ms (next.js: 1326µs, application-code: 44ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: '7aptywjE4De4vcd2ncP3CZsGDus2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 56ms (next.js: 1412µs, application-code: 54ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: '7aptywjE4De4vcd2ncP3CZsGDus2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 78ms (next.js: 1621µs, application-code: 76ms)
+ GET /login 200 in 17ms (next.js: 2ms, application-code: 15ms)
+ GET / 200 in 16ms (next.js: 2ms, application-code: 14ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 42ms (next.js: 1886µs, application-code: 40ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: '7aptywjE4De4vcd2ncP3CZsGDus2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 50ms (next.js: 1395µs, application-code: 49ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: '7aptywjE4De4vcd2ncP3CZsGDus2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 62ms (next.js: 1684µs, application-code: 60ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: '7aptywjE4De4vcd2ncP3CZsGDus2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 182ms (next.js: 1465µs, application-code: 180ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: '7aptywjE4De4vcd2ncP3CZsGDus2',
+  email: 'odayhamade90@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🧹 DELETE ACCOUNT — providerId: 7aptywjE4De4vcd2ncP3CZsGDus2 uid: 7aptywjE4De4vcd2ncP3CZsGDus2
+🧹 DELETE ACCOUNT — documents found { bookings: [], payments: [], reviews: [], favorites: [] }
+🧹 DELETE ACCOUNT — provider doc exists: true
+🧹 DELETE ACCOUNT — provider doc deleted
+🧹 DELETE ACCOUNT — user doc deleted
+🧹 DELETE ACCOUNT — Firebase Auth user deleted
+ DELETE /api/me/account 200 in 876ms (next.js: 1553µs, application-code: 875ms)
+ GET / 200 in 59ms (next.js: 1811µs, application-code: 57ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 54ms
+ GET / 200 in 99ms (next.js: 45ms, application-code: 54ms)
+ GET /login 200 in 102ms (next.js: 5ms, application-code: 96ms)
+ GET / 200 in 42ms (next.js: 1804µs, application-code: 40ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 329ms
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component] 
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component] 
+ GET / 500 in 2.2s (next.js: 2.1s, application-code: 142ms)
+ GET / 500 in 2.4s (next.js: 2.4s, application-code: 20ms)
+ GET /login 500 in 2.4s (next.js: 2.4s, application-code: 11ms)
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component] 
+ GET /login 500 in 36ms (next.js: 13ms, application-code: 23ms)
+ GET / 500 in 37ms (next.js: 22ms, application-code: 14ms)
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+ GET /login 500 in 25ms (next.js: 11ms, application-code: 14ms)
+ GET / 500 in 35ms (next.js: 23ms, application-code: 12ms)
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+ GET /login 500 in 39ms (next.js: 10ms, application-code: 29ms)
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+ GET / 500 in 65ms (next.js: 38ms, application-code: 28ms)
+ GET / 500 in 64ms (next.js: 49ms, application-code: 16ms)
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+ GET /login 500 in 94ms (next.js: 67ms, application-code: 27ms)
+ GET /login 500 in 78ms (next.js: 59ms, application-code: 18ms)
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+ GET / 500 in 43ms (next.js: 20ms, application-code: 23ms)
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+ GET / 500 in 39ms (next.js: 12ms, application-code: 27ms)
+[browser] Uncaught Error: ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/context/AuthContext.tsx:482:7)
+    at <unknown> (Error: (./src/context/AuthContext.tsx:482:7)
+[browser] Uncaught Error: ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/context/AuthContext.tsx:482:7)
+    at <unknown> (Error: (./src/context/AuthContext.tsx:482:7)
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component] 
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Client Component Browser]
+    ./src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Client Component SSR]
+    ./src/app/dashboard/page.tsx [Server Component] 
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component] 
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/register/page.tsx [Client Component Browser]
+    ./src/app/register/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/register/page.tsx [Client Component SSR]
+    ./src/app/register/page.tsx [Server Component] 
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/admin/page.tsx [Client Component Browser]
+    ./src/app/admin/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/admin/page.tsx [Client Component SSR]
+    ./src/app/admin/page.tsx [Server Component] 
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import trace:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx 
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component] 
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component] 
+⨯ ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  [90m480 |[0m       }
+  [90m481 |[0m       [36mreturn[0m handleCredential(popupResult.user, providerType);
+[31m[1m>[0m [90m482 |[0m     } [36mcatch[0m (err: unknown) {
+  [90m    |[0m       [31m[1m^^^^^[0m
+  [90m483 |[0m       [36mconst[0m error = err [36mas[0m { code?: string; message?: string };
+  [90m484 |[0m       [36mconst[0m domain = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.hostname : [32m'unknown'[0m;
+  [90m485 |[0m       [36mconst[0m origin = [36mtypeof[0m window !== [32m'undefined'[0m ? window.location.origin : [32m'unknown'[0m;
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+ GET / 500 in 12ms (next.js: 4ms, application-code: 8ms)
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component] 
+[browser] Uncaught Error: ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/context/AuthContext.tsx:482:7)
+    at <unknown> (Error: (./src/context/AuthContext.tsx:482:7)
+[browser] ./src/context/AuthContext.tsx:482:7
+Expected ',', got 'catch'
+  480 |       }
+  481 |       return handleCredential(popupResult.user, providerType);
+> 482 |     } catch (err: unknown) {
+      |       ^^^^^
+  483 |       const error = err as { code?: string; message?: string };
+  484 |       const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+  485 |       const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./src/context/AuthContext.tsx
+    ./src/app/layout.tsx
+
+  Client Component Browser:
+    ./src/context/AuthContext.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Client Component Browser]
+    ./src/app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/context/AuthContext.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Client Component SSR]
+    ./src/app/login/page.tsx [Server Component] 
+✓ Compiled in 108ms
+ GET / 200 in 418ms (next.js: 19ms, application-code: 398ms)
+ GET /login 200 in 833ms (next.js: 98ms, application-code: 735ms)
+ GET / 200 in 356ms (next.js: 7ms, application-code: 349ms)
+ GET / 200 in 359ms (next.js: 74ms, application-code: 286ms)
+ GET / 200 in 243ms (next.js: 8ms, application-code: 235ms)
+ GET / 200 in 243ms (next.js: 36ms, application-code: 207ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 67ms
+ GET / 200 in 107ms (next.js: 5ms, application-code: 102ms)
+ GET /login 200 in 111ms (next.js: 51ms, application-code: 60ms)
+⚠ Fast Refresh had to perform a full reload when ./src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 58ms (next.js: 2ms, application-code: 56ms)
+ GET / 200 in 55ms (next.js: 3ms, application-code: 52ms)
