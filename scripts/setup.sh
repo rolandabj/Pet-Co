@@ -4,6 +4,10 @@ set -euo pipefail
 # ──────────────────────────────────────────────────────────────
 # Pet-Co workspace setup
 # Called automatically by OpenHands via AGENTS.md instructions.
+#
+# Installs dependencies and creates .env.local from environment
+# variables. Does NOT start the dev server — that is a separate
+# step documented in AGENTS.md.
 # ──────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -51,7 +55,4 @@ if [ ! -f "$ENV_FILE" ]; then
   echo "→ $ENV_FILE created."
 fi
 
-# 3. Clean + boot the dev server
-rm -rf .next
-echo "→ Starting dev server on port ${PORT:-12000}..."
-PORT="${PORT:-12000}" npm run dev
+echo "→ Setup complete. Run 'npm run dev' (or 'bash scripts/dev.sh') to start the server."

@@ -6,13 +6,39 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Workspace Setup (run on every new conversation)
 
-Before coding, run the setup script to install deps and configure `.env.local`:
+## 1. Install deps & configure environment
 
 ```bash
 bash scripts/setup.sh
 ```
 
-The script reads from environment variables. If you're in an OpenHands session without those vars set, create `.env.local` manually from `.env.local.example` and fill in the Firebase config values.
+This installs npm dependencies and creates `.env.local` from injected environment variables. It does **not** start the dev server.
+
+## 2. Start the dev server
+
+```bash
+rm -rf .next && PORT=12000 npm run dev > server.log 2>&1 &
+```
+
+The server runs in the background. Check it with `curl -s -o /dev/null -w "%{http_code}" http://localhost:12000`.
+
+## 3. Google Sign-In — the ONLY manual step
+
+For Google sign-in to work on a **new preview domain**, you must add the domain to your Firebase project's Authorized Domains:
+
+1. Go to [Firebase Console → Authentication → Settings](https://console.firebase.google.com/project/pet-co-fc4d6/authentication/settings)
+2. Under **Authorized Domains**, click "Add domain"
+3. Enter the full origin of the preview URL (e.g., `https://work-1-nptqcdmiggcojatv.prod-runtime.all-hands.dev`)
+4. Save
+
+That's it. No code changes, no additional config, no environment variable updates — the app reads the origin dynamically. Once the domain is authorized, Google sign-in works via popup (with automatic redirect fallback if the popup is blocked).
+
+### What happens if the domain isn't authorized?
+
+The login page shows a clear error message:
+> ⚠️ This domain is not authorized for Google sign-in. Please add it to the Authorized Domains list in your Firebase Console.
+
+The error includes the exact origin URL to add.
 
 # Firestore-REST Debug Notes
 
