@@ -13,8 +13,8 @@ const serviceTypes = [
   { value: 'grooming', label: '✂️ Grooming', price: 35 },
   { value: 'shop', label: '🛍️ Pet Shop', price: 0 },
 ];
-import { getAllProvidersRest, getProviderByIdRest, addBookingRest, addPaymentRest, getBookingsForProviderDateRest, getUserByIdRest } from '@/lib/firestore-rest';
-import { fetchMyPets } from '@/lib/me-api';
+import { getAllProvidersRest, getProviderByIdRest, getBookingsForProviderDateRest, getUserByIdRest } from '@/lib/firestore-rest';
+import { fetchMyPets, addBooking } from '@/lib/me-api';
 import { ServiceProvider, ServiceItem, AppUser } from '@/lib/types';
 import Link from 'next/link';
 
@@ -233,42 +233,19 @@ function BookingFormAuthenticated({ user, firebaseUser }: { user: AppUser; fireb
       return;
     }
 
-    const uid = firebaseUser?.uid || user.id;
-
     setSaving(true);
     try {
-      // ── Race-condition guard: double-check slot is still free ──
-      const existing = await getBookingsForProviderDateRest(provider, date);
-      const slot = time || '';
-      const conflict = existing.find(
-        (b) =>
-          (b.timeSlot || b.time) === slot &&
-          b.serviceType === serviceType &&
-          b.status !== 'cancelled' &&
-          b.status !== 'declined',
-      );
-      if (conflict) {
-        showToast(
-          'Sorry, this exact slot was just booked! Please select another time.',
-          'error',
-        );
-        setSaving(false);
-        return;
-      }
-
-      // 1. Create the booking document with timeSlot
-      const bookingId = await addBookingRest({
-        userId: uid,
+      // Server-side atomic double-booking guard in POST /api/bookings
+      await addBooking({
         serviceType,
         providerId: provider,
         providerName: selectedProvider?.name || 'Unknown Provider',
         providerBusinessName: selectedProvider?.businessName || selectedProvider?.name || '',
         customerName: user?.name || user?.email || 'Unknown Customer',
-        customerEmail: user?.email || '',
         customerPhone: profilePhone || (user as any)?.phone || '',
         date,
         time: time || '',
-        timeSlot: slot,
+        timeSlot: time || '',
         instructions,
         petId: selectedPet || '',
         petName: pets.find(p => p.id === selectedPet)?.name || '',
@@ -276,26 +253,19 @@ function BookingFormAuthenticated({ user, firebaseUser }: { user: AppUser; fireb
         platformFee,
         total: finalTotal,
         currency: selectedCurrency,
-        status: 'pending',
-      });
-
-      // 2. Simultaneously create a payment ledger entry
-      await addPaymentRest({
-        bookingId,
-        customerId: uid,
-        customerName: user?.name || 'Unknown Customer',
-        providerId: provider,
-        providerName: selectedProvider?.name || 'Unknown Provider',
         category: selectedService?.label || serviceType,
-        amount: finalTotal,
-        status: 'paid',
       });
 
       showToast('🎉 Booking confirmed! Check your dashboard for details.', 'success');
       setTimeout(() => router.push('/dashboard'), 1500);
-    } catch (err) {
-      console.error('Failed to save booking:', err);
-      showToast('❌ Failed to save booking. Please try again.', 'error');
+    } catch (err: any) {
+      const msg = err?.message || '';
+      if (msg.includes('409')) {
+        showToast('Sorry, this slot was just booked! Please choose another time.', 'error');
+      } else {
+        console.error('Failed to save booking:', err);
+        showToast('❌ Failed to save booking. Please try again.', 'error');
+      }
     } finally {
       setSaving(false);
     }

@@ -153,6 +153,29 @@ export async function removeMyFavoriteByProvider(providerId: string) {
   return true;
 }
 
+// ─── Bookings ──────────────────────────────────────────────────
+
+export async function addBooking(data: Record<string, unknown>) {
+  const res = await fetch('/api/bookings', {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    console.error('🐛 API ERROR BODY', {
+      url: res.url,
+      status: res.status,
+      text,
+    });
+    throw new Error(`Failed to create booking: ${res.status}${text ? ` — ${text}` : ''}`);
+  }
+
+  const result = await res.json();
+  return result.bookingId;
+}
+
 // ─── Reviews ───────────────────────────────────────────────────
 
 export async function addMyReview(review: {

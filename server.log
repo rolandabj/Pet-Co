@@ -6,10 +6,10 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 321ms
+✓ Ready in 358ms
 
- GET /login 200 in 564ms (next.js: 188ms, application-code: 376ms)
- GET /booking?providerId=wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 62ms (next.js: 15ms, application-code: 47ms)
+ GET /login 200 in 608ms (next.js: 255ms, application-code: 353ms)
+ GET /booking?providerId=wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 63ms (next.js: 14ms, application-code: 49ms)
 🐛 API AUTH HEADER DEBUG {
   hasAuthHeader: true,
   startsWithBearer: true,
@@ -40,5 +40,5 @@
   aud: 'pet-co-fc4d6',
   iss: 'https://securetoken.google.com/pet-co-fc4d6'
 }
- GET /api/me/pets 200 in 493ms (next.js: 293ms, application-code: 200ms)
- GET /api/me/pets 200 in 178ms (next.js: 4ms, application-code: 174ms)
+ GET /api/me/pets 200 in 494ms (next.js: 290ms, application-code: 204ms)
+ GET /api/me/pets 200 in 284ms (next.js: 6ms, application-code: 278ms)
