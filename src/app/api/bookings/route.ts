@@ -5,6 +5,48 @@ import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
 
+/** GET /api/bookings?providerId=xxx&date=2026-05-25 — returns booked time slots */
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const providerId = searchParams.get('providerId');
+    const date = searchParams.get('date');
+    if (!providerId || !date) {
+      return NextResponse.json(
+        { error: 'Missing providerId or date' },
+        { status: 400 },
+      );
+    }
+
+    const db = getAdminDb();
+    const snap = await db
+      .collection('bookings')
+      .where('providerId', '==', providerId)
+      .where('date', '==', date)
+      .get();
+
+    const bookedSlots = snap.docs
+      .filter((d) => {
+        const s = d.data().status;
+        return s !== 'cancelled' && s !== 'declined';
+      })
+      .map((d) => d.data().timeSlot || d.data().time)
+      .filter(Boolean);
+
+    return NextResponse.json({ bookedSlots });
+  } catch (error: any) {
+    console.error('API route failed', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+    });
+    return NextResponse.json(
+      { error: 'Failed to fetch booked slots' },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const decoded = await requireFirebaseUser(request);

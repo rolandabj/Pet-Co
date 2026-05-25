@@ -6,10 +6,17 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 358ms
+✓ Ready in 336ms
 
- GET /login 200 in 608ms (next.js: 255ms, application-code: 353ms)
- GET /booking?providerId=wxYK5d51I2VaK2pc4N4QkfaFzkG2 200 in 63ms (next.js: 14ms, application-code: 49ms)
+ GET /login 200 in 602ms (next.js: 240ms, application-code: 362ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 86ms (next.js: 15ms, application-code: 71ms)
 🐛 API AUTH HEADER DEBUG {
   hasAuthHeader: true,
   startsWithBearer: true,
@@ -40,5 +47,5 @@
   aud: 'pet-co-fc4d6',
   iss: 'https://securetoken.google.com/pet-co-fc4d6'
 }
- GET /api/me/pets 200 in 494ms (next.js: 290ms, application-code: 204ms)
- GET /api/me/pets 200 in 284ms (next.js: 6ms, application-code: 278ms)
+ GET /api/me/pets 200 in 519ms (next.js: 336ms, application-code: 183ms)
+ GET /api/me/favorites 200 in 573ms (next.js: 296ms, application-code: 277ms)

@@ -13,8 +13,8 @@ const serviceTypes = [
   { value: 'grooming', label: '✂️ Grooming', price: 35 },
   { value: 'shop', label: '🛍️ Pet Shop', price: 0 },
 ];
-import { getAllProvidersRest, getProviderByIdRest, getBookingsForProviderDateRest, getUserByIdRest } from '@/lib/firestore-rest';
-import { fetchMyPets, addBooking } from '@/lib/me-api';
+import { getAllProvidersRest, getProviderByIdRest, getUserByIdRest } from '@/lib/firestore-rest';
+import { fetchMyPets, fetchBookedSlots, addBooking } from '@/lib/me-api';
 import { ServiceProvider, ServiceItem, AppUser } from '@/lib/types';
 import Link from 'next/link';
 
@@ -135,18 +135,12 @@ function BookingFormAuthenticated({ user, firebaseUser }: { user: AppUser; fireb
 
   // ── Fetch already-booked time slots for double-booking prevention ──
   useEffect(() => {
-    if (!provider || !date || !serviceType) return;
+    if (!provider || !date) return;
     setBookedSlots([]); // reset while fetching
-    getBookingsForProviderDateRest(provider, date)
-      .then((existing) => {
-        const booked = existing
-          .filter((b) => b.status !== 'cancelled' && b.status !== 'declined' && b.serviceType === serviceType)
-          .map((b) => b.timeSlot || b.time)
-          .filter(Boolean);
-        setBookedSlots(booked);
-      })
+    fetchBookedSlots(provider, date)
+      .then((booked) => setBookedSlots(booked))
       .catch((err) => console.error('Failed to fetch booked slots:', err));
-  }, [provider, date, serviceType]);
+  }, [provider, date]);
 
   // Handler: when the user picks a service, update the service type and pricing states
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

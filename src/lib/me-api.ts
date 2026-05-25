@@ -155,6 +155,19 @@ export async function removeMyFavoriteByProvider(providerId: string) {
 
 // ─── Bookings ──────────────────────────────────────────────────
 
+export async function fetchBookedSlots(providerId: string, date: string): Promise<string[]> {
+  const res = await fetch(
+    `/api/bookings?providerId=${encodeURIComponent(providerId)}&date=${encodeURIComponent(date)}`,
+    { headers: await getAuthHeaders(), cache: 'no-store' },
+  );
+  if (!res.ok) {
+    console.error('Failed to fetch booked slots:', res.status);
+    return [];
+  }
+  const data = await res.json();
+  return data.bookedSlots || [];
+}
+
 export async function addBooking(data: Record<string, unknown>) {
   const res = await fetch('/api/bookings', {
     method: 'POST',
