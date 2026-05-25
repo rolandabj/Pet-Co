@@ -3093,3 +3093,113 @@ Import traces:
 ✓ Compiled in 50ms
  GET /register 200 in 77ms (next.js: 6ms, application-code: 71ms)
  GET /register 200 in 52ms (next.js: 2ms, application-code: 50ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 56ms (next.js: 2ms, application-code: 53ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'VHAPakZmbkRIPFi58fq1le3Lqoz2',
+  email: 'rajads.leb@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'VHAPakZmbkRIPFi58fq1le3Lqoz2',
+  email: 'rajads.leb@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 117ms (next.js: 1981µs, application-code: 115ms)
+ GET /api/payments?role=provider 200 in 56ms (next.js: 2ms, application-code: 54ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'VHAPakZmbkRIPFi58fq1le3Lqoz2',
+  email: 'rajads.leb@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=provider 200 in 53ms (next.js: 1439µs, application-code: 51ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'VHAPakZmbkRIPFi58fq1le3Lqoz2',
+  email: 'rajads.leb@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+🧹 DELETE ACCOUNT — providerId: VHAPakZmbkRIPFi58fq1le3Lqoz2 uid: VHAPakZmbkRIPFi58fq1le3Lqoz2
+🧹 DELETE ACCOUNT — documents found { bookings: [], payments: [], reviews: [], favorites: [] }
+🧹 DELETE ACCOUNT — provider doc exists: true
+🧹 DELETE ACCOUNT — provider doc deleted
+🧹 DELETE ACCOUNT — user doc deleted
+🧹 DELETE ACCOUNT — Firebase Auth user deleted
+ DELETE /api/me/account 200 in 970ms (next.js: 54ms, application-code: 916ms)
+ GET / 200 in 48ms (next.js: 2ms, application-code: 45ms)
+ GET /login 200 in 18ms (next.js: 4ms, application-code: 14ms)
+🐛 DASHBOARD UID DEBUG {
+  appUserId: undefined,
+  firebaseUid: undefined,
+  effectiveUserId: null,
+  dashboardUserId: undefined,
+  same: true
+}
+ GET /dashboard 200 in 51ms (next.js: 2ms, application-code: 49ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/favorites 200 in 81ms (next.js: 2ms, application-code: 79ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/me/pets 200 in 135ms (next.js: 1984µs, application-code: 133ms)
+🐛 API AUTH HEADER DEBUG {
+  hasAuthHeader: true,
+  startsWithBearer: true,
+  headerStart: 'Bearer eyJhbGciOiJSU'
+}
+🐛 API TOKEN VERIFIED {
+  uid: 'Uio4nw8YBBX8La6tLPV863q3ZRn2',
+  email: 'rolandabj@gmail.com',
+  aud: 'pet-co-fc4d6',
+  iss: 'https://securetoken.google.com/pet-co-fc4d6'
+}
+ GET /api/payments?role=customer 200 in 52ms (next.js: 3ms, application-code: 48ms)
+ GET /admin 200 in 33ms (next.js: 15ms, application-code: 18ms)
+ GET /admin 200 in 19ms (next.js: 2ms, application-code: 16ms)
