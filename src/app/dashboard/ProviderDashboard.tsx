@@ -11,9 +11,6 @@ import {
   updateProviderDocRest,
   createProviderRest,
   updateProviderByIdRest,
-  deleteProviderAccountRest,
-  getAllUsersRest,
-  updateUserDocRest,
   getReviewsByProviderRest,
   updateBookingRest,
   getUserByIdRest,
@@ -637,7 +634,7 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
     }
   };
 
-  /* ── Cascading account deletion ── */
+  /* ── Cascading account deletion (via server-side API) ── */
   const handleDeleteAccount = async () => {
     const targetDocId = provider?._firestoreId || providerDocId || provider?.id;
     if (!targetDocId) {
@@ -647,8 +644,19 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
 
     setDeletingAccount(true);
     try {
-      // 1. Cascading delete: relational docs + provider doc
-      const result = await deleteProviderAccountRest(targetDocId, userId, userRole);
+      // 1. Call server-side API route (uses Admin SDK — no 403 risk)
+      const res = await fetch('/api/me/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId: targetDocId }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `Server returned ${res.status}`);
+      }
+
+      const result = await res.json();
 
       // 2. Delete provider logo from Firebase Storage if it exists
       const logoUrl = result.logoUrl || provider?.logoUrl;
@@ -669,22 +677,6 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
         }
       }
 
-      // 3. Downgrade the associated user to 'owner' role
-      const email = result.userEmail || provider?.email;
-      if (email) {
-        try {
-          const users = await getAllUsersRest();
-          const userDoc = users.find(
-            (u) => u.email?.toLowerCase() === email.toLowerCase(),
-          );
-          if (userDoc) {
-            await updateUserDocRest(userDoc.id, { role: 'owner' });
-          }
-        } catch {
-          // Non-critical
-        }
-      }
-
       const summary = [
         result.deletedBookings > 0 && `${result.deletedBookings} booking(s)`,
         result.deletedPayments > 0 && `${result.deletedPayments} payment(s)`,
@@ -697,7 +689,7 @@ export default function ProviderDashboard({ userEmail, userId, userRole }: Props
         'success',
       );
 
-      // 4. Redirect to home after deletion
+      // 3. Redirect to home after deletion
       window.location.href = '/';
     } catch (err) {
       console.error('Failed to delete account:', err);

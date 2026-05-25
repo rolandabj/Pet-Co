@@ -6,8 +6,7 @@
 - Local:         http://localhost:12000
 - Network:       http://10.2.15.22:12000
 - Environments: .env.local
-✓ Ready in 341ms
+✓ Ready in 320ms
 
- GET /login 200 in 617ms (next.js: 258ms, application-code: 359ms)
- GET / 200 in 71ms (next.js: 16ms, application-code: 56ms)
- GET /login 200 in 53ms (next.js: 4ms, application-code: 49ms)
+ GET /login 200 in 655ms (next.js: 292ms, application-code: 363ms)
+ GET /login 200 in 59ms (next.js: 4ms, application-code: 55ms)
