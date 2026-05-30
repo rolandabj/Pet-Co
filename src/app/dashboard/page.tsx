@@ -421,7 +421,7 @@ export default function DashboardPage() {
                     { icon: '📅', bg: 'bg-orange-500/12', value: String(upcomingBookings.length), label: 'Upcoming Bookings' },
                     { icon: '✅', bg: 'bg-emerald-500/12', value: String(completedBookingsCount), label: 'Completed Services' },
                     { icon: '❤️', bg: 'bg-yellow-500/12', value: String(favorites.length), label: 'Saved Favorites' },
-                    { icon: '⭐', bg: 'bg-purple-500/12', value: '4.9', label: 'Average Rating' },
+                    { icon: '✍️', bg: 'bg-purple-500/12', value: String(userReviews.length), label: 'My Reviews Written' },
                   ].map((s, i) => (
                     <div key={i} className="bg-white border border-[#F0E4D8] rounded-2xl p-6 hover:shadow-md hover:-translate-y-1 transition-all">
                       <div className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center text-lg mb-4`}>{s.icon}</div>

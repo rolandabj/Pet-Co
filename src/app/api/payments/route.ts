@@ -2,14 +2,37 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
+import { runQueryRest, deleteDocRest, updateDocRest } from '@/lib/firestore-admin-rest';
+
+/**
+ * Convert a Firestore document returned by runQueryRest (raw typed fields)
+ * to a flat payment object matching the shape callers expect.
+ */
+function paymentFromDocument(doc: { id: string; data: Record<string, any> }) {
+  const f = doc.data;
+  const s = (n: string) => (f[n] as any)?.stringValue ?? '';
+  const n = (n: string) => Number((f[n] as any)?.integerValue ?? (f[n] as any)?.doubleValue ?? 0);
+  const b = (n: string) => (f[n] as any)?.booleanValue ?? false;
+  return {
+    id: doc.id,
+    amount: n('amount'),
+    status: s('status'),
+    bookingId: s('bookingId'),
+    providerId: s('providerId'),
+    customerId: s('customerId'),
+    category: s('category'),
+    providerName: s('providerName'),
+    createdAt: s('createdAt'),
+    feeCollected: b('feeCollected'),
+  };
+}
 
 /**
  * GET /api/payments?role=provider|customer
  *
  * Returns all payments for the authenticated user in the given role.
- * Uses Admin SDK — no security rule restrictions.
+ * Uses Firestore REST API — bypasses gRPC which can fail in sandboxed environments.
  */
 export async function GET(request: Request) {
   try {
@@ -18,16 +41,8 @@ export async function GET(request: Request) {
     const role = searchParams.get('role') || 'customer';
 
     const field = role === 'provider' ? 'providerId' : 'customerId';
-    const db = getAdminDb();
-    const snap = await db
-      .collection('payments')
-      .where(field, '==', decoded.uid)
-      .get();
-
-    const payments = snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const docs = await runQueryRest('payments', field, 'EQUAL', decoded.uid);
+    const payments = docs.map(paymentFromDocument);
 
     return NextResponse.json({ payments });
   } catch (error: any) {
@@ -69,27 +84,21 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const db = getAdminDb();
+    // Find the payment by bookingId via REST query
+    const docs = await runQueryRest('payments', 'bookingId', 'EQUAL', bookingId);
 
-    // Find the payment by bookingId
-    const snap = await db
-      .collection('payments')
-      .where('bookingId', '==', bookingId)
-      .limit(1)
-      .get();
-
-    if (snap.empty) {
+    if (docs.length === 0) {
       return NextResponse.json(
         { error: 'No payment found for this booking' },
         { status: 404 },
       );
     }
 
-    const paymentRef = snap.docs[0].ref;
-    await paymentRef.update({ status });
+    const paymentId = docs[0].id;
+    await updateDocRest('payments', paymentId, { status }, ['status']);
 
     return NextResponse.json({
-      id: snap.docs[0].id,
+      id: paymentId,
       bookingId,
       status,
     });
@@ -124,21 +133,18 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const db = getAdminDb();
-    const snap = await db
-      .collection('payments')
-      .where('bookingId', '==', bookingId)
-      .limit(1)
-      .get();
+    // Find the payment by bookingId via REST query
+    const docs = await runQueryRest('payments', 'bookingId', 'EQUAL', bookingId);
 
-    if (snap.empty) {
+    if (docs.length === 0) {
       return NextResponse.json(
         { error: 'No payment found for this booking' },
         { status: 404 },
       );
     }
 
-    await snap.docs[0].ref.delete();
+    const paymentId = docs[0].id;
+    await deleteDocRest('payments', paymentId);
 
     return NextResponse.json({ deleted: true, bookingId });
   } catch (error: any) {

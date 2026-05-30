@@ -102,6 +102,71 @@ export async function deleteDocsBatch(docs: { collection: string; docId: string 
   }
 }
 
+/** Convert Firestore typed fields (e.g. { stringValue: "foo" }) to a plain JS object. */
+function fieldsToPlainObject(fields: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (value.stringValue !== undefined) result[key] = value.stringValue;
+    else if (value.integerValue !== undefined) result[key] = Number(value.integerValue);
+    else if (value.doubleValue !== undefined) result[key] = value.doubleValue;
+    else if (value.booleanValue !== undefined) result[key] = value.booleanValue;
+    else if (value.timestampValue !== undefined) result[key] = value.timestampValue;
+    else if (value.arrayValue?.values !== undefined) {
+      result[key] = value.arrayValue.values.map((v: any) => {
+        if (v.mapValue?.fields) return fieldsToPlainObject(v.mapValue.fields);
+        if (v.stringValue !== undefined) return v.stringValue;
+        if (v.integerValue !== undefined) return Number(v.integerValue);
+        if (v.doubleValue !== undefined) return v.doubleValue;
+        return v;
+      });
+    } else if (value.mapValue?.fields !== undefined) {
+      result[key] = fieldsToPlainObject(value.mapValue.fields);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/** Update a Firestore document via REST PATCH with an update mask.
+ *  Only the specified fieldPaths are updated; omitted fields are left untouched. */
+export async function updateDocRest(
+  collection: string,
+  docId: string,
+  fields: Record<string, any>,
+  fieldPaths: string[],
+): Promise<void> {
+  const token = await getAccessToken();
+  const params = new URLSearchParams();
+  for (const fp of fieldPaths) {
+    params.append('updateMask.fieldPaths', fp);
+  }
+  const url = `${FIRESTORE_BASE}/${encodeURIComponent(collection)}/${encodeURIComponent(docId)}?${params.toString()}`;
+
+  const typedFields: Record<string, any> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (typeof value === 'string') typedFields[key] = { stringValue: value };
+    else if (typeof value === 'number') {
+      typedFields[key] = Number.isInteger(value) ? { integerValue: value } : { doubleValue: value };
+    } else if (typeof value === 'boolean') typedFields[key] = { booleanValue: value };
+    else if (value !== null && value !== undefined) typedFields[key] = { stringValue: String(value) };
+  }
+
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ fields: typedFields }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`PATCH ${collection}/${docId} failed: ${res.status} ${body}`);
+  }
+}
+
 /** Run a structured query via the REST :runQuery endpoint.
  *  Returns an array of document data with id. */
 export async function runQueryRest<T = Record<string, unknown>>(

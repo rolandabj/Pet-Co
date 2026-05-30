@@ -1,6 +1,6 @@
 # Paws & Co. — Comprehensive System Architecture
 
-> **Last updated:** 2026-05-25
+> **Last updated:** 2026-05-26
 > **Next.js 16.2.6 · App Router · TypeScript 5 · Tailwind CSS 4 · Firebase Firestore (Client SDK + REST API + Admin SDK)**
 
 ---
@@ -329,7 +329,18 @@ PORT=12000
 
 ## 6. Recent Milestones
 
-### 6.1 Phase 4: Business Analytics Dashboard (Current)
+### 6.1 Phase 6: Dashboard Metric Cards — Dynamic Data (Latest)
+- **Owner dashboard metrics are now fully dynamic**: Upcoming Bookings (`pending`/`confirmed` count), Completed Services (`completed` count), Saved Favorites (from `/api/me/favorites`), My Reviews Written (from `getUserReviewsRest`)
+- **Provider dashboard already dynamic**: Total Earnings, Active Bookings, Active Listings, Avg. Rating — all computed from live Firestore data via REST
+- **Removed hardcoded `'4.9'` placeholder**: Replaced with role-aware card — Pet Owners see "My Reviews Written" (`userReviews.length`), Providers keep "Avg. Rating" (computed from reviews)
+
+### 6.2 Phase 5: UI/UX Redesign — Warm Modernism with Animal Whimsy
+- **Design system overhaul**: 17 new CSS animations (paw-print, bounce-soft, wiggle, tail-wag, ear-flop, shimmer, gradient-drift, card-hover, card-shine, fade-in-scale), enhanced color palette (warm tones, gold accent, warm dark), noise texture utility
+- **Navbar**: Glassmorphism (85% opacity, backdrop-blur-2xl), logo wiggle on hover with animated underline, nav link hover dots, pulse-soft CTA button, smooth mobile menu height transition
+- **Homepage**: Warm gradient hero with staggered reveals (6 delay tiers), floating stat counters, service cards with shine overlay + gradient accent bars + emoji wiggle on hover, How It Works with connecting gradient lines, CTA with animated gradient drift, skeleton shimmer placeholders for testimonials
+- **Footer**: Warm dark background, gradient top divider, link hover with animated dot reveal, column headers with emoji icons, "Verified" pulsing status badge
+
+### 6.3 Phase 4: Business Analytics Dashboard
 - **Financial Health chart:** CSS stacked bar chart showing Platform Revenue (10%) vs Provider Payouts (90%) over 12 months, with hover tooltips
 - **KPI cards:** Total Users with MoM growth %, Active Providers count, Total Platform Fees (all-time), Revenue MTD
 - **Top Providers leaderboard:** Top 3 ranked by completed bookings + average rating, with 🥇🥈🥉 medals

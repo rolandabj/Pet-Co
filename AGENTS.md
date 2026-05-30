@@ -4,6 +4,18 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+<!-- BEGIN:ui-ux-pro-max -->
+# UI/UX Pro Max — Design Intelligence Skill
+
+Loaded from `.agents/skills/ui-ux-pro-max/SKILL.md`. Use this skill for all UI/UX design decisions:
+- **Design systems** — generate colors, fonts, styles via `--design-system` flag
+- **Best practices** — accessibility, touch targets, animations, layout (see Quick Reference priority 1→10)
+- **Domain queries** — search by `--domain color`, `--domain ux`, `--domain typography`, etc.
+- **Stack guidance** — React/Next.js, React Native, mobile app patterns
+
+Always invoke this skill (`invoke_skill name="ui-ux-pro-max"`) when designing or reviewing any UI component, page, or visual feature.
+<!-- END:ui-ux-pro-max -->
+
 # Workspace Setup (run on every new conversation)
 
 ## 1. Install deps & configure environment
