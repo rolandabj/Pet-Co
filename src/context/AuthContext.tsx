@@ -182,9 +182,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(null);
             setLoading(false);
           } else if (local) {
-            // Fall back to localAuth session (email/password that may have
-            // originated from pure localAuth or Firebase — can't distinguish)
-            initUser(local);
+            // Fall back to localAuth session only in dev/preview.
+            // In production, Firebase is the sole auth source — if Firebase
+            // says no user, there is no valid session to restore.
+            if (process.env.NODE_ENV !== 'production') {
+              initUser(local);
+            } else {
+              localAuth.logout();
+              clearSessionMeta();
+              setUser(null);
+              setLoading(false);
+            }
           } else {
             clearSessionMeta();
             setUser(null);
@@ -193,10 +201,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
     } catch {
-      // Firebase not configured — fall back to local auth
+      // Firebase not configured — fall back to local auth only in dev/preview.
+      // In production, Firebase MUST be configured, so do NOT restore a
+      // localStorage session — force unauthenticated state instead.
       setIsInitialized(true);
-      const local = localAuth.getCurrentUser();
-      if (local) setUser(local);
+      if (process.env.NODE_ENV !== 'production') {
+        const local = localAuth.getCurrentUser();
+        if (local) setUser(local);
+      }
       setLoading(false);
     }
 
@@ -240,7 +252,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return { error: msg };
       }
-      // No fbErr.code means Firebase configuration issue — fall through to localAuth
+      // No fbErr.code means Firebase configuration issue — fall through to localAuth only
+      // in development/preview. In production, return a connectivity error instead of
+      // silently falling back to an insecure localStorage credential store.
+      if (process.env.NODE_ENV === 'production') {
+        setLoading(false);
+        return { error: 'Authentication service is unavailable. Please try again later.' };
+      }
     }
 
     // 2) Fallback to localAuth for offline / preview modes (Firebase unavailable)
@@ -329,7 +347,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return { error: msg };
       }
-      // No fbErr.code means Firebase configuration issue — fall through to localAuth
+      // No fbErr.code means Firebase configuration issue — fall through to localAuth only
+      // in development/preview. In production, return a connectivity error instead.
+      if (process.env.NODE_ENV === 'production') {
+        setLoading(false);
+        return { error: 'Authentication service is unavailable. Please try again later.' };
+      }
     }
 
     // 2) Fallback to localAuth for offline / preview modes (Firebase unavailable)

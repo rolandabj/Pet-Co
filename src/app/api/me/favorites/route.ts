@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
-import { checkBodySize, createFavoriteSchema } from '@/lib/validation';
+import { readBoundedBodyJSON, createFavoriteSchema } from '@/lib/validation';
 
 export async function GET(request: Request) {
   try {
@@ -42,9 +42,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    checkBodySize(request);
     const decoded = await requireFirebaseUser(request);
-    const body = createFavoriteSchema.parse(await request.json());
+    const body = createFavoriteSchema.parse(await readBoundedBodyJSON(request));
 
     const db = getAdminDb();
 

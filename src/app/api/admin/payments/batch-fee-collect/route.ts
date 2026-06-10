@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAccessToken } from '@/lib/firestore-admin-rest';
 import { requireAdmin } from '@/lib/server-auth';
-import { checkBodySize, batchFeeCollectSchema } from '@/lib/validation';
+import { readBoundedBodyJSON, batchFeeCollectSchema } from '@/lib/validation';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID!;
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
@@ -19,11 +19,10 @@ const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_I
  */
 export async function POST(request: NextRequest) {
   try {
-    checkBodySize(request);
     // Authenticate and verify admin role (crypto-verified via Firebase ID token + Firestore role check)
     await requireAdmin(request);
 
-    const { paymentIds, collected } = batchFeeCollectSchema.parse(await request.json());
+    const { paymentIds, collected } = batchFeeCollectSchema.parse(await readBoundedBodyJSON(request));
 
     // Use the shared getAccessToken() from firestore-admin-rest (cached + auto-refreshed)
     const bearer = await getAccessToken();

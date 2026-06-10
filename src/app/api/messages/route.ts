@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAccessToken } from '@/lib/firestore-admin-rest';
-import { checkBodySize } from '@/lib/validation';
+import { readBoundedBodyJSON } from '@/lib/validation';
 import { checkRateLimit, clientIp, makeKey } from '@/lib/rate-limit';
 
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
@@ -33,8 +33,6 @@ const contactSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    checkBodySize(request);
-
     // Inline rate limit (defence-in-depth; middleware also enforces this)
     const rl = checkRateLimit(makeKey('messages', clientIp(request)), {
       windowMs: 15 * 60 * 1000,
@@ -47,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = contactSchema.parse(await request.json());
+    const body = contactSchema.parse(await readBoundedBodyJSON(request));
 
     // Write to Firestore via Admin REST (bypasses client rules)
     const token = await getAccessToken();

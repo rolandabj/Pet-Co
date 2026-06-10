@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireFirebaseUser } from '@/lib/server-auth';
 import { runQueryRest, deleteDocRest, updateDocRest } from '@/lib/firestore-admin-rest';
-import { checkBodySize, updatePaymentSchema } from '@/lib/validation';
+import { readBoundedBodyJSON, updatePaymentSchema } from '@/lib/validation';
 
 /**
  * Convert a Firestore document returned by runQueryRest (raw typed fields)
@@ -66,9 +66,8 @@ export async function GET(request: Request) {
  */
 export async function PATCH(request: Request) {
   try {
-    checkBodySize(request);
     const decoded = await requireFirebaseUser(request);
-    const body = updatePaymentSchema.parse(await request.json());
+    const body = updatePaymentSchema.parse(await readBoundedBodyJSON(request));
     const { bookingId, status } = body;
 
     // Find the payment by bookingId via REST query

@@ -5,13 +5,12 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
-import { checkBodySize, createReviewSchema } from '@/lib/validation';
+import { createReviewSchema, readBoundedBodyJSON } from '@/lib/validation';
 
 export async function POST(request: Request) {
   try {
-    checkBodySize(request);
     const decoded = await requireFirebaseUser(request);
-    const body = createReviewSchema.parse(await request.json());
+    const body = createReviewSchema.parse(await readBoundedBodyJSON(request));
 
     const db = getAdminDb();
 

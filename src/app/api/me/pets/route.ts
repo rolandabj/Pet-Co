@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
-import { checkBodySize, createPetSchema } from '@/lib/validation';
+import { createPetSchema, readBoundedBodyJSON } from '@/lib/validation';
 
 export async function GET(request: Request) {
   try {
@@ -36,9 +36,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    checkBodySize(request);
     const decoded = await requireFirebaseUser(request);
-    const body = createPetSchema.parse(await request.json());
+    const body = createPetSchema.parse(await readBoundedBodyJSON(request));
 
     const db = getAdminDb();
     const pet = {

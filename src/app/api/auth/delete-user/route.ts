@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAdminAuth } from '@/lib/firebase-admin';
 import { requireAdmin } from '@/lib/server-auth';
-import { checkBodySize, deleteUserSchema } from '@/lib/validation';
+import { readBoundedBodyJSON, deleteUserSchema } from '@/lib/validation';
 import { checkRateLimit, clientIp, makeKey } from '@/lib/rate-limit';
 
 /**
@@ -20,8 +20,6 @@ async function handleDeleteUser(req: NextRequest) {
   let uid: string | undefined;
 
   try {
-    checkBodySize(req);
-
     // Inline rate limit (defence-in-depth; middleware also enforces this)
     const rl = checkRateLimit(makeKey('delete-user', clientIp(req)), {
       windowMs: 15 * 60 * 1000,
@@ -37,7 +35,7 @@ async function handleDeleteUser(req: NextRequest) {
     // Verify caller is an admin (crypto-verified via Firebase ID token + Firestore role check)
     await requireAdmin(req);
 
-    const { uid: bodyUid } = deleteUserSchema.parse(await req.json());
+    const { uid: bodyUid } = deleteUserSchema.parse(await readBoundedBodyJSON(req));
     uid = bodyUid;
 
     // Perform the deletion via Admin SDK

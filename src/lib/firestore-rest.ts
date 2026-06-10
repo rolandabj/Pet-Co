@@ -287,9 +287,19 @@ function getLocalList(collectionId: string, userId: string): any[] {
 
 // ─── Low-level helpers ────────────────────────────────────────
 
+/**
+ * Build a Firestore REST API document URL with path-injection protection.
+ *
+ * Both `collection` and `docId` are wrapped in `encodeURIComponent()` to
+ * neutralise any path-traversal sequences (e.g. `../../users`) that could
+ * otherwise escape the intended document scope.
+ *
+ * `collection` is always a hardcoded literal in every caller, but encoding
+ * it adds defence-in-depth with zero cost.
+ */
 function docUrl(collection: string, docId?: string) {
-  const base = `${FIRESTORE_BASE}/${collection}`;
-  return docId ? `${base}/${docId}` : base;
+  const base = `${FIRESTORE_BASE}/${encodeURIComponent(collection)}`;
+  return docId ? `${base}/${encodeURIComponent(docId)}` : base;
 }
 
 function authGet(url: string) {

@@ -13,6 +13,19 @@ import { checkRateLimit, clientIp, makeKey } from '@/lib/rate-limit';
  * Cascading account deletion for provider accounts.
  * Uses Firestore REST API (not Admin SDK Firestore client) to avoid
  * gRPC transport issues that can silently fail in container environments.
+ *
+ * Deletion order (Auth FIRST):
+ *   1. Delete the Firebase Auth user record      ← FIRST, so an Auth failure
+ *                                                    bails early with zero
+ *                                                    Firestore data lost
+ *   2. Query relational documents                  ← read-only; no mutation
+ *   3. Delete relational documents in batch        ← idempotent (404 is safe)
+ *   4. Delete the provider document                ← idempotent
+ *   5. Delete the user document from Firestore     ← idempotent
+ *
+ * Re-running is always safe because:
+ *   - Step 1 already removed the Auth record → no orphan possible
+ *   - Steps 3–5 are idempotent (404s are swallowed)
  */
 export async function DELETE(request: Request) {
   try {
@@ -33,7 +46,14 @@ export async function DELETE(request: Request) {
 
     const auth = getAdminAuth();
 
-    // ── 1. Query relational documents ─────────────────────────
+    // ── 1. Delete the Firebase Auth user FIRST ─────────────────
+    // If this fails, NO Firestore documents have been touched.
+    // The caller can retry safely with zero orphaned data.
+    // Reordering Auth deletion to step 1 prevents the orphaned
+    // Auth-user-record problem (P0 security fix).
+    await auth.deleteUser(decoded.uid);
+
+    // ── 2. Query relational documents ─────────────────────────
     const [bookingDocs, paymentDocs, reviewDocs, allFavDocs, petDocs] = await Promise.all([
       runQueryRest<{ providerId?: string }>('bookings', 'providerId', 'EQUAL', providerId),
       runQueryRest<{ providerId?: string }>('payments', 'providerId', 'EQUAL', providerId),
@@ -49,19 +69,16 @@ export async function DELETE(request: Request) {
       (d) => d.data.providerId === providerId || d.data.targetId === providerId,
     );
 
-    // ── 2. Get provider doc info ──────────────────────────────
+    // ── 3. Get provider doc info (for response logging only) ──
     let providerDocExists = false;
-
     try {
       const fields = await getDocRest('providers', providerId);
       providerDocExists = !!fields;
-    } catch (err) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to fetch provider doc:', err);
-      }
+    } catch {
+      // Non-critical — best-effort
     }
 
-    // ── 3. Delete relational documents in batch ──────────────
+    // ── 4. Delete relational documents in batch ───────────────
     const relationalDocs = [
       ...bookingDocs.map((d) => ({ collection: 'bookings' as const, docId: d.id })),
       ...paymentDocs.map((d) => ({ collection: 'payments' as const, docId: d.id })),
@@ -74,21 +91,15 @@ export async function DELETE(request: Request) {
       await deleteDocsBatch(relationalDocs);
     }
 
-    // ── 4. Delete the provider document ───────────────────────
+    // ── 5. Delete the provider document ───────────────────────
     await deleteDocRest('providers', providerId);
 
-    // ── 5. Delete the user document from the users collection ──
+    // ── 6. Delete the user document from the users collection ──
     // This ensures the admin panel stops showing the user entirely.
     const userDocFields = await getDocRest('users', providerId);
     if (userDocFields) {
       await deleteDocRest('users', providerId);
     }
-
-    // ── 6. Delete the Firebase Auth user ──────────────────────
-    // NOTE: If this fails, the client will get a 500 and the overall
-    // deletion is considered failed — the provider doc and related data
-    // have already been deleted above, so re-running is safe.
-    await auth.deleteUser(decoded.uid);
 
     return NextResponse.json({
       deleted: true,
