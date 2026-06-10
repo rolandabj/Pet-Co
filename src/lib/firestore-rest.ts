@@ -43,7 +43,9 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
       throw err;
     }
     // Firebase SDK errors (e.g., network) — log and re-throw
-    console.error('[getAuthHeaders] Failed to obtain auth token:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('getAuthHeaders failed:', err);
+    }
     throw err;
   }
   return headers;
@@ -76,16 +78,11 @@ async function runQueryRest<T>(
   value: string,
   mapFn: (doc: { id: string; data: Record<string, any> }) => T,
 ): Promise<T[]> {
-  console.log('🐛 runQueryRest start', { collection: collectionId, field, value });
 
   try {
     const { auth } = getFirebaseAuth();
-    console.log('🐛 Firebase currentUser', {
-      uid: auth?.currentUser?.uid,
-      email: auth?.currentUser?.email,
-    });
   } catch {
-    console.warn('🐛 runQueryRest: getFirebaseAuth threw');
+    // Firebase not configured — REST fallback may still work
   }
 
   try {
@@ -110,8 +107,9 @@ async function runQueryRest<T>(
           }),
         });
       } catch (fetchErr) {
-        // Network error on this attempt — log and retry if first attempt
-        console.warn(`runQueryRest network error for ${collectionId} (attempt ${attempt}):`, fetchErr);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`runQueryRest network error for ${collectionId} (attempt ${attempt}):`, fetchErr);
+        }
         if (attempt === 0) {
           await new Promise(r => setTimeout(r, 500));
           continue;
@@ -119,50 +117,46 @@ async function runQueryRest<T>(
         break;
       }
 
-      console.log('🐛 REST response status', res.status);
-
       if (res.ok) {
         try {
           const json = await res.json();
-          console.log('🐛 REST raw result', json);
           const documents: Array<{ id: string; data: Record<string, any> }> = (json as Array<{ document?: any }> | undefined)
             ?.map((item) => (item?.document ? docFromJson(item.document) : null))
             .filter((d): d is NonNullable<typeof d> => d != null) ?? [];
           return documents.map(mapFn);
         } catch (parseErr) {
-          // JSON parsing failed — fall through to SDK fallback
-          console.warn(`runQueryRest JSON parse error for ${collectionId}:`, parseErr);
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`runQueryRest JSON parse error for ${collectionId}:`, parseErr);
+          }
           break;
         }
       }
 
       if (res.status === 403 && attempt === 0) {
-        const body = await res.text().catch(() => '(no body)');
-        console.warn(`🐛 runQueryRest got 403 (attempt ${attempt}) for ${collectionId}:`, body);
         // Transient 403 — wait, re-fetch the token, and retry once.
         // If the retry also 403s, fall through to the SDK fallback below.
         await new Promise(r => setTimeout(r, 500));
         continue;
       }
 
-      // Non-403 failure or second 403 — log as warn (REST is fallback; SDK is primary)
+      // Non-403 failure or second 403 — fall through to SDK fallback
       if (!res.ok) {
-        const body = await res.text().catch(() => '(no body)');
-        console.warn(`🐛 runQueryRest HTTP ${res.status} for ${collectionId}; falling back:`, body);
+        break;
       }
       break;
     }
   } catch (outerErr) {
-    // Catch any unexpected error at the outer level so we always
-    // fall through to the SDK/localStorage fallback instead of
-    // propagating the error to the caller.
-    console.warn(`runQueryRest unexpected error for ${collectionId}:`, outerErr);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`runQueryRest unexpected error for ${collectionId}:`, outerErr);
+    }
   }
 
   // Fallback: the REST :runQuery endpoint is treated as a list operation
   // by security rules, where `resource.data` is unavailable. Use the
   // Firebase SDK instead, which handles query-based reads properly.
-  console.warn(`runQueryRest got persistent 403 for ${collectionId} — falling back to Firebase SDK`);
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(`runQueryRest persistent 403 for ${collectionId} — falling back to Firebase SDK`);
+  }
   return runQuerySdk(collectionId, field, value, mapFn);
 }
 
@@ -214,17 +208,9 @@ async function runOwnedQuerySdk<T>(
 
   const firebaseUid = auth.currentUser.uid;
 
-  console.log('🐛 SDK OWNED QUERY DEBUG', {
-    collectionId,
-    userId,
-    firebaseUid,
-    email: auth.currentUser.email,
-    sameUser: userId === firebaseUid,
-  });
-
   if (userId !== firebaseUid) {
     throw new Error(
-      `UID mismatch for ${collectionId}: query userId=${userId}, firebaseUid=${firebaseUid}`,
+      `UID mismatch for ${collectionId}`,
     );
   }
 
@@ -735,24 +721,20 @@ async function getDocsByIdsRest<T>(
 }
 
 export async function getUserFavoritesRest(userId: string): Promise<FavoriteDoc[]> {
-  console.log('🐛 [firestore-rest] getUserFavoritesRest called with userId:', userId);
-
   // 1. Firebase SDK query (works after rules deploy; blocked by query analyzer before then)
   try {
     const results = await runOwnedQuerySdk('favorites', userId, mapFavoriteDocFromPlainData);
-    console.log('🐛 SDK favorites result count:', results.length);
     return results;
-  } catch (sdkErr) {
-    console.warn('🐛 SDK favorites read failed:', sdkErr);
+  } catch {
+    // fall through to next layer
   }
 
   // 2. REST :runQuery (list — resource.data unavailable, fails for non-admin users)
   try {
     const list = await runQueryRest('favorites', 'userId', userId, mapFavoriteDoc);
-    console.log('🐛 REST favorites result count:', list.length);
     return list;
-  } catch (restErr) {
-    console.warn('🐛 REST :runQuery failed:', restErr);
+  } catch {
+    // fall through to next layer
   }
 
   // 3. REST GET-by-ID — reads known docs individually via `get` rules
@@ -764,16 +746,14 @@ export async function getUserFavoritesRest(userId: string): Promise<FavoriteDoc[
     try {
       const byId = await getDocsByIdsRest('favorites', localIds, userId, mapFavoriteDoc);
       if (byId.length > 0) {
-        console.log('🐛 REST GET-by-ID favorites count:', byId.length);
         return byId;
       }
     } catch {
-      console.warn('🐛 GET-by-ID failed');
+      // fall through to last resort
     }
   }
 
   // 4. Last resort: raw localStorage (only when ALL remote reads are down)
-  console.warn('🐛 Returning localStorage favorites as last resort');
   return runQueryLocal('favorites', userId, mapFavoriteDoc);
 }
 
@@ -793,7 +773,7 @@ export async function findFavoriteIdRest(userId: string, providerId: string): Pr
       if (match) return match.id;
     }
   } catch {
-    console.warn('SDK compound query failed for findFavoriteIdRest, falling back');
+    // fall through to REST query
   }
 
   // Fallback: query by userId only and filter client-side
@@ -802,7 +782,7 @@ export async function findFavoriteIdRest(userId: string, providerId: string): Pr
     const match = docs.find((d) => d.providerId === providerId || d.providerId == providerId);
     if (match) return match.id;
   } catch {
-    console.warn('runQueryRest failed in findFavoriteIdRest');
+    // fall through to null return
   }
 
   return null;
@@ -826,9 +806,6 @@ export async function addFavoriteRest(data: {
       rating: { doubleValue: data.rating },
     },
   };
-  console.log('OUTGOING PAYLOAD (addFavoriteRest):', JSON.stringify(body, null, 2));
-  console.log('data.userId:', data.userId);
-
   let docId: string | null = null;
 
   try {
@@ -840,13 +817,14 @@ export async function addFavoriteRest(data: {
     if (res.ok) {
       const json = await res.json();
       docId = json.name?.split('/').pop() ?? null;
-    } else {
+    } else if (process.env.NODE_ENV === 'development') {
       const errorText = await res.text();
-      console.error('FIRESTORE WRITE ERROR (addFavoriteRest):', errorText);
-      console.warn(`addFavoriteRest got ${res.status}`);
+      console.error('addFavoriteRest Firestore write error:', errorText);
     }
   } catch (err) {
-    console.error('addFavoriteRest network error:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('addFavoriteRest network error:', err);
+    }
   }
 
   // Always save to localStorage as a fallback for when the SDK/REST read
@@ -865,9 +843,13 @@ export async function removeFavoriteRest(docId: string, userId?: string): Promis
       if (userId) removeFromLocal('favorites', userId, docId);
       return;
     }
-    console.warn(`removeFavoriteRest got ${res.status}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`removeFavoriteRest got ${res.status}`);
+    }
   } catch (err) {
-    console.warn('removeFavoriteRest network error:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('removeFavoriteRest network error:', err);
+    }
   }
 
   if (userId) removeFromLocal('favorites', userId, docId);
@@ -1174,24 +1156,20 @@ function mapPetDocFromPlainData(id: string, data: any): PetDoc {
 }
 
 export async function getUserPetsRest(userId: string): Promise<PetDoc[]> {
-  console.log('🐛 [firestore-rest] getUserPetsRest called with userId:', userId);
-
   // 1. Firebase SDK query (works after rules deploy; blocked by query analyzer before then)
   try {
     const results = await runOwnedQuerySdk('pets', userId, mapPetDocFromPlainData);
-    console.log('🐛 SDK pets result count:', results.length);
     return results;
-  } catch (sdkErr) {
-    console.warn('🐛 SDK pets read failed:', sdkErr);
+  } catch {
+    // fall through to next layer
   }
 
   // 2. REST :runQuery (list — resource.data unavailable, fails for non-admin users)
   try {
     const list = await runQueryRest('pets', 'userId', userId, mapPetDoc);
-    console.log('🐛 REST pets result count:', list.length);
     return list;
-  } catch (restErr) {
-    console.warn('🐛 REST :runQuery failed:', restErr);
+  } catch {
+    // fall through to next layer
   }
 
   // 3. REST GET-by-ID — reads known docs individually via `get` rules
@@ -1203,16 +1181,14 @@ export async function getUserPetsRest(userId: string): Promise<PetDoc[]> {
     try {
       const byId = await getDocsByIdsRest('pets', localIds, userId, mapPetDoc);
       if (byId.length > 0) {
-        console.log('🐛 REST GET-by-ID pets count:', byId.length);
         return byId;
       }
     } catch {
-      console.warn('🐛 GET-by-ID failed');
+      // fall through to last resort
     }
   }
 
   // 4. Last resort: raw localStorage (only when ALL remote reads are down)
-  console.warn('🐛 Returning localStorage pets as last resort');
   return runQueryLocal('pets', userId, mapPetDoc);
 }
 
@@ -1227,9 +1203,6 @@ export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
       notes: { stringValue: data.notes },
     },
   };
-  console.log('OUTGOING PAYLOAD (addPetRest):', JSON.stringify(body, null, 2));
-  console.log('data.userId:', data.userId);
-
   let docId: string | null = null;
 
   try {
@@ -1241,13 +1214,14 @@ export async function addPetRest(data: Omit<PetDoc, 'id'>): Promise<string> {
     if (res.ok) {
       const json = await res.json();
       docId = json.name?.split('/').pop() ?? null;
-    } else {
+    } else if (process.env.NODE_ENV === 'development') {
       const errorText = await res.text();
-      console.error('FIRESTORE WRITE ERROR (addPetRest):', errorText);
-      console.warn(`addPetRest got ${res.status}`);
+      console.error('addPetRest Firestore write error:', errorText);
     }
   } catch (err) {
-    console.error('addPetRest network error:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('addPetRest network error:', err);
+    }
   }
 
   // Always save to localStorage as a fallback for when the SDK/REST read
@@ -1266,9 +1240,13 @@ export async function deletePetRest(petId: string, userId?: string): Promise<voi
       if (userId) removeFromLocal('pets', userId, petId);
       return;
     }
-    console.warn(`deletePetRest got ${res.status}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`deletePetRest got ${res.status}`);
+    }
   } catch (err) {
-    console.warn('deletePetRest network error:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('deletePetRest network error:', err);
+    }
   }
 
   if (userId) removeFromLocal('pets', userId, petId);

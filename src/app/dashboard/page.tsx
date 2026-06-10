@@ -39,14 +39,6 @@ export default function DashboardPage() {
   // Canonical user ID for Firestore-backed reads: prefer Firebase Auth UID
   const dashboardUserId = firebaseUser?.uid ?? user?.id;
 
-  // Debug: log the canonical user ID on every render
-  console.log('🐛 DASHBOARD UID DEBUG', {
-    appUserId: user?.id,
-    firebaseUid: firebaseUser?.uid,
-    effectiveUserId,
-    dashboardUserId,
-    same: user?.id === firebaseUser?.uid,
-  });
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
@@ -304,7 +296,6 @@ export default function DashboardPage() {
       showToast('🚫 You must be logged in to add a pet.', 'error');
       return;
     }
-    console.log('🐛 ADDING PET:', { name: petName.trim(), type: petType });
     try {
       const newPet = await addMyPet({
         name: petName.trim(),

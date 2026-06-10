@@ -160,14 +160,16 @@ export default function AdminPage() {
   const fetchAllUsers = useCallback(async () => {
     try {
       const [firestoreUsers] = await Promise.all([getAllUsersRest()]);
-      const localUsers = localAuth.getAllUsers();
+      const localOnlyUsers = localAuth.getAllUsers();
 
-      const combined = [...firestoreUsers, ...localUsers];
+      const firestoreIds = new Set(firestoreUsers.map(u => u.id));
+      const combined = [...firestoreUsers, ...localOnlyUsers];
 
-      // Deduplicate strictly by user.id using a Map
-      const uniqueUsersMap = new Map<string, AppUser>();
+      // Deduplicate strictly by user.id using a Map;
+      // tag each user with _origin so the UI can show Firestore vs Local badges
+      const uniqueUsersMap = new Map<string, AppUser & { _origin: 'firestore' | 'local' }>();
       for (const u of combined) {
-        if (u.id) {
+        if (u.id && !uniqueUsersMap.has(u.id)) {
           uniqueUsersMap.set(u.id, {
             id: u.id,
             email: u.email || '',
@@ -177,6 +179,7 @@ export default function AdminPage() {
             phone: u.phone,
             createdAt: 'createdAt' in u ? (u as AppUser).createdAt : '',
             authMethod: 'authMethod' in u ? (u as AppUser).authMethod : 'email',
+            _origin: firestoreIds.has(u.id) ? 'firestore' : 'local',
           });
         }
       }
@@ -793,7 +796,7 @@ export default function AdminPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#F0E4D8]">
-                  {['Name', 'Email', 'Role', 'Auth', 'Joined', ''].map(h => (
+                  {['Name', 'Email', 'Role', 'Origin', 'Joined', ''].map(h => (
                     <th key={h} className="text-left px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -801,7 +804,9 @@ export default function AdminPage() {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr><td colSpan={6} className="text-center py-10 text-gray-400 text-sm">No users found.</td></tr>
-                ) : filteredUsers.map(u => (
+                ) : filteredUsers.map(u => {
+                  const origin = (u as any)._origin as 'firestore' | 'local' | undefined;
+                  return (
                   <tr key={u.id} className="border-b border-[#F0E4D8] hover:bg-[#FFF8F0] cursor-pointer" onClick={() => handleOpenUserModal(u)}>
                     <td className="px-5 py-4 text-sm font-semibold text-[#2C3E50]">{u.name || 'Unnamed'}</td>
                     <td className="px-5 py-4 text-sm text-gray-500">{u.email}</td>
@@ -810,7 +815,19 @@ export default function AdminPage() {
                         {u.role === 'provider' ? 'Provider' : 'Owner'}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-sm text-gray-400">{u.authMethod || 'email'}</td>
+                    <td className="px-5 py-4">
+                      {origin === 'local' ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                          <span>🏠</span>
+                          <span>Sandbox</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                          <span>☁️</span>
+                          <span>Firestore</span>
+                        </span>
+                      )}
+                    </td>
                     <td className="px-5 py-4 text-sm text-gray-400">{u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-GB') : 'N/A'}</td>
                     <td className="px-5 py-4">
                       <button
@@ -821,7 +838,8 @@ export default function AdminPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

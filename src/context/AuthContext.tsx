@@ -15,6 +15,12 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { getFirestoreDb } from '@/lib/firebase';
 import { updateUserDocRest } from '@/lib/firestore-rest';
+import {
+  recordSessionStart,
+  clearSessionMeta,
+  enforceSessionExpiry,
+  forceTokenRefresh,
+} from '@/lib/session';
 
 /** Promise that rejects after `ms` milliseconds — prevents Firestore SDK hangs. */
 function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -111,13 +117,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
-      unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
         // Mark initialization complete as soon as Firebase Auth reports
         // the user's identity — even before the Firestore doc fetch below.
         // This lets downstream components (e.g. Dashboard) safely dispatch
         // network requests with a valid token.
         setIsInitialized(true);
+
         if (fbUser) {
+          // ── Session expiry enforcement ──────────────────────
+          // If no session metadata exists (pre-upgrade session) or the
+          // session is older than 30 days, force re-authentication.
+          if (enforceSessionExpiry()) {
+            await firebaseSignOut(auth);
+            localAuth.logout();
+            clearSessionMeta();
+            setFirebaseUser(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+
+          // ── Token freshness check ───────────────────────────
+          // Force-refresh the Firebase ID token on every app init so
+          // revoked tokens (e.g. admin "Delete User") are detected
+          // immediately rather than when the cached token expires.
+          const tokenOk = await forceTokenRefresh(fbUser);
+          if (!tokenOk) {
+            // Token refresh failed — the session is stale/revoked.
+            await firebaseSignOut(auth);
+            localAuth.logout();
+            clearSessionMeta();
+            setFirebaseUser(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+
           setFirebaseUser(fbUser);
           // Determine the auth method from Firebase provider data (F3)
           const authMethod = fbUser.providerData?.some(p => p?.providerId === 'google.com')
@@ -142,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Auth account was deleted/revoked — the session is stale.
           if (local && local.authMethod === 'google') {
             localAuth.logout();
+            clearSessionMeta();
             setUser(null);
             setLoading(false);
           } else if (local) {
@@ -149,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // originated from pure localAuth or Firebase — can't distinguish)
             initUser(local);
           } else {
+            clearSessionMeta();
             setUser(null);
             setLoading(false);
           }
@@ -182,6 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: credential.user.metadata.creationTime || new Date().toISOString(),
           authMethod: 'email',
         };
+        recordSessionStart(credential.user.metadata.creationTime || undefined);
         setUser(appUser);
         setFirebaseUser(credential.user);
         setLoading(false);
@@ -207,6 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 2) Fallback to localAuth for offline / preview modes (Firebase unavailable)
     const result = await localAuth.login(email, password);
     if (result.user) {
+      recordSessionStart();
       setUser(result.user);
       setLoading(false);
     }
@@ -233,6 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: new Date().toISOString(),
           authMethod: 'email',
         };
+        recordSessionStart(credential.user.metadata.creationTime || undefined);
         setUser(appUser);
         setFirebaseUser(credential.user);
         setLoading(false);
@@ -294,6 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 2) Fallback to localAuth for offline / preview modes (Firebase unavailable)
     const result = await localAuth.register(email, password, name, role);
     if (result.user) {
+      recordSessionStart();
       setUser(result.user);
       setLoading(false);
       try {
@@ -435,6 +477,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // 4) NOW it's safe to set the user — the Firestore doc is committed
+        recordSessionStart(credential.metadata.creationTime || undefined);
         setUser(appUser);
         setLoading(false);
 
@@ -568,7 +611,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch { /* ignore */ }
 
-    // 2. Wipe React state so the UI re-renders to unauthenticated immediately.
+    // 2. Clear session metadata so onAuthStateChanged doesn't re-create
+    //    the user via the local fallback path.
+    clearSessionMeta();
+
+    // 3. Wipe React state so the UI re-renders to unauthenticated immediately.
     setUser(null);
     setFirebaseUser(null);
   }, []);

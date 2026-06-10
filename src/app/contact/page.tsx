@@ -2,11 +2,8 @@
 
 import React, { useState } from 'react';
 import { useToast } from '@/components/Toast';
-import { useAuth } from '@/context/AuthContext';
-import { addMessageRest } from '@/lib/firestore-rest';
 
 export default function ContactPage() {
-  const { user, firebaseUser } = useAuth();
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -18,13 +15,17 @@ export default function ContactPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await addMessageRest({
-        name,
-        email,
-        subject,
-        message,
-        userId: firebaseUser?.uid || user?.id || 'anonymous',
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, subject, message, _hp: '' }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+
       showToast(`Thanks, ${name}! We've received your message and will get back to you soon. 🐾`, 'success');
       setName('');
       setEmail('');

@@ -1,19 +1,9 @@
+import bcrypt from 'bcryptjs';
 import { AppUser, UserRole } from './types';
 
 const USERS_KEY = 'paws_users';
 const SESSION_KEY = 'paws_session';
-
-/**
- * Hash a password using the Web Crypto API (SHA-256).
- * Returns a hex-encoded hash string.
- */
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+const BCRYPT_SALT_ROUNDS = 12;
 
 /**
  * Local email/password auth fallback used when Firebase is not configured.
@@ -21,7 +11,10 @@ async function hashPassword(password: string): Promise<string> {
  * In production with Firebase configured, email/password should also use
  * Firebase Auth — this module exists as a dev-friendly fallback.
  *
- * Passwords are hashed with SHA-256 via the Web Crypto API before storage.
+ * Passwords are hashed with bcrypt (12 salt rounds) before storage.
+ *
+ * Note: Since the app is pre-launch with zero email/password users, there
+ * is no migration needed from the previous PBKDF2 hashing scheme.
  */
 class LocalAuth {
   private users: (AppUser & { password?: string })[] = [];
@@ -65,7 +58,7 @@ class LocalAuth {
     const existing = this.users.find(u => u.email === email);
     if (existing) return { error: 'An account with this email already exists.' };
 
-    const hashedPassword = await hashPassword(password);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
     const user: AppUser & { password: string } = {
       id: 'user_' + Date.now(),
       email,
@@ -84,9 +77,10 @@ class LocalAuth {
   }
 
   async login(email: string, password: string): Promise<{ user?: AppUser; error?: string }> {
-    const hashedPassword = await hashPassword(password);
-    const user = this.users.find(u => u.email === email && u.password === hashedPassword);
-    if (!user) return { error: 'Invalid email or password.' };
+    const user = this.users.find(u => u.email === email && u.password);
+    if (!user || !user.password) return { error: 'Invalid email or password.' };
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return { error: 'Invalid email or password.' };
     const { password: _, ...safeUser } = user;
     this.saveSession(safeUser as AppUser);
     return { user: safeUser as AppUser };

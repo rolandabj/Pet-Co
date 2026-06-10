@@ -2,8 +2,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
+import { checkBodySize, createFavoriteSchema } from '@/lib/validation';
 
 export async function GET(request: Request) {
   try {
@@ -28,26 +30,21 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ favorites });
   } catch (error: any) {
-    console.error('API route failed', {
-      message: error?.message,
-      code: error?.code,
-      stack: error?.stack,
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.error('GET /api/me/favorites failed:', error?.message);
+    }
     return NextResponse.json(
-      {
-        error: 'Unauthorized or API failure',
-        message: error?.message,
-        code: error?.code,
-      },
-      { status: 401 },
+      { error: 'An internal server error occurred.' },
+      { status: 500 },
     );
   }
 }
 
 export async function POST(request: Request) {
   try {
+    checkBodySize(request);
     const decoded = await requireFirebaseUser(request);
-    const body = await request.json();
+    const body = createFavoriteSchema.parse(await request.json());
 
     const db = getAdminDb();
 
@@ -71,10 +68,10 @@ export async function POST(request: Request) {
     const favorite = {
       userId: decoded.uid,
       providerId: body.providerId,
-      providerName: body.providerName || '',
-      category: body.category || '',
-      emoji: body.emoji || '🐾',
-      rating: body.rating || 0,
+      providerName: body.providerName,
+      category: body.category,
+      emoji: body.emoji,
+      rating: body.rating,
       createdAt: new Date().toISOString(),
     };
 
@@ -87,18 +84,15 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error('API route failed', {
-      message: error?.message,
-      code: error?.code,
-      stack: error?.stack,
-    });
+    if (error instanceof z.ZodError || error.message === 'Request body too large') {
+      return NextResponse.json({ error: error.message || 'Validation failed' }, { status: 400 });
+    }
+    if (process.env.NODE_ENV === 'development') {
+      console.error('POST /api/me/favorites failed:', error?.message);
+    }
     return NextResponse.json(
-      {
-        error: 'Unauthorized or API failure',
-        message: error?.message,
-        code: error?.code,
-      },
-      { status: 401 },
+      { error: 'An internal server error occurred.' },
+      { status: 500 },
     );
   }
 }
@@ -144,18 +138,12 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('API route failed', {
-      message: error?.message,
-      code: error?.code,
-      stack: error?.stack,
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.error('DELETE /api/me/favorites failed:', error?.message);
+    }
     return NextResponse.json(
-      {
-        error: 'Unauthorized or API failure',
-        message: error?.message,
-        code: error?.code,
-      },
-      { status: 401 },
+      { error: 'An internal server error occurred.' },
+      { status: 500 },
     );
   }
 }

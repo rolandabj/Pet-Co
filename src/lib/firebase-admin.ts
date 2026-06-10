@@ -28,15 +28,6 @@ function ensureInitialized() {
     ?.replace(/^"|"$/g, '')
     .replace(/\\n/g, '\n');
 
-  console.log('🐛 FIREBASE ADMIN ENV DEBUG', {
-    hasProjectId: Boolean(projectId),
-    projectId,
-    hasClientEmail: Boolean(clientEmail),
-    clientEmail,
-    hasPrivateKey: Boolean(rawPrivateKey),
-    privateKeyStartsCorrectly: rawPrivateKey?.includes('BEGIN PRIVATE KEY'),
-  });
-
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error('Missing Firebase Admin environment variables');
   }

@@ -1,412 +1,447 @@
-# Paws & Co. — Comprehensive System Architecture
+# Pet-Co — Architectural Blueprint & Current State
 
-> **Last updated:** 2026-05-26
-> **Next.js 16.2.6 · App Router · TypeScript 5 · Tailwind CSS 4 · Firebase Firestore (Client SDK + REST API + Admin SDK)**
+> **Last updated:** 2026-06-10
+> **Next.js 16.2.6 · App Router · TypeScript 5 · Tailwind CSS 4 · Firebase Firestore · Firebase Admin SDK · Zod 4 · bcryptjs**
 
 ---
 
 ## Table of Contents
 
-1. [Project Overview & Core Audience](#1-project-overview--core-audience)
-2. [Tech Stack & Architecture](#2-tech-stack--architecture)
-3. [State & Data Flow](#3-state--data-flow)
-4. [Database Schema](#4-database-schema)
-5. [Workspace Setup & DevOps](#5-workspace-setup--devops)
-6. [Recent Milestones](#6-recent-milestones)
-7. [Upcoming Roadmap](#7-upcoming-roadmap)
+1. [Project Overview](#1-project-overview)
+2. [Tech Stack](#2-tech-stack)
+3. [Application Structure](#3-application-structure)
+4. [Features & Capabilities](#4-features--capabilities)
+5. [Security & Architecture Framework](#5-security--architecture-framework)
 
 ---
 
-## 1. Project Overview & Core Audience
+## 1. Project Overview
 
-Paws & Co. is a **dual-sided pet-care marketplace** connecting Pet Owners with Service Providers.
+Pet-Co (branded "Paws & Co.") is a full-stack, dual-sided pet-service marketplace that connects **pet owners** with **service providers**. Owners browse, book, and review providers across six categories (Dog Walking, Vet Visits, Grooming, Pet Hotels, Pet Sitting, Pet Shops). Providers manage their business profile, services, products, availability, and incoming bookings. Platform administrators have a central admin panel with tabbed data management, financial analytics, user oversight, and batch fee collection.
 
-### Pet Owners
-- Browse/search/filter service providers across six categories (Dog Walking, Vet Visits, Grooming, Pet Hotels, Pet Sitting, Pet Shops)
-- View provider profiles with services, availability schedules, ratings, reviews, and retail products
-- Book appointments with date/time/service selection; manage bookings (cancel)
-- Manage pet profiles (add/edit/remove pets with name, type, breed, birth year, weight)
-- Favorite providers for quick access from dashboard
-- Leave reviews (rating + comment) for providers after completed bookings
-
-### Service Providers
-- Manage business profile (name, description, logo, contact info, location, social media links)
-- Set operational hours per day of the week (open/close times, closed days)
-- Manage services (add/edit/remove service listings with name, price, duration, description)
-- Manage products (add/edit/remove retail products with price, image, stock status)
-- View earnings dashboard with: total earnings MTD, active bookings count, listings count, average rating
-- Manage incoming bookings (confirm/complete/cancel)
-- Delete account with cascading deletion of all associated data (bookings, payments, reviews, favorites, provider doc, user doc, Firebase Auth user)
-
-### Platform Administrators
-- Central admin panel with tabbed interface: users, providers, services, bookings, analytics, payments, reviews
-- Comprehensive user directory (Firestore users + localAuth users, merged and deduplicated)
-- Provider detail modal with: services list, fee history table, date-range financial metrics (gross revenue, platform fees), batch fee collection
-- Payment ledger with Provider filter, Date sort, breakdown columns (Service Cost / Platform Fee / Total)
-- Payment detail modal with customer info, booking link, status editing
-- Review management (edit rating/comment, delete)
-- Business analytics dashboard: KPI cards (total users with MoM growth, active providers, total platform fees, revenue MTD), financial health chart (Platform Revenue vs Provider Payouts over 12 months), top 3 providers leaderboard, monthly bookings bar chart, service distribution
-- Pagination on all collection tabs (users, providers, bookings, payments, reviews)
-- Delete user accounts (handles both Firestore users and localAuth users)
+The application is built on Next.js 16 (App Router) with Firebase Auth for authentication and Firestore for persistence. It uses a triple-access data pattern (Firebase SDK → Firestore REST API → localStorage fallback) to handle sandboxed/container environments where gRPC can silently fail. Server-side API routes delegate all Firestore operations to a REST-only helper that authenticates via `google-auth-library` OAuth2 credentials, completely bypassing the Admin SDK's gRPC transport.
 
 ---
 
-## 2. Tech Stack & Architecture
+## 2. Tech Stack
 
-### 2.1 Core Stack
+### 2.1 Core Runtime
 
-| Layer | Technology | Version / Config |
+| Layer | Technology | Version |
 |---|---|---|
 | **Framework** | Next.js (App Router) | 16.2.6 |
-| **Bundler** | Turbopack (dev), Webpack (prod) | — |
+| **Bundler** | Turbopack (dev) / Webpack (prod) | — |
 | **Language** | TypeScript | ^5 |
 | **Styling** | Tailwind CSS | ^4 (PostCSS) |
 | **Typography** | DM Serif Display + DM Sans | Google Fonts (layout.tsx) |
-| **Auth (Client)** | Firebase Auth (Google OAuth + Email/Password) | firebase ^12.13.0 |
-| **Auth (Server)** | Firebase Admin Auth SDK (local) + google-auth-library | firebase-admin ^13.10.0 |
-| **Database** | Cloud Firestore | Triple-access pattern (see §3) |
-| **Storage** | Firebase Storage | Provider logos |
-| **Linting** | ESLint 9 | eslint-config-next |
+| **Linting** | ESLint 9 + eslint-config-next | 16.2.6 |
+| **React** | React 19 DOM | 19.2.4 |
 
-### 2.2 Firebase Project Configuration
+### 2.2 Authentication
+
+| System | Package | Runtime | Purpose |
+|---|---|---|---|
+| **Firebase Auth (client)** | `firebase` ^12.13.0 | Browser | Google OAuth popup + Email/Password sign-in |
+| **Firebase Admin Auth (server)** | `firebase-admin` ^13.10.0 | Node.js | ID token verification (`verifyIdToken`) |
+| **LocalAuth fallback** | `bcryptjs` ^3.0.3 | Browser (localStorage) | Dev fallback when Firebase env vars absent |
+| **OAuth2 service account** | `google-auth-library` | Node.js | OAuth2 token for Firestore REST API calls |
+
+### 2.3 Database & Storage
+
+| System | Purpose | Access Method |
+|---|---|---|
+| **Cloud Firestore** | Primary database | Triple-access: SDK → REST API → localStorage |
+| **Firebase Storage** | Provider logo images | Firebase Storage SDK |
+| **Server-side Firestore** | Admin API routes | `firestore-admin-rest.ts` (OAuth2 REST, no gRPC) |
+
+### 2.4 Validation & Security
+
+| Package | Version | Purpose |
+|---|---|---|
+| `zod` | ^4.4.3 | Server-side request body schemas + type inference |
+| `bcryptjs` | ^3.0.3 | Password hashing (12 salt rounds, localAuth fallback) |
+| `@types/bcryptjs` | ^2.4.6 | TypeScript definitions |
+
+### 2.5 Firebase Project Configuration
+
 - **Project ID:** `pet-co-fc4d6`
 - **Firestore location:** nam5 (us-central)
-- **Security rules:** Deployed via `firebase deploy` (requires local `firebase-tools`; not runnable from sandbox)
 - **Auth providers:** Email/Password, Google
-
-### 2.3 API Routes Summary
-
-| Endpoint | Method(s) | Runtime | Auth | Purpose |
-|---|---|---|---|---|
-| `/api/me/account` | DELETE | Node.js | Firebase ID token | Cascading delete of provider account + all relational data |
-| `/api/me/pets` | GET, POST | Node.js | Firebase ID token | List/create user's pets |
-| `/api/me/favorites` | GET, POST, DELETE | Node.js | Firebase ID token | List/add/remove favorites |
-| `/api/auth/delete-user` | DELETE | Node.js | Firebase ID token | Delete Firebase Auth user (Admin SDK) |
-| `/api/bookings` | GET, POST | Node.js | Firebase ID token | List/create bookings |
-| `/api/payments` | GET, POST | Node.js | Firebase ID token | List/create payments |
-| `/api/providers` | GET | Edge | None (public) | List all providers (homepage + browse) |
-| `/api/reviews` | GET, POST | Node.js | Firebase ID token | List/create reviews |
-| `/api/admin/payments/batch-fee-collect` | POST | Node.js | Firebase ID token | Batch collect fees on selected payments (individual PATCH, no `:commit`) |
-| `/api/admin/users/[userId]/details` | GET | Node.js | Firebase ID token | Fetch full user details with localAuth fallback |
-
-### 2.4 Next.js Configuration
-- **`next.config.ts`:** `allowedDevOrigins` configured for proxy-domain development; image remotePatterns for Firebase Storage
-- **Turbopack:** Used as the dev bundler (Next.js 16 default)
-- **Hydration:** React 19 strict mode enabled; hydration errors mitigated via `suppressHydrationWarning` on mutable DOM
+- **Security rules:** `firestore.rules` (deploy from local machine — not from sandbox)
 
 ---
 
-## 3. State & Data Flow
+## 3. Application Structure
 
-### 3.1 Authentication Context (`AuthContext.tsx`)
-- **Provider:** `AuthProvider` wraps the app in `layout.tsx`
-- **State:** `{ user: AppUser | null, loading: boolean, isInitialized: boolean, firebaseUser: FirebaseUser | null, effectiveUserId: string | null }`
-- **Flow:**
-  1. On mount, `onAuthStateChanged` listens for Firebase Auth state
-  2. If a Firebase user exists, fetches the Firestore `users/{uid}` doc to get role, name, etc.
-  3. If the Firestore doc exists with `role === 'provider'`, sets the user as a provider
-  4. Falls back to `localAuth` (localStorage-based auth) if Firebase is unavailable
-  5. `effectiveUserId` prefers Firebase Auth UID; falls back to `user.id` only when Firebase is unavailable
-- **Auth methods:** `login()` (email/password), `register()` (email/password + role selection), `googleLogin()` (Google OAuth popup + retry on network errors), `logout()`
-- **Role gating:** Google sign-in prompts for role (Owner vs Provider) before OAuth flow; `getExistingRole()` checks Firestore first
-
-### 3.2 Firestore Access Pattern — 3-Layer Fallback Chain
-The codebase uses a **triple-access pattern** to handle sandboxed/container environments where the Firebase SDK can silently fail:
-
-| Layer | Mechanism | Used For | Failure Mode |
-|---|---|---|---|
-| **1. Client SDK** | `firebase/firestore` (`getDocs`, `addDoc`, `updateDoc`, `deleteDoc`) | Simple reads/writes in browser context | Falls through to REST API |
-| **2. REST API** | `src/lib/firestore-rest.ts` (plain `fetch` with Firebase ID token auth) | All CRUD operations client-side; bypasses gRPC hangs | Falls through to localStorage |
-| **3. localStorage** | `src/lib/localAuth.ts` | Offline-first reads for pets, favorites; last-resort read fallback | Returns empty/data from cache |
-
-**Server-side operations** use a separate helper:
-- `src/lib/firestore-admin-rest.ts` — authenticates via `google-auth-library` (OAuth2 service account) and makes direct REST calls. Used in API routes where Admin SDK gRPC silently fails (container environments).
-
-### 3.3 Admin-Specific 4-Layer Fallback Chain (Pets & Favorites)
-Due to Firestore security rule limitations (`||` in `list` rules prevents query-analyzer), pets and favorites use an extended chain:
-1. Firebase SDK `getDocs` with `where` query (blocked for non-admin users with `||` rules)
-2. REST `:runQuery` (blocked because `resource.data` is unavailable for REST list operations)
-3. **REST GET-by-ID** for each document known to localStorage — the `get` rule has `resource.data` available, so `ownsExistingDoc()` works correctly
-4. Raw localStorage (last resort when ALL remote reads fail)
-
-### 3.4 Admin Panel Data Flow
-- **Paginated collections:** Separate state arrays per tab (`users`, `providers`, `bookings`, `payments`, `reviews`) with cursor-based pagination (`nextPageToken`)
-- **Analytics:** Fetched independently via `getAllBookingsRest()` + `getAllPaymentsRest()` (full data, not paginated); all aggregations computed client-side
-- **Merged user list:** `allUsers` combines Firestore `getAllUsersRest()` + `localAuth.getAllUsers()`, deduplicated by ID
+```
+Pet-Co/
+├── next.config.ts                      # CSP, HSTS, Permissions-Policy, dev origins, image remotes
+├── firestore.rules                     # Firestore security rules (role-based access)
+├── tsconfig.json                       # Path alias @/ → ./src/*
+├── package.json                        # Dependencies & scripts
+├── .env.local.example                  # Required environment variable template
+│
+├── scripts/
+│   ├── setup.sh                        # Install deps + create .env.local from env vars
+│   └── dev.sh                          # Start dev server with proxy-domain auto-detection
+│
+├── src/
+│   ├── middleware.ts                   # Rate-limit middleware (3 tiers, /api/* only)
+│   │
+│   ├── app/
+│   │   ├── layout.tsx                  # Root layout: AuthProvider, Navbar, Footer, fonts
+│   │   ├── page.tsx                    # Homepage: hero, service cards, stats, how-it-works
+│   │   │
+│   │   ├── login/page.tsx              # Email/password login + Google OAuth
+│   │   ├── register/page.tsx           # Registration with role selection
+│   │   ├── about/page.tsx              # About page
+│   │   ├── contact/page.tsx            # Contact form with honeypot
+│   │   ├── privacy/page.tsx            # Privacy policy
+│   │   ├── terms/page.tsx              # Terms of service
+│   │   │
+│   │   ├── services/
+│   │   │   ├── page.tsx                # Provider listing (server component)
+│   │   │   └── ServicesClient.tsx      # Client-side filter/search/sort
+│   │   │
+│   │   ├── provider/
+│   │   │   └── [id]/
+│   │   │       ├── page.tsx            # Provider detail (SSR via REST helpers)
+│   │   │       └── ProviderClient.tsx  # Client-side booking/review interaction
+│   │   │
+│   │   ├── booking/page.tsx            # Booking flow (date, time, service selection)
+│   │   ├── dashboard/
+│   │   │   ├── page.tsx                # Owner dashboard (favorites, pets, reviews)
+│   │   │   └── ProviderDashboard.tsx   # Provider dashboard (earnings, bookings, profile mgmt)
+│   │   │
+│   │   ├── admin/page.tsx              # Admin panel (tabs: users, providers, bookings,
+│   │   │                               #   payments, reviews, analytics)
+│   │   │
+│   │   └── api/
+│   │       ├── providers/route.ts      # GET  — list all providers (public, no auth)
+│   │       ├── messages/route.ts       # POST — contact form (honeypot + zod + rate-limited)
+│   │       │
+│   │       ├── bookings/route.ts       # GET  — booked slots by providerId+date
+│   │       │                           # POST — create booking (atomic double-booking guard)
+│   │       │
+│   │       ├── payments/route.ts       # GET  — user payments by role
+│   │       │                           # PATCH — update status by bookingId (ownership check)
+│   │       │                           # DELETE — delete by bookingId
+│   │       │
+│   │       ├── reviews/route.ts        # POST — create review (syncs provider rating)
+│   │       │
+│   │       ├── me/
+│   │       │   ├── pets/route.ts       # GET, POST — list/create user's pets
+│   │       │   ├── favorites/route.ts  # GET, POST, DELETE — manage favorites
+│   │       │   └── account/route.ts    # DELETE — cascading account deletion (7 collections)
+│   │       │
+│   │       ├── auth/
+│   │       │   └── delete-user/route.ts# POST/DELETE — admin-only Firebase Auth user deletion
+│   │       │
+│   │       └── admin/
+│   │           ├── payments/
+│   │           │   └── batch-fee-collect/route.ts  # POST — batch update feeCollected
+│   │           └── users/
+│   │               └── [userId]/details/route.ts   # GET — full user detail (pets, bookings, payments, reviews)
+│   │
+│   ├── components/
+│   │   ├── Navbar.tsx                  # Glassmorphism nav with auth state
+│   │   ├── Footer.tsx                  # Footer with animated links
+│   │   └── Toast.tsx                   # Toast notification component
+│   │
+│   ├── context/
+│   │   └── AuthContext.tsx             # Auth state management + session expiry enforcement
+│   │
+│   └── lib/
+│       ├── types.ts                    # AppUser, ServiceProvider, Booking, etc.
+│       ├── validation.ts               # Zod schemas + checkBodySize (100 KB limit)
+│       ├── rate-limit.ts               # RateLimitStore interface + InMemoryStore + checkRateLimit
+│       ├── session.ts                  # 30-day session expiry, ID-token refresh
+│       ├── server-auth.ts              # requireFirebaseUser / requireAdmin (Firestore role check)
+│       │
+│       ├── firebase.ts                 # Client Firebase init (lazy, graceful degradation)
+│       ├── firebase-admin.ts           # Server Firebase Admin init (lazy, singleton)
+│       │
+│       ├── firestore-rest.ts           # Client-side Firestore REST + localStorage fallback
+│       ├── firestore-admin-rest.ts     # Server-side Firestore REST (OAuth2, no gRPC)
+│       ├── provider-rest.ts            # Client-side provider/review REST helpers
+│       ├── me-api.ts                   # Client-side API wrappers (pets, favorites, payments, etc.)
+│       ├── localAuth.ts                # localStorage-based auth (bcryptjs, dev fallback)
+│       ├── data.ts                     # Static provider seed data
+│       └── formatProductPrice.ts       # Price formatting utility
+```
 
 ---
 
-## 4. Database Schema
+## 4. Features & Capabilities
 
-### 4.1 Collection: `users`
+### 4.1 Provider Directory
 
-| Field | Type | Description |
-|---|---|---|
-| `id` (doc ID) | string | Firebase Auth UID or localAuth-generated ID |
-| `email` | string | User email address |
-| `name` | string | Display name |
-| `role` | `'owner' \| 'provider' \| 'admin'` | Access level |
-| `photoURL` | string \| null | Avatar URL |
-| `phone` | string (optional) | Contact phone |
-| `location` | string (optional) | Geographic location |
-| `bio` | string (optional) | Short biography |
-| `createdAt` | string (ISO 8601) | Account creation timestamp |
-| `authMethod` | `'email' \| 'google'` | Registration method |
+- **Browse:** Six service categories presented on the homepage (Dog Walking, Vet Visit, Dog Hotel, Pet Sitting, Grooming, Pet Shop) with emoji icons
+- **Search/Filter/Sort:** Client-side text search across provider names/descriptions, category filtering, and sort by rating (via `ServicesClient.tsx`)
+- **Provider Profiles:** Detail page (`/provider/[id]`) with services list (name, price, duration), retail products, weekly availability schedule, contact info, social media links, embedded Google Maps location, rating/review history
+- **Server-side rendering:** Provider data fetched via Firestore REST API at request time (SSR), not client-side hydration
 
-### 4.2 Collection: `providers`
+### 4.2 Booking System
 
-| Field | Type | Description |
-|---|---|---|
-| `id` (doc ID) | string | Unique provider ID (often matches user ID) |
-| `name` | string | Provider display name |
-| `businessName` | string (optional) | Registered business name |
-| `type` | string | Provider type key (e.g., `'walking'`, `'vet'`, `'grooming'`) |
-| `category` | string | Display category |
-| `rating` | number | Average star rating (0–5) |
-| `reviews` | number | Total review count |
-| `desc` | string | Provider description |
-| `tags` | string[] | Search/filter tags |
-| `emoji` | string | Category emoji icon |
-| `price` | string | Price tier (e.g., `'$$'`, `'$$$'`) |
-| `location` | string (optional) | Service area / address |
-| `googleMapsUrl` | string (optional) | Google Maps embed link |
-| `since` | string (optional) | Year established |
-| `phone` | string (optional) | Contact number |
-| `email` | string (optional) | Contact email |
-| `contactEmail` | string (optional) | Business contact email |
-| `contactPhone` | string (optional) | Business contact phone |
-| `logoUrl` | string (optional) | Logo image URL (Firebase Storage) |
-| `services` | `ServiceItem[]` (optional) | List of offered services with name, price, duration |
-| `products` | `ProductItem[]` (optional) | List of retail products with price, image, stock |
-| `availability` | `Record<string, DaySchedule>` (optional) | Weekly schedule: day → `{ isOpen, start, end }` |
-| `socialMedia` | object (optional) | `{ instagram?, facebook?, twitter?, website? }` |
+- **Booking flow:** Date picker → time slot selection (fetched from `GET /api/bookings?providerId=&date=`) → service type selection → price breakdown display → confirmation
+- **Atomic double-booking guard:** `POST /api/bookings` performs a server-side conflict check against the same provider+date+serviceType+slot before creating the document. Conflicting bookings receive HTTP 409
+- **Cascading payment ledger:** Each booking automatically creates a payment entry in the `payments` collection with `status: 'pending'`
+- **Rate-limited creation:** Booking creation is limited to 30 requests per 15 minutes per IP (middleware tier `moderate` + inline `checkRateLimit`)
+- **Status lifecycle:** Bookings flow through `pending` → `confirmed` → `completed` / `cancelled` / `declined`. Payments update mirror the booking status changes
 
-### 4.3 Collection: `bookings`
+### 4.3 Pet Profile Management
 
-| Field | Type | Description |
-|---|---|---|
-| `id` (doc ID) | string | Auto-generated Firestore ID |
-| `userId` | string | Pet owner's user ID |
-| `customerName` | string | Customer display name |
-| `providerId` | string | Provider's user ID |
-| `providerName` | string | Provider display name |
-| `serviceType` | string | Service category key |
-| `serviceName` | string | Specific service booked |
-| `date` | string | Booking date |
-| `time` | string | Booking time slot |
-| `price` | number | Booking price |
-| `status` | `'pending' \| 'confirmed' \| 'completed' \| 'cancelled'` | Current state |
-| `createdAt` | string (ISO 8601, optional) | Creation timestamp |
+- **CRUD operations:** `GET /api/me/pets` and `POST /api/me/pets` — pets are scoped to the authenticated user via Firebase ID token UID
+- **Data fields:** name (required), type/species (required), breed, age, medical notes — validated server-side via Zod `createPetSchema`
+- **Ownership enforcement:** Server-side `requireFirebaseUser` uses `decoded.uid` as the document owner — no client-supplied `userId` parameter
+- **Client-side API:** `fetchMyPets()` / `addMyPet()` in `me-api.ts` automatically attach the Bearer token
 
-### 4.4 Collection: `payments`
+### 4.4 Favorites System
 
-| Field | Type | Description |
-|---|---|---|
-| `id` (doc ID) | string | Auto-generated Firestore ID |
-| `bookingId` | string | Related booking ID |
-| `customerId` | string | Paying customer's user ID |
-| `customerName` | string | Customer display name |
-| `providerId` | string | Receiving provider's user ID |
-| `providerName` | string | Provider display name |
-| `category` | string | Service category |
-| `amount` | number | Total transaction amount |
-| `status` | `'paid' \| 'pending' \| 'refunded' \| 'cancelled'` | Payment state |
-| `createdAt` | string (ISO 8601, optional) | Payment timestamp |
-| `feeCollected` | boolean | Whether platform fee has been collected |
+- **Toggle favorites:** Add and remove provider favorites via `POST /api/me/favorites` and `DELETE /api/me/favorites?providerId=xxx`
+- **Duplicate-aware:** POST handler checks for existing favorites before creating a new document — returns the existing one if already favorited
+- **Dashboard display:** Owner dashboard shows saved favorites with provider name, category, emoji, and rating
+- **Rest-based fallback:** Uses the full 4-layer fallback chain (SDK → runQuery → GET-by-ID → localStorage) for reliable reads in sandboxed environments
 
-### 4.5 Collection: `reviews`
+### 4.5 Reviews & Ratings
 
-| Field | Type | Description |
-|---|---|---|
-| `id` (doc ID) | string | Auto-generated Firestore ID |
-| `providerId` | string | Reviewed provider ID |
-| `userId` | string | Review author's user ID |
-| `userName` | string | Author display name |
-| `rating` | number | Star rating (1–5) |
-| `comment` | string | Review text |
-| `createdAt` | string (ISO 8601, optional) | Review timestamp |
+- **Rating range:** 1–5 stars, validated server-side via `createReviewSchema`
+- **Provider sync:** After a review is created, the server aggregates all reviews for that provider and updates the `rating` (average) and `reviews` (count) fields on the provider document
+- **Ownership rules:** The Review Firestore security rule prevents providers from reviewing themselves (`getUserData().role != 'provider'`)
+- **Admin management:** Admin panel allows editing (rating, comment) and deleting reviews, with automatic re-aggregation after deletion
 
-### 4.6 Collection: `pets`
+### 4.6 Contact Form
 
-| Field | Type | Description |
-|---|---|---|
-| `id` (doc ID) | string | Auto-generated Firestore ID |
-| `userId` | string | Owner's user ID |
-| `name` | string | Pet name |
-| `type` | string | Species (e.g., `'Dog'`, `'Cat'`) |
-| `breed` | string (optional) | Breed |
-| `birthYear` | number (optional) | Birth year |
-| `weight` | number (optional) | Weight in kg/lbs |
+- **Server-only write:** Contact form submissions are proxied through `POST /api/messages` using the Admin SDK service account — client-side Firestore writes are explicitly blocked (`allow create: if false`)
+- **Honeypot spam filter:** A hidden `_hp` field must be empty (invisible to real users, auto-filled by bots); Zod rejects non-empty values
+- **Rate-limited:** 10 requests per 15 minutes per IP (strict tier)
+- **Dev-gated error logging:** Firestore write failures are logged only in development mode; clients always receive a generic message
 
-### 4.7 Collection: `favorites`
+### 4.7 Admin Dashboard
 
-| Field | Type | Description |
-|---|---|---|
-| `id` (doc ID) | string | Auto-generated Firestore ID |
-| `userId` | string | User who favorited |
-| `providerId` | string | Favorited provider ID |
+- **Multi-tab interface:** Users, Providers, Bookings, Payments, Reviews, and Analytics tabs — all with server-side pagination (cursor-based via `nextPageToken`)
+- **User directory:** Merged view of Firestore Auth users + `localAuth` localStorage users, deduplicated by ID. Admin can delete users via `POST /api/auth/delete-user`
+- **Provider financials:** Detail modal with date-range gross revenue / platform fee calculations, fee history table, and batch fee collection
+- **Payment ledger:** Service Cost / Platform Fee / Total breakdown columns, provider filter dropdown, date sort toggle, payment detail modal with status editing
+- **Business Analytics:** CSS stacked bar chart (Platform Revenue vs Provider Payouts over 12 months), KPI cards (Total Users with MoM growth, Active Providers, Total Platform Fees, Revenue MTD), Top 3 Providers leaderboard with 🥇🥈🥉 medals, monthly bookings bar chart, service distribution breakdown
+- **Review management:** Edit rating/comment, delete, with automatic re-aggregation of provider averages
 
-### 4.8 Collection: `messages`
+### 4.8 Provider Dashboard
 
-| Field | Type | Description |
-|---|---|---|
-| `id` (doc ID) | string | Auto-generated Firestore ID |
-| (contact form fields) | various | User-submitted contact messages. Admin-only read. |
+- **Metric cards:** Total Earnings MTD, Active Bookings count, Active Listings, Average Rating — all computed from live Firestore data via REST API
+- **Business profile management:** Edit business name, description, logo upload, contact info, location, social media links, operational hours per day
+- **Service listings:** Add/edit/remove services with name, price, duration, description, currency
+- **Product inventory:** Add/edit/remove retail products with price, image, stock status, currency
+- **Booking management:** View incoming bookings with confirm/complete/cancel actions
+- **Cascading account deletion:** `DELETE /api/me/account` removes all relational documents (bookings, payments, reviews, favorites, pets), then the provider doc, then the user doc, and finally the Firebase Auth user record
 
 ---
 
-## 5. Workspace Setup & DevOps
+## 5. Security & Architecture Framework
 
-### 5.1 Quick Start
-```bash
-bash scripts/setup.sh
+### 5.1 Password Security — bcryptjs (12 Rounds)
+
+`src/lib/localAuth.ts` handles email/password registration and login as a dev/fallback auth layer when Firebase environment variables are unavailable. All passwords are hashed with **bcryptjs** using 12 salt rounds before being written to localStorage.
+
 ```
-This single script:
-1. Installs npm dependencies (skips if `node_modules` exists)
-2. Creates `.env.local` from `.env.local.example`, overlaying environment-provided values
-3. Cleans `.next` cache
-4. Starts the dev server on `PORT` (default 12000)
+register(email, password, name, role):
+  hashedPassword = bcrypt.hash(password, 12)   ← 12 salt rounds
+  store { ..., password: hashedPassword }
 
-### 5.2 Required Environment Variables
-
-**Firebase Client SDK (public):**
-```
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
+login(email, password):
+  user = findByEmail(email)
+  bcrypt.compare(password, user.password)       ← constant-time comparison
 ```
 
-**Google OAuth (client-side):**
+The previous implementation used PBKDF2 via `crypto.subtle.deriveBits` (SHA-256, 100,000 iterations). Since the application is pre-launch with zero email/password users, all PBKDF2 code was removed entirely — no migration or backward compatibility logic is needed.
+
+- **Removed:** `deriveKey()`, `generateSalt()`, `toHex()`, `hashPassword()`, `verifyPassword()`, `PBKDF2_ITERATIONS`, `SALT_BYTES`, `DERIVED_KEY_BYTES`, `HASH_ALGORITHM`
+- **No legacy path:** The `register()` function never stored a PBKDF2 hash in production, so no `isLegacyHash()` check or migration flow is present
+
+### 5.2 Admin Boundary — Server-Side Firestore Role Verification
+
+Administrative operations are protected by a **two-factor verification chain** that cannot be bypassed by client-side request manipulation:
+
 ```
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=
-NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=
+requireAdmin(request):
+  1. requireFirebaseUser(request)
+     a. Extract Bearer token from Authorization header
+     b. adminAuth.verifyIdToken(token)          ← cryptographic token verification
+     c. Return decoded token (contains uid, email, etc.)
+
+  2. Firestore role check
+     a. getDocRest('users', decoded.uid)         ← REST API (not client-facing)
+     b. Read callerDoc.role field
+     c. If role !== 'admin', throw 'Admin access required'
 ```
 
-**Firebase Admin SDK (server-side, for API routes):**
-```
-FIREBASE_PROJECT_ID=
-FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY=
+**Key properties:**
+- The admin role is fetched server-side from Firestore using the OAuth2-authenticated REST helper (`firestore-admin-rest.ts` — not the client SDK)
+- The Firebase ID token is cryptographically verified by the Admin SDK — a client cannot forge or tamper with it
+- Even if a client sends `{ role: 'admin' }` in a request body, the server ignores it and reads the actual role from the Firestore user document
+- **Routes protected by `requireAdmin()`:**
+  - `POST /api/auth/delete-user` — Firebase Auth user deletion
+  - `POST /api/admin/payments/batch-fee-collect` — Batch fee collection
+  - `GET /api/admin/users/[userId]/details` — Full user detail lookup
+
+### 5.3 Server-Side Input Validation — Zod Schemas
+
+Every POST, PUT, and PATCH endpoint validates the request body against a **typed Zod schema** before any database operation:
+
+| Route | Schema | Key Constraints |
+|---|---|---|
+| `POST /api/bookings` | `createBookingSchema` | `providerId` (uid), `serviceType` (1-100 chars), `date` (required), `price`/`platformFee`/`total` (non-negative), `currency` (max 10 chars, default USD) |
+| `POST /api/reviews` | `createReviewSchema` | `providerId` (uid), `rating` (1–5 integer), `comment` (max 2000 chars) |
+| `POST /api/me/pets` | `createPetSchema` | `name` (1–100), `type` (1–100), `breed`/`age` (max 100, optional), `notes` (max 2000) |
+| `POST /api/me/favorites` | `createFavoriteSchema` | `providerId` (uid), `providerName` (max 100), `emoji` (max 20), `rating` (0–5) |
+| `PATCH /api/payments` | `updatePaymentSchema` | `bookingId` (uid), `status` (enum: paid, pending, unpaid) |
+| `POST /api/auth/delete-user` | `deleteUserSchema` | `uid` (min 1 char) |
+| `POST /api/admin/payments/batch-fee-collect` | `batchFeeCollectSchema` | `paymentIds` (array of non-empty strings, min 1), `collected` (boolean, default true) |
+| `POST /api/messages` | `contactSchema` | `name` (1–100), `email` (valid email, max 320), `subject` (enum: general/support/partner/provider/feedback), `message` (1–2000), `_hp` (honeypot: must be `''` or `undefined`) |
+
+**Additional body-size guard:** `checkBodySize(request)` checks the `Content-Length` header and rejects any payload exceeding 100 KB before parsing begins.
+
+### 5.4 Generic Error Masking
+
+All API route catch blocks return **generic, architecture-agnostic error messages** to prevent internal details from leaking to the client:
+
+```typescript
+// Every route follows this pattern:
+try {
+  // ... business logic ...
+} catch (error: any) {
+  if (process.env.NODE_ENV === 'development') {
+    // Detailed logging happens server-side only
+    console.error('POST /api/xxx failed:', error?.message);
+  }
+  // Client always receives a generic message
+  return NextResponse.json(
+    { error: 'An internal server error occurred.' },
+    { status: 500 },
+  );
+}
 ```
 
-**Development:**
+**Specific leak mitigations:**
+- **Firestore errors:** `firestore-admin-rest.ts` functions throw errors containing HTTP status codes and response bodies (e.g., `DELETE users/abc failed: 403 ...`). These are caught by route handlers and replaced with generic messages — never forwarded to the client
+- **Validation errors:** Zod errors are caught explicitly and return only `error.message || 'Validation failed'` — not the full Zod error object tree
+- **Auth errors:** `'Missing Authorization Bearer token'` and `'Admin access required'` are returned as-is (safe, no architecture details)
+- **404 vs 403 vs 500:** The server distinguishes "not found" (404) from "forbidden" (403) from "internal error" (500) but never includes stack traces, database names, Firestore document paths, or gRPC error codes
+- **Contact form:** The `messages/route.ts` originally threw `new Error(\`Firestore write failed: ${res.status} ${errBody}\`)` — now uses a dev-gated `console.error` with a generic throw message
+
+### 5.5 Rate Limiting — Global Middleware + Per-Route Defense
+
+A **two-layer rate-limiting architecture** protects all API endpoints:
+
+#### Layer 1: Next.js Middleware (`src/middleware.ts`)
+
+Runs on every `/api/:path*` request before reaching the route handler. Uses a **`RateLimitStore` interface** with an `InMemoryStore` implementation (swappable to Redis by implementing the same interface — `increment()`, `reset()`, `ttl()`).
+
+| Tier | Limit | Routes |
+|---|---|---|
+| **Default** | 100 req / 15 min | All remaining `/api/*` routes (GET reads, general access) |
+| **Moderate** | 30 req / 15 min | Mutating endpoints: `/api/bookings`, `/api/reviews`, `/api/messages`, `/api/payments`, `/api/me/pets`, `/api/me/favorites`, `/api/me/account`, `/api/admin/payments/batch-fee-collect` (non-GET only) |
+| **Strict** | 10 req / 15 min | `/api/auth/delete-user` (admin user deletion) |
+
+When exceeded, middleware returns HTTP 429 with:
+```json
+{ "error": "Too many requests, please try again later." }
 ```
-ALLOWED_DEV_ORIGINS=
-PORT=12000
+Plus headers: `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`.
+
+#### Layer 2: Inline Per-Route Checks (Defence-in-Depth)
+
+Sensitive endpoints apply a **second `checkRateLimit()` call** inside the route handler, keyed to the authenticated user ID (not just IP):
+
+| Route | Limit | Key |
+|---|---|---|
+| `POST /api/bookings` | 30 req / 15 min | IP-based (`makeKey('booking', ip)`) |
+| `POST /api/auth/delete-user` | 10 req / 15 min | IP-based |
+| `POST /api/messages` | 10 req / 15 min | IP-based |
+| `DELETE /api/me/account` | 5 req / 15 min | IP + User ID (`makeKey('delete-account', ip, uid)`) |
+
+#### Store Abstraction — Redis Migration Path
+
+```typescript
+// src/lib/rate-limit.ts
+export interface RateLimitStore {
+  increment(key: string, windowMs: number): number;
+  reset(key: string): void;
+  ttl(key: string): number;
+}
+
+// Current implementation (dev/pre-launch):
+export const store: RateLimitStore = new InMemoryStore();
+
+// Production — swap to Redis:
+// const redis = new Redis(REDIS_URL);
+// export const store: RateLimitStore = new RedisStore(redis);
+//
+// No changes needed in middleware.ts or any route file.
 ```
 
-### 5.3 AGENTS.md Initialization
-- `AGENTS.md` at repository root serves as persistent memory for AI coding sessions
-- Updated automatically with: build commands, debug notes, architecture decisions, known pitfalls
-- Key rules: Next.js 16 breaking changes, gRPC silent failures in containers, Firestore security rule limitations
-- `CLAUDE.md` references `@AGENTS.md` to inherit the same knowledge base
+### 5.6 Security Headers — `next.config.ts`
 
-### 5.4 Available Scripts
-| Script | Purpose |
-|---|---|
-| `npm run dev` | Start Turbopack dev server |
-| `npm run build` | Production build (Webpack) |
-| `npm run start` | Production server |
-| `npm run lint` | ESLint check |
-| `scripts/setup.sh` | Full workspace bootstrap (install deps + configure .env.local) |
-| `scripts/dev.sh` | Start dev server with auto-detected ALLOWED_DEV_ORIGINS for proxy domains |
-| `scripts/seed-firestore.ts` | Seed Firestore with sample data |
-| `scripts/make-admin.ts` | Grant admin role to a user |
-| `scripts/migrate-user-id.ts` | Migrate user ID format |
-| `scripts/reset-ratings.ts` | Reset provider ratings |
+All responses carry the following security headers (configured via Next.js `headers()` in `next.config.ts`):
 
-### 5.5 Firestore Security Rules (`firestore.rules`)
-- **Key functions:** `signedIn()`, `isAdmin()`, `isOwner()`, `ownsExistingDoc()`, `ownsNewDoc()`, `cooldownElapsed()`
-- **Pattern:** Admins have full access; regular users can only read/write their own data
-- **Pets & Favorites:** `get` and `list` operations allow `ownsExistingDoc() || isAdmin()` — the `||` prevents the Firestore query analyzer from using composite indexes, which is why the 4-layer fallback chain exists
-- **Rate limiting:** `cooldownElapsed('lastBookingAt')` prevents creating more than one booking per 60 seconds
-- **Deploy:** `npx firebase deploy --only firestore:rules --project pet-co-fc4d6` (from local machine; not possible from sandbox)
+| Header | Value | Purpose |
+|---|---|---|
+| `X-Frame-Options` | `DENY` | Prevents clickjacking by blocking iframe embedding |
+| `X-Content-Type-Options` | `nosniff` | Prevents MIME-type sniffing |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | 2-year HSTS with subdomain coverage + preload |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Controls referrer header leakage |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), interest-cohort=()` | Disables unused browser features + FLoC opt-out |
+| `X-DNS-Prefetch-Control` | `on` | Optimises DNS resolution for external resources |
+| `Cross-Origin-Resource-Policy` | `same-origin` | Prevents cross-origin resource reads |
+
+**Content-Security-Policy (CSP):**
+```
+default-src 'self';
+script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://*.firebase.com https://*.firebaseio.com https://apis.google.com;
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+img-src 'self' data: blob: https:;
+font-src 'self' data: https://fonts.gstatic.com;
+connect-src 'self' https://*.googleapis.com https://*.firebase.com https://*.firebaseio.com https://*.firebaseapp.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com;
+frame-src 'self' https://*.firebaseapp.com;
+manifest-src 'self';
+base-uri 'self';
+form-action 'self';
+```
+
+### 5.7 Session Expiration — 30-Day Maximum
+
+The `src/lib/session.ts` module enforces a secondary session age boundary on top of Firebase Auth's built-in token lifecycle:
+
+- **`recordSessionStart()`** — saves the session creation timestamp to `localStorage` after login/register
+- **`enforceSessionExpiry()`** — checks whether the session has exceeded 30 days; returns `true` if expired
+- **`isSessionFresh()`** — lightweight freshness check (no side effects)
+- **`forceTokenRefresh()`** — calls `getIdToken(true)` on the Firebase user object to force a token refresh on app startup. If the call fails (user deleted, token revoked), the caller signs the user out
+- **Integration:** `AuthContext.tsx` calls `enforceSessionExpiry()` in the `onAuthStateChanged` handler and on app mount — expired sessions force a complete logout
+
+### 5.8 Owner Verification — No Client-Supplied Owner Parameters
+
+Every mutating API route that creates a data document (booking, pet, favorite, review) derives the **owner userId** exclusively from the Firebase ID token's `decoded.uid` — never from the request body:
+
+```typescript
+// POST /api/me/pets  —  user supplies { name, type, breed, age, notes }
+// The route handler:
+const decoded = await requireFirebaseUser(request);  // ← cryptographically verified
+const pet = {
+  ...body,                    // ← name, type, etc.
+  userId: decoded.uid,        // ← server-sourced owner, NOT from body
+};
+```
+
+If a malicious client sends `{ ...body, userId: 'some-other-uid' }` the extra field is simply ignored — the spread is overwritten by `decoded.uid`. Zod schemas do not even define a `userId` field for owner-scoped resources, so extraneous properties are silently stripped.
+
+### 5.9 NoSQL Injection — All Queries Are Parameterized
+
+The codebase contains **zero** raw query string construction. All database operations use one of:
+
+- **Firebase Admin SDK:** `.collection('pets').where('userId', '==', decoded.uid).get()` — fully parameterized by the SDK
+- **Firestore REST API:** Structured queries via `fieldFilter` objects — the `runQueryRest()` helper takes typed `field`, `op`, and `value` parameters that are serialized as Firestore typed values, never interpolated as strings
+- **REST document access:** All collection/document names are passed through `encodeURIComponent()` — never concatenated from user input
 
 ---
 
-## 6. Recent Milestones
-
-### 6.1 Phase 6: Dashboard Metric Cards — Dynamic Data (Latest)
-- **Owner dashboard metrics are now fully dynamic**: Upcoming Bookings (`pending`/`confirmed` count), Completed Services (`completed` count), Saved Favorites (from `/api/me/favorites`), My Reviews Written (from `getUserReviewsRest`)
-- **Provider dashboard already dynamic**: Total Earnings, Active Bookings, Active Listings, Avg. Rating — all computed from live Firestore data via REST
-- **Removed hardcoded `'4.9'` placeholder**: Replaced with role-aware card — Pet Owners see "My Reviews Written" (`userReviews.length`), Providers keep "Avg. Rating" (computed from reviews)
-
-### 6.2 Phase 5: UI/UX Redesign — Warm Modernism with Animal Whimsy
-- **Design system overhaul**: 17 new CSS animations (paw-print, bounce-soft, wiggle, tail-wag, ear-flop, shimmer, gradient-drift, card-hover, card-shine, fade-in-scale), enhanced color palette (warm tones, gold accent, warm dark), noise texture utility
-- **Navbar**: Glassmorphism (85% opacity, backdrop-blur-2xl), logo wiggle on hover with animated underline, nav link hover dots, pulse-soft CTA button, smooth mobile menu height transition
-- **Homepage**: Warm gradient hero with staggered reveals (6 delay tiers), floating stat counters, service cards with shine overlay + gradient accent bars + emoji wiggle on hover, How It Works with connecting gradient lines, CTA with animated gradient drift, skeleton shimmer placeholders for testimonials
-- **Footer**: Warm dark background, gradient top divider, link hover with animated dot reveal, column headers with emoji icons, "Verified" pulsing status badge
-
-### 6.3 Phase 4: Business Analytics Dashboard
-- **Financial Health chart:** CSS stacked bar chart showing Platform Revenue (10%) vs Provider Payouts (90%) over 12 months, with hover tooltips
-- **KPI cards:** Total Users with MoM growth %, Active Providers count, Total Platform Fees (all-time), Revenue MTD
-- **Top Providers leaderboard:** Top 3 ranked by completed bookings + average rating, with 🥇🥈🥉 medals
-- Data sourced from full `getAllBookingsRest()` + `getAllPaymentsRest()` — not from paginated subsets
-
-### 6.2 Phase 3: Payments & Reviews Tab Upgrades
-- **Payments columns restructured:** Service Cost / Platform Fee / Total breakdown
-- **Provider filter dropdown** on both Payments and Reviews tabs
-- **Date sort toggle** (Newest/Oldest) on both Payments and Reviews tabs
-- Client-side filtering/sorting on already-loaded paginated arrays
-
-### 6.3 Phase 2: Provider Financials & Fee Management
-- **Provider Detail Modal** with date range selector, gross revenue & platform fee calculations
-- **Fee history table** with fee amount displayed next to fee status
-- **Batch fee collection** on selected payments (individual PATCH via `getDocRest`/`getAccessToken`)
-- Fixed `TypeError: Failed to fetch` — removed dynamic imports of Firebase auth in `handleOpenUserModal` and `handleBulkFeeCollect`
-- Fixed 500 error in batch-fee-collect API — switched from Firestore `:commit` batch write to individual document updates
-
-### 6.4 Phase 1: Core Architecture & Stabilization
-- **Next.js 16 / Turbopack hydration resolution:** Added `allowedDevOrigins` in `next.config.ts` for proxy-domain development
-- **Dynamic Google Auth role-gating:** Role + providerType selection before sign-in flow; `getExistingRole()` lookup to avoid re-prompting
-- **Cascading account deletion:** Switched from gRPC to REST API for Firestore operations; deletes user doc entirely (not just downgrade); cleans up localStorage
-- **Service Provider category editing:** Category dropdown in Business Profile saves type/category/emoji
-- **Password confirmation on registration:** Confirm Password field with validation on mismatch
-- **Booking service dropdown empty state:** Handles case where preselected provider has no services
-- **Google Sign-In network error retry:** Auto-retry `signInWithPopup` with 1.5s delay (fixes `auth/network-request-failed`)
-- **Admin panel user list cleanup:** Deletes user doc from Firestore instead of just downgrading role; clears localStorage
-
-### 6.5 Known Issues & Debug Notes
-- **gRPC silently fails in containers:** Admin SDK `getFirestore()` uses gRPC which can fail without error. Always use `src/lib/firestore-admin-rest.ts` for server-side Firestore operations
-- **Users docs lack `email` field:** `updateUserDocRest()` only stores `{ role, name }` — always look up by UID/docId, never by email
-- **Admin panel shows localAuth users too:** `admin/page.tsx` merges Firestore users + localAuth users; deleting Firestore doc alone isn't enough if admin's localStorage has a stale entry
-- **Cannot deploy Firestore rules from sandbox:** Workload identity has no access to `pet-co-fc4d6` project. Deploy from local machine only
-- **Debug logging added:** `console.log('OUTGOING PAYLOAD:')`, `console.log('data.userId:')`, `console.error('FIRESTORE WRITE ERROR:')` in write operations
-
----
-
-## 7. Upcoming Roadmap
-
-### Immediate: Admin Panel Polish
-- Add remaining modal detail views (user, booking)
-- Refine Reviews filter details after requirements clarification
-- Possibly add export functionality (CSV download for payments/reviews)
-
-### Short-Term (Next 1-2 Sprints)
-- Deploy updated Firestore Security Rules from local machine
-- Remove hardcoded admin email checks; use role-based gating exclusively
-- Add rate limiting display to UI
-- Add pagination summary (total count) for admin tables
-- Improve error boundaries and loading states across all tabs
-
-### Medium-Term
-- REST-only data layer consolidation (reduce SDK dependency)
-- Request caching layer (SWR or React Query) for analytics data
-- Stripe / payment gateway integration for real payment processing
-- Email notifications (booking confirmations, reminders)
-- Server-side paginated queries with cursor-based navigation
-- Unit + integration tests for critical flows (auth, payments, admin)
-
-### Long-Term
-- Mobile app (React Native or Flutter)
-- Internationalization (i18n) for multi-language support
-- Real-time chat between pet owners and providers
-- Subscription plans for providers
-- Advanced analytics with exportable reports and dashboards
-
----
-
-*This document is the single source of truth for the Paws & Co. codebase. Update it whenever the architecture, dependencies, or schema change.*
+*This document is the single source of truth for the Pet-Co codebase. Update it whenever the architecture, dependencies, or security posture changes.*

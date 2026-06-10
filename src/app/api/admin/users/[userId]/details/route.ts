@@ -2,8 +2,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminAuth } from '@/lib/firebase-admin';
 import { getDocRest, runQueryRest } from '@/lib/firestore-admin-rest';
+import { requireAdmin } from '@/lib/server-auth';
 
 interface PetData {
   userId?: { stringValue?: string };
@@ -71,21 +71,8 @@ export async function GET(
   try {
     const { userId } = await params;
 
-    // Authenticate and verify admin role
-    const authHeader = request.headers.get('authorization') || '';
-    if (!authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Missing Authorization Bearer token' }, { status: 401 });
-    }
-
-    const token = authHeader.slice('Bearer '.length);
-    const adminAuth = getAdminAuth();
-    const decoded = await adminAuth.verifyIdToken(token);
-
-    // Verify the calling user is an admin
-    const callerDoc = await getDocRest('users', decoded.uid);
-    if (!callerDoc || (callerDoc.role?.stringValue || callerDoc.role) !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
-    }
+    // Authenticate and verify admin role (crypto-verified via Firebase ID token + Firestore role check)
+    await requireAdmin(request);
 
     // Fetch user document
     const userDoc = await getDocRest('users', userId);
@@ -160,9 +147,15 @@ export async function GET(
 
     return NextResponse.json({ user, pets, bookings, payments, reviews });
   } catch (error: any) {
-    console.error('Admin user details API failed:', error?.message, error?.code);
+    // Auth/forbidden errors from requireAdmin or requireFirebaseUser
+    if (error.message === 'Missing Authorization Bearer token' || error.message === 'Admin access required') {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Admin user details API failed:', error?.message);
+    }
     return NextResponse.json(
-      { error: 'Failed to fetch user details', message: error?.message },
+      { error: 'An internal server error occurred.' },
       { status: 500 },
     );
   }

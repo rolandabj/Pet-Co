@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { getAdminAuth } from '@/lib/firebase-admin';
 import { requireFirebaseUser } from '@/lib/server-auth';
 import { deleteDocRest, deleteDocsBatch, getDocRest, runQueryRest } from '@/lib/firestore-admin-rest';
+import { checkRateLimit, clientIp, makeKey } from '@/lib/rate-limit';
 
 /**
  * DELETE /api/me/account
@@ -16,18 +17,21 @@ import { deleteDocRest, deleteDocsBatch, getDocRest, runQueryRest } from '@/lib/
 export async function DELETE(request: Request) {
   try {
     const decoded = await requireFirebaseUser(request);
-    const body = await request.json().catch(() => ({}));
-    const providerId: string | undefined = body.providerId;
+    const providerId = decoded.uid;
 
-    if (!providerId) {
+    // Inline rate limit (defence-in-depth; middleware also enforces this)
+    const rl = checkRateLimit(makeKey('delete-account', clientIp(request), decoded.uid), {
+      windowMs: 15 * 60 * 1000,
+      maxRequests: 5,
+    });
+    if (!rl.allowed) {
       return NextResponse.json(
-        { error: 'Missing providerId in request body' },
-        { status: 400 },
+        { error: 'Too many requests, please try again later.' },
+        { status: 429 },
       );
     }
 
     const auth = getAdminAuth();
-    console.log('🧹 DELETE ACCOUNT — providerId:', providerId, 'uid:', decoded.uid);
 
     // ── 1. Query relational documents ─────────────────────────
     const [bookingDocs, paymentDocs, reviewDocs, allFavDocs, petDocs] = await Promise.all([
@@ -39,14 +43,6 @@ export async function DELETE(request: Request) {
         .catch(() => []),
       runQueryRest<{ userId?: string }>('pets', 'userId', 'EQUAL', decoded.uid),
     ]);
-
-    console.log('🧹 DELETE ACCOUNT — documents found', {
-      bookings: bookingDocs.map((d) => d.id),
-      payments: paymentDocs.map((d) => d.id),
-      reviews: reviewDocs.map((d) => d.id),
-      favorites: allFavDocs.map((d) => d.id),
-      pets: petDocs.map((d) => d.id),
-    });
 
     // favorites query may return docs where providerId matches OR targetId matches
     const favoriteDocs = allFavDocs.filter(
@@ -60,10 +56,10 @@ export async function DELETE(request: Request) {
       const fields = await getDocRest('providers', providerId);
       providerDocExists = !!fields;
     } catch (err) {
-      console.error('🧹 DELETE ACCOUNT — failed to fetch provider doc:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to fetch provider doc:', err);
+      }
     }
-
-    console.log('🧹 DELETE ACCOUNT — provider doc exists:', providerDocExists);
 
     // ── 3. Delete relational documents in batch ──────────────
     const relationalDocs = [
@@ -75,23 +71,17 @@ export async function DELETE(request: Request) {
     ];
 
     if (relationalDocs.length > 0) {
-      console.log('🧹 DELETE ACCOUNT — batch deleting', relationalDocs.length, 'relational docs');
       await deleteDocsBatch(relationalDocs);
-      console.log('🧹 DELETE ACCOUNT — relational docs batch deleted');
     }
 
     // ── 4. Delete the provider document ───────────────────────
     await deleteDocRest('providers', providerId);
-    console.log('🧹 DELETE ACCOUNT — provider doc deleted');
 
     // ── 5. Delete the user document from the users collection ──
     // This ensures the admin panel stops showing the user entirely.
     const userDocFields = await getDocRest('users', providerId);
     if (userDocFields) {
       await deleteDocRest('users', providerId);
-      console.log('🧹 DELETE ACCOUNT — user doc deleted');
-    } else {
-      console.log('🧹 DELETE ACCOUNT — no user doc found for providerId:', providerId);
     }
 
     // ── 6. Delete the Firebase Auth user ──────────────────────
@@ -99,7 +89,6 @@ export async function DELETE(request: Request) {
     // deletion is considered failed — the provider doc and related data
     // have already been deleted above, so re-running is safe.
     await auth.deleteUser(decoded.uid);
-    console.log('🧹 DELETE ACCOUNT — Firebase Auth user deleted');
 
     return NextResponse.json({
       deleted: true,
@@ -112,13 +101,12 @@ export async function DELETE(request: Request) {
       deletedPets: petDocs.length,
     });
   } catch (error: any) {
-    console.error('DELETE /api/me/account failed:', {
-      message: error?.message,
-      code: error?.code,
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.error('DELETE /api/me/account failed:', error?.message);
+    }
     return NextResponse.json(
-      { error: 'Failed to delete account', message: error?.message },
-      { status: 401 },
+      { error: 'An internal server error occurred.' },
+      { status: 500 },
     );
   }
 }

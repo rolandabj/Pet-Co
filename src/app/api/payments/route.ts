@@ -2,8 +2,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { requireFirebaseUser } from '@/lib/server-auth';
 import { runQueryRest, deleteDocRest, updateDocRest } from '@/lib/firestore-admin-rest';
+import { checkBodySize, updatePaymentSchema } from '@/lib/validation';
 
 /**
  * Convert a Firestore document returned by runQueryRest (raw typed fields)
@@ -46,13 +48,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ payments });
   } catch (error: any) {
-    console.error('GET /api/payments failed', {
-      message: error?.message,
-      code: error?.code,
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.error('GET /api/payments failed:', error?.message);
+    }
     return NextResponse.json(
-      { error: 'Unauthorized or API failure', message: error?.message },
-      { status: 401 },
+      { error: 'An internal server error occurred.' },
+      { status: 500 },
     );
   }
 }
@@ -65,32 +66,30 @@ export async function GET(request: Request) {
  */
 export async function PATCH(request: Request) {
   try {
+    checkBodySize(request);
     const decoded = await requireFirebaseUser(request);
-    const body = await request.json();
+    const body = updatePaymentSchema.parse(await request.json());
     const { bookingId, status } = body;
 
-    if (!bookingId || !status) {
-      return NextResponse.json(
-        { error: 'Missing bookingId or status' },
-        { status: 400 },
-      );
-    }
-
-    const valid = ['paid', 'pending', 'unpaid'];
-    if (!valid.includes(status)) {
-      return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${valid.join(', ')}` },
-        { status: 400 },
-      );
-    }
-
     // Find the payment by bookingId via REST query
-    const docs = await runQueryRest('payments', 'bookingId', 'EQUAL', bookingId);
+    const docs = await runQueryRest<{ customerId?: { stringValue: string }; providerId?: { stringValue: string } }>(
+      'payments', 'bookingId', 'EQUAL', bookingId,
+    );
 
     if (docs.length === 0) {
       return NextResponse.json(
         { error: 'No payment found for this booking' },
         { status: 404 },
+      );
+    }
+
+    // Ownership check — only the payment's customer or provider may update it
+    const paymentData = docs[0].data;
+    const ownerId = paymentData.customerId?.stringValue ?? paymentData.providerId?.stringValue;
+    if (ownerId !== decoded.uid) {
+      return NextResponse.json(
+        { error: 'You do not have permission to update this payment' },
+        { status: 403 },
       );
     }
 
@@ -103,12 +102,14 @@ export async function PATCH(request: Request) {
       status,
     });
   } catch (error: any) {
-    console.error('PATCH /api/payments failed', {
-      message: error?.message,
-      code: error?.code,
-    });
+    if (error instanceof z.ZodError || error.message === 'Request body too large') {
+      return NextResponse.json({ error: error.message || 'Validation failed' }, { status: 400 });
+    }
+    if (process.env.NODE_ENV === 'development') {
+      console.error('PATCH /api/payments failed:', error?.message);
+    }
     return NextResponse.json(
-      { error: 'Failed to update payment', message: error?.message },
+      { error: 'An internal server error occurred.' },
       { status: 500 },
     );
   }
@@ -148,12 +149,11 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ deleted: true, bookingId });
   } catch (error: any) {
-    console.error('DELETE /api/payments failed', {
-      message: error?.message,
-      code: error?.code,
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.error('DELETE /api/payments failed:', error?.message);
+    }
     return NextResponse.json(
-      { error: 'Failed to delete payment', message: error?.message },
+      { error: 'An internal server error occurred.' },
       { status: 500 },
     );
   }

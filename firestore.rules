@@ -103,8 +103,10 @@ service cloud.firestore {
     }
 
     // ─── 8. Contact Messages ───────────────────────────────────
+    // Client-side writes are disallowed — messages are created server-side
+    // via the Admin SDK (POST /api/messages proxy with honeypot validation).
     match /messages/{messageId} {
-      allow create: if true;
+      allow create: if false;
       allow read, update, delete: if isAdmin();
     }
   }

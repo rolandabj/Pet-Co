@@ -42,7 +42,9 @@ if [ ! -f "$ENV_FILE" ]; then
 
   # Google OAuth
   [ -n "${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}" ] && sed -i "s|^NEXT_PUBLIC_GOOGLE_CLIENT_ID=.*|NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}|" "$ENV_FILE"
-  [ -n "${NEXT_PUBLIC_GOOGLE_CLIENT_SECRET:-}" ] && sed -i "s|^NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=.*|NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=${NEXT_PUBLIC_GOOGLE_CLIENT_SECRET}|" "$ENV_FILE"
+  # GOOGLE_CLIENT_SECRET is intentionally NOT prefixed with NEXT_PUBLIC_ to avoid
+  # embedding it in the client-side JavaScript bundle (C1 security fix).
+  [ -n "${NEXT_PUBLIC_GOOGLE_CLIENT_SECRET:-}" ] && sed -i "s|^GOOGLE_CLIENT_SECRET=.*|GOOGLE_CLIENT_SECRET=${NEXT_PUBLIC_GOOGLE_CLIENT_SECRET}|" "$ENV_FILE"
 
   # Firebase Admin SDK (server-side only)
   [ -n "${FIREBASE_PROJECT_ID:-}" ] && sed -i "s|^FIREBASE_PROJECT_ID=.*|FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}|" "$ENV_FILE"

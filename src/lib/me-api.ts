@@ -29,13 +29,7 @@ export async function fetchMyPets() {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    console.error('🐛 API ERROR BODY', {
-      url: res.url,
-      status: res.status,
-      text,
-    });
-    throw new Error(`API failed ${res.status}: ${text}`);
+    throw new Error(`API failed ${res.status}`);
   }
 
   const data = await res.json();
@@ -56,13 +50,7 @@ export async function addMyPet(pet: {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    console.error('🐛 API ERROR BODY', {
-      url: res.url,
-      status: res.status,
-      text,
-    });
-    throw new Error(`API failed ${res.status}: ${text}`);
+    throw new Error(`API failed ${res.status}`);
   }
 
   const data = await res.json();
@@ -82,13 +70,7 @@ export async function fetchMyFavorites(providerId?: string) {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    console.error('🐛 API ERROR BODY', {
-      url: res.url,
-      status: res.status,
-      text,
-    });
-    throw new Error(`API failed ${res.status}: ${text}`);
+    throw new Error(`API failed ${res.status}`);
   }
 
   const data = await res.json();
@@ -109,13 +91,7 @@ export async function addMyFavorite(favorite: {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    console.error('🐛 API ERROR BODY', {
-      url: res.url,
-      status: res.status,
-      text,
-    });
-    throw new Error(`API failed ${res.status}: ${text}`);
+    throw new Error(`API failed ${res.status}`);
   }
 
   const data = await res.json();
@@ -132,13 +108,7 @@ export async function removeMyFavoriteByProvider(providerId: string) {
   );
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    console.error('🐛 API ERROR BODY', {
-      url: res.url,
-      status: res.status,
-      text,
-    });
-    throw new Error(`API failed ${res.status}: ${text}`);
+    throw new Error(`API failed ${res.status}`);
   }
 
   return true;
@@ -207,13 +177,7 @@ export async function addBooking(data: Record<string, unknown>) {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    console.error('🐛 API ERROR BODY', {
-      url: res.url,
-      status: res.status,
-      text,
-    });
-    throw new Error(`Failed to create booking: ${res.status}${text ? ` — ${text}` : ''}`);
+    throw new Error(`Failed to create booking: ${res.status}`);
   }
 
   const result = await res.json();
@@ -235,13 +199,7 @@ export async function addMyReview(review: {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    console.error('🐛 API ERROR BODY', {
-      url: res.url,
-      status: res.status,
-      text,
-    });
-    throw new Error(`Failed to add review: ${res.status}${text ? ` — ${text}` : ''}`);
+    throw new Error(`Failed to add review: ${res.status}`);
   }
 
   const data = await res.json();
